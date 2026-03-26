@@ -50,7 +50,7 @@ class TestLogger:
         self._writer = None
 
     def open(self):
-        """Open CSV file and write header row - creates output_dir if needed."""
+        """Open CSV file and write header row — creates output_dir if needed."""
         os.makedirs(os.path.dirname(self.filename), exist_ok=True) if os.path.dirname(self.filename) else None
         self._file   = open(self.filename, 'w', newline='')
         self._writer = csv.writer(self._file)

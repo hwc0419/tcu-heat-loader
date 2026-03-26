@@ -21,8 +21,8 @@
 
 import time
 import sys
-import os
 
+import os
 from config      import POLL_INTERVAL_SEC, TARGET_HEAT_LOAD, LOG_DIR
 from tcu_comms   import TCUComms
 from pt100       import PT100Sensors
@@ -59,13 +59,25 @@ def run_test():
     sensors    = PT100Sensors()
 
     tcu.connect()
-    # if not tcu.connected:
-    #    print("Cannot connect to TCU — check RS232 cable and TCU_PORT in config.py")
-    #    sys.exit(1)
+    if not tcu.connected:
+        print("Cannot connect to TCU — check RS232 cable and TCU_PORT in config.py")
+        sys.exit(1)
 
     with TestLogger(tcu_serial, output_dir=LOG_DIR) as log:
 
         print_header(tcu_serial, log.filename)
+
+        # --- Fill sequence ---
+        print("  Is the TCU water circuit already filled and READY light on?")
+        fill_resp = input("  Enter Y if already filled, or press ENTER to send AFV fill command: ").strip().upper()
+        if fill_resp != 'Y':
+            print("  Sending AFV fill command to TCU...")
+            tcu.fill()
+            print("  Fill command sent. Waiting for TCU to fill and reach temperature.")
+            input("  Press ENTER when READY light is on and flow is confirmed...")
+        else:
+            print("  Skipping fill — TCU already ready.")
+
         input("  Press ENTER when heater is active and flow is confirmed...")
 
         start_time   = time.time()

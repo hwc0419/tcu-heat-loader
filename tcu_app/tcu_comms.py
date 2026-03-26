@@ -125,15 +125,43 @@ class TCUComms:
         """STOP<CR> — stop temperature control."""
         self._send('STOP')
 
-    def fill(self):
-        """AFV<CR> — fill system with water and start pre-temperature control.
-        Must be called after power on when EMPTY light is on.
-        Wait for READY light before proceeding with test."""
-        self._send('AFV')
-
     def release_alarm(self):
         """ER<CR> — release safety circuit after fault is cleared."""
         self._send('ER')
+
+    def fill(self, status_callback=None):
+        """AFV<CR> — fill system and pretemperature control to within ±0.2°C of setpoint.
+        This is a BLOCKING command — the TCU sends continuous status messages
+        (TF, VT, temperatures, AF) until the system is full, then sends final $.
+        Can take several minutes. Use status_callback(line) to display progress.
+        Can be interrupted with STOP command from another thread if needed."""
+        if not self.connected:
+            return
+        try:
+            self.ser.reset_input_buffer()
+            self.ser.write(b'AFV\r')
+            print("AFV command sent — waiting for fill and pretemperature control...")
+            print("(This may take several minutes — TCU will show status messages)")
+
+            # AFV sends continuous status until complete, then final $<CR><LF>
+            # Read lines until we see the final $ acknowledgement
+            old_timeout = self.ser.timeout
+            self.ser.timeout = 300  # 5 min max for fill sequence
+            while True:
+                line = self.ser.readline().decode('ascii', errors='ignore').strip()
+                if not line:
+                    continue
+                if status_callback:
+                    status_callback(line)
+                else:
+                    print(f"  TCU: {line}")
+                # Final acknowledgement ends with $
+                if line.endswith('$'):
+                    print("AFV complete — system filled and pretemperature controlled.")
+                    break
+            self.ser.timeout = old_timeout
+        except Exception as e:
+            print(f"AFV error: {e}")
 
     def set_setpoint(self, temp):
         """SOLL  XX.XX<CR> — set target temperature (17.00-27.00°C only)."""

@@ -1,0 +1,1 @@
+Timestamp,Elapsed (min),Setpoint (C),Inlet Temp TCU (C),Inlet Temp PT100 (C),Inlet Cross-check,Outlet Temp PT100 (C),Delta T TCU-PT100 (C),Delta T PT100-PT100 (C),Flow (L/min),Heat Load TCU (W),Heat Load PT100 (W),Target Heat Load (W),Alarms,Status

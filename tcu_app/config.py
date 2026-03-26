@@ -16,7 +16,7 @@ LOG_DIR = 'logs'                        # folder for CSV output files
 # TCU RS232 connection settings
 # (from Haake ASM TCU manual page 34 — dip switch defaults)
 # -----------------------------------------------------------------------------
-TCU_PORT        = 'COM5'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
+TCU_PORT        = '/dev/ttyUSB0'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
 TCU_BAUD        = 4800              # baud rate per manual
 TCU_BYTESIZE    = 8                 # data bits
 TCU_PARITY      = 'N'               # no parity
