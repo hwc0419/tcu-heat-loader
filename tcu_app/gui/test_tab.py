@@ -36,10 +36,6 @@ class TestTab(QWidget):
 
         self._times  = deque(maxlen=WINDOW)
         self._temps  = deque(maxlen=WINDOW)
-        self._times2 = deque(maxlen=WINDOW)
-        self._temps2 = deque(maxlen=WINDOW)
-        self._times3 = deque(maxlen=WINDOW)
-        self._temps3 = deque(maxlen=WINDOW)
         self._heat_loads = deque(maxlen=WINDOW)
         self._heat_times = deque(maxlen=WINDOW)
 
@@ -99,11 +95,7 @@ class TestTab(QWidget):
         self.lbl_temp,      self.val_temp      = reading("INLET TEMP (TCU)")
         self.lbl_sp,        self.val_sp        = reading("SETPOINT")
         self.lbl_flow,      self.val_flow      = reading("FLOW RATE")
-        self.lbl_pt100out,  self.val_pt100out  = reading("OUTLET TEMP (PT100)")
-        self.lbl_deltat,    self.val_deltat    = reading("DELTA T")
-        self.lbl_heatload,  self.val_heatload  = reading("HEAT LOAD")
         self.lbl_alarm,     self.val_alarm     = reading("ALARMS")
-        self.lbl_crosschk,  self.val_crosschk  = reading("INLET CROSSCHECK")
 
         rows = [
             (self.lbl_elapsed, self.val_elapsed),
@@ -111,11 +103,7 @@ class TestTab(QWidget):
             (self.lbl_temp, self.val_temp),
             (self.lbl_sp, self.val_sp),
             (self.lbl_flow, self.val_flow),
-            (self.lbl_pt100out, self.val_pt100out),
-            (self.lbl_deltat, self.val_deltat),
-            (self.lbl_heatload, self.val_heatload),
             (self.lbl_alarm, self.val_alarm),
-            (self.lbl_crosschk, self.val_crosschk),
         ]
         for i, (l, v) in enumerate(rows):
             rg.addWidget(l, i, 0)
@@ -164,17 +152,16 @@ class TestTab(QWidget):
         # Pass/fail criteria reminder
         criteria_box = QGroupBox("PASS / FAIL CRITERIA")
         cr = QVBoxLayout(criteria_box)
+        from config import TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN, MIN_FLOW_RATE
         criteria_text = (
-            "✓  Inlet temp 22.0°C ± 0.1°C\n"
-            "    for full 30 minutes\n\n"
-            "✓  Flow rate ≥ 1 ℓ/min\n"
+            f"✓  Inlet temp {TEMP_SETPOINT}°C ± {TEMP_TOLERANCE}°C\n"
+            f"    for full {TEST_DURATION_MIN} minutes\n\n"
+            f"✓  Flow rate ≥ {MIN_FLOW_RATE} ℓ/min\n"
             "    continuously\n\n"
             "✓  No TCU alarms\n"
             "    (BS = 400000)\n\n"
-            "✓  Test duration 30 min\n"
-            "    completed without abort\n\n"
-            "⚠  Inlet crosscheck ±0.5°C\n"
-            "    WARNING only, not FAIL"
+            f"✓  Test duration {TEST_DURATION_MIN} min\n"
+            "    completed without abort"
         )
         lbl_crit = QLabel(criteria_text)
         lbl_crit.setObjectName("label_dim")
@@ -224,15 +211,13 @@ class TestTab(QWidget):
 
         self._curve_tcu = pw.plot(
             pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet')
-        self._curve_pt100_out = pw.plot(
-            pen=pg.mkPen(color=AMBER, width=2), name='PT100 Outlet')
 
-        # Setpoint band ±0.1°C
+        from config import TEMP_SETPOINT, TEMP_TOLERANCE
         self._sp_hi = pg.InfiniteLine(
-            angle=0, pos=22.1,
+            angle=0, pos=TEMP_SETPOINT + TEMP_TOLERANCE,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
         self._sp_lo = pg.InfiniteLine(
-            angle=0, pos=21.9,
+            angle=0, pos=TEMP_SETPOINT - TEMP_TOLERANCE,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
         pw.addItem(self._sp_hi)
         pw.addItem(self._sp_lo)
@@ -248,8 +233,6 @@ class TestTab(QWidget):
         self._t0_graph    = None
         self._result      = None
         self._times.clear(); self._temps.clear()
-        self._times2.clear(); self._temps2.clear()
-        self._times3.clear(); self._temps3.clear()
         self.btn_test_start.setEnabled(False)
         self.btn_test_stop.setEnabled(True)
         self.edit_serial.setEnabled(False)
@@ -292,12 +275,6 @@ class TestTab(QWidget):
         self.val_temp.setText(fmt_temp(sample.inlet_temp))
         self.val_sp.setText(fmt_temp(sample.setpoint))
         self.val_flow.setText(fmt_flow(sample.flow_rate))
-        self.val_pt100out.setText(fmt_temp(sample.pt100_outlet))
-
-        if sample.delta_t is not None:
-            self.val_deltat.setText(f"{sample.delta_t:.2f} °C")
-        if sample.heat_load is not None:
-            self.val_heatload.setText(f"{sample.heat_load:.0f} W")
 
         # Alarms
         if sample.alarms == ['No alarms']:
@@ -309,28 +286,11 @@ class TestTab(QWidget):
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
 
-        # Crosscheck
-        if sample.crosscheck_ok is None:
-            self.val_crosschk.setText("N/A")
-        elif sample.crosscheck_ok:
-            self.val_crosschk.setText("✓  OK")
-            self.val_crosschk.setObjectName("status_ok")
-        else:
-            self.val_crosschk.setText("⚠  " + sample.crosscheck_msg)
-            self.val_crosschk.setObjectName("status_warn")
-        self.val_crosschk.style().unpolish(self.val_crosschk)
-        self.val_crosschk.style().polish(self.val_crosschk)
-
         # Graph
         if sample.inlet_temp is not None:
             self._times.append(t_min)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
-
-        if sample.pt100_outlet is not None:
-            self._times2.append(t_min)
-            self._temps2.append(sample.pt100_outlet)
-            self._curve_pt100_out.setData(list(self._times2), list(self._temps2))
 
         # Check pass/fail
         if passed is True:

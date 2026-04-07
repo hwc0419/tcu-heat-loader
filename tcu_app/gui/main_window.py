@@ -21,11 +21,7 @@ from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
 from tcu_comms  import TCUComms
-from pt100      import PT100Sensors
-from test_logic import (
-    parse_alarms, calculate_delta_t, calculate_heat_load,
-    check_pass_fail, check_inlet_crosscheck
-)
+from test_logic import parse_alarms, check_pass_fail
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR,
@@ -54,7 +50,6 @@ class MainWindow(QMainWindow):
 
         # ── Hardware ────────────────────────────────────────────────────────
         self._tcu     = TCUComms()
-        self._sensors = PT100Sensors()
         self._connected = False
 
         # ── Threads ─────────────────────────────────────────────────────────
@@ -148,13 +143,9 @@ class MainWindow(QMainWindow):
     def _start_daq(self):
         self._daq_thread = DAQThread(
             tcu             = self._tcu,
-            sensors         = self._sensors,
             ui_queue        = self._ui_queue,
             log_queue       = self._log_queue,
-            parse_alarms_fn  = parse_alarms,
-            calc_delta_t_fn  = calculate_delta_t,
-            calc_heat_load_fn = calculate_heat_load,
-            check_crosscheck_fn = check_inlet_crosscheck,
+            parse_alarms_fn = parse_alarms,
         )
         self._daq_thread.start()
 

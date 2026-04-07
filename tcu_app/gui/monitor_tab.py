@@ -73,17 +73,11 @@ class MonitorTab(QWidget):
         self.lbl_temp,     self.val_temp     = make_reading("INLET TEMP (TCU)")
         self.lbl_setpoint, self.val_setpoint = make_reading("SETPOINT")
         self.lbl_flow,     self.val_flow     = make_reading("FLOW RATE")
-        self.lbl_pt100in,  self.val_pt100in  = make_reading("INLET TEMP (PT100)")
-        self.lbl_pt100out, self.val_pt100out = make_reading("OUTLET TEMP (PT100)")
-        self.lbl_deltat,   self.val_deltat   = make_reading("DELTA T")
 
         for row, (lbl, val) in enumerate([
             (self.lbl_temp, self.val_temp),
             (self.lbl_setpoint, self.val_setpoint),
             (self.lbl_flow, self.val_flow),
-            (self.lbl_pt100in, self.val_pt100in),
-            (self.lbl_pt100out, self.val_pt100out),
-            (self.lbl_deltat, self.val_deltat),
         ]):
             rg.addWidget(lbl, row, 0)
             rg.addWidget(val, row, 1)
@@ -142,7 +136,8 @@ class MonitorTab(QWidget):
         self.spin_setpoint = QDoubleSpinBox()
         self.spin_setpoint.setRange(17.0, 27.0)
         self.spin_setpoint.setSingleStep(0.5)
-        self.spin_setpoint.setValue(22.0)
+        from config import TEMP_SETPOINT
+        self.spin_setpoint.setValue(TEMP_SETPOINT)
         self.spin_setpoint.setDecimals(2)
         self.spin_setpoint.setSuffix(" °C")
         self.btn_set_sp = QPushButton("SET")
@@ -199,22 +194,12 @@ class MonitorTab(QWidget):
         self._curve_tcu = pw.plot(
             pen=pg.mkPen(color=ACCENT, width=2),
             name='TCU Inlet')
-        self._curve_pt100_in = pw.plot(
-            pen=pg.mkPen(color=GREEN, width=1, style=Qt.DashLine),
-            name='PT100 Inlet')
-        self._curve_pt100_out = pw.plot(
-            pen=pg.mkPen(color=AMBER, width=2),
-            name='PT100 Outlet')
+        from config import TEMP_SETPOINT
         self._setpoint_line = pg.InfiniteLine(
-            angle=0, pos=22.0,
+            angle=0, pos=TEMP_SETPOINT,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine),
             label='Setpoint', labelOpts={'color': RED})
         pw.addItem(self._setpoint_line)
-
-        self._times_pt100_in  = deque(maxlen=WINDOW)
-        self._temps_pt100_in  = deque(maxlen=WINDOW)
-        self._times_pt100_out = deque(maxlen=WINDOW)
-        self._temps_pt100_out = deque(maxlen=WINDOW)
 
     # ── Public: update from DAQ sample ────────────────────────────────────────
     def update(self, sample):
@@ -235,9 +220,6 @@ class MonitorTab(QWidget):
         self.val_temp.setText(fmt_temp(sample.inlet_temp))
         self.val_setpoint.setText(fmt_temp(sample.setpoint))
         self.val_flow.setText(fmt_flow(sample.flow_rate))
-        self.val_pt100in.setText(fmt_temp(sample.pt100_inlet))
-        self.val_pt100out.setText(fmt_temp(sample.pt100_outlet))
-        self.val_deltat.setText(fmt_dt(sample.delta_t))
 
         # Alarm status
         if sample.alarms == ['No alarms']:
@@ -254,15 +236,15 @@ class MonitorTab(QWidget):
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
 
-        # Crosscheck warning
-        if sample.crosscheck_ok is False:
-            ts = datetime.fromtimestamp(sample.timestamp).strftime('%H:%M:%S')
-            self.alarm_log.append(f"[{ts}] CROSSCHECK: {sample.crosscheck_msg}")
+        # Graph data
+        if sample.inlet_temp is not None:
+            self._times.append(t)
+            self._temps.append(sample.inlet_temp)
+            self._curve_tcu.setData(list(self._times), list(self._temps))
 
         # Command log
         if sample.raw_log:
             self.cmd_log.append(sample.raw_log)
-            # Keep last 200 lines
             doc = self.cmd_log.document()
             while doc.blockCount() > 200:
                 cursor = self.cmd_log.textCursor()
@@ -276,24 +258,6 @@ class MonitorTab(QWidget):
         # Update setpoint line
         if sample.setpoint:
             self._setpoint_line.setValue(sample.setpoint)
-
-        # Graph data
-        if sample.inlet_temp is not None:
-            self._times.append(t)
-            self._temps.append(sample.inlet_temp)
-            self._curve_tcu.setData(list(self._times), list(self._temps))
-
-        if sample.pt100_inlet is not None:
-            self._times_pt100_in.append(t)
-            self._temps_pt100_in.append(sample.pt100_inlet)
-            self._curve_pt100_in.setData(
-                list(self._times_pt100_in), list(self._temps_pt100_in))
-
-        if sample.pt100_outlet is not None:
-            self._times_pt100_out.append(t)
-            self._temps_pt100_out.append(sample.pt100_outlet)
-            self._curve_pt100_out.setData(
-                list(self._times_pt100_out), list(self._temps_pt100_out))
 
     def set_connected(self, connected: bool):
         if connected:

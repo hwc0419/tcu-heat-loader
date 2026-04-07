@@ -16,8 +16,8 @@ LOG_DIR = 'logs'                        # folder for CSV output files
 # TCU RS232 connection settings
 # (from Haake ASM TCU manual page 34 — dip switch defaults)
 # -----------------------------------------------------------------------------
-TCU_PORT        = '/dev/ttyUSB0'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
-TCU_BAUD        = 4800              # baud rate per manual
+TCU_PORT        = 'COM5'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
+TCU_BAUD        = 2400              # baud rate per manual
 TCU_BYTESIZE    = 8                 # data bits
 TCU_PARITY      = 'N'               # no parity
 TCU_STOPBITS    = 1                 # stop bits
@@ -41,28 +41,3 @@ MIN_FLOW_RATE       = 1     # ℓ/min — minimum acceptable flow rate
 # -----------------------------------------------------------------------------
 CP_WATER            = 4186  # J/kg·K — specific heat of water at ~22°C
 TARGET_HEAT_LOAD    = 1200  # W — rated cooling capacity of Haake TCU
-
-# -----------------------------------------------------------------------------
-# PT100 sensor node — INLET pipe (ESP32 Node 1)
-# Independent inlet temperature — cross-checks TCU RS232 inlet reading.
-# -----------------------------------------------------------------------------
-PT100_INLET_ENABLED = False              # set False if inlet node not connected
-PT100_INLET_HOST    = '192.168.1.100'   # ESP32 Node 1 IP on workshop WiFi
-PT100_INLET_PORT    = 5000              # TCP port on ESP32 Node 1
-PT100_INLET_TIMEOUT = 3                 # seconds to wait for response
-
-# -----------------------------------------------------------------------------
-# PT100 sensor node — OUTLET pipe (ESP32 Node 2)
-# Outlet temperature — used with inlet PT100 for independent heat load calc.
-# -----------------------------------------------------------------------------
-PT100_OUTLET_ENABLED = False             # set False if outlet node not connected
-PT100_OUTLET_HOST    = '192.168.1.101'  # ESP32 Node 2 IP on workshop WiFi
-PT100_OUTLET_PORT    = 5000             # TCP port on ESP32 Node 2
-PT100_OUTLET_TIMEOUT = 3               # seconds to wait for response
-
-# -----------------------------------------------------------------------------
-# Sensor cross-check threshold
-# If PT100 inlet deviates from TCU RS232 inlet by more than this value,
-# a WARNING is raised. Test continues but discrepancy is logged to CSV.
-# -----------------------------------------------------------------------------
-INLET_CROSSCHECK_TOLERANCE = 0.5       # °C

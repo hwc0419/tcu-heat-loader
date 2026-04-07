@@ -1,0 +1,21 @@
+# Test logs - runtime output, do not commit
+logs/
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

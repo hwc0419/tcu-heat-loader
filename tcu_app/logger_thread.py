@@ -15,10 +15,8 @@ LOG_DIR = 'logs'
 
 HEADERS = [
     'Timestamp', 'Elapsed (min)',
-    'Setpoint (C)', 'Inlet Temp TCU (C)', 'Inlet Temp PT100 (C)',
-    'Inlet Cross-check', 'Outlet Temp PT100 (C)',
-    'Delta T TCU-PT100 (C)', 'Delta T PT100-PT100 (C)',
-    'Flow (L/min)', 'Heat Load TCU (W)', 'Heat Load PT100 (W)',
+    'Setpoint (C)', 'Inlet Temp TCU (C)',
+    'Flow (L/min)',
     'Alarms', 'Mode', 'Status'
 ]
 
@@ -96,14 +94,7 @@ class LoggerThread(threading.Thread):
             f'{elapsed:.2f}',
             fmt(sample.setpoint),
             fmt(sample.inlet_temp),
-            fmt(sample.pt100_inlet),
-            sample.crosscheck_msg,
-            fmt(sample.pt100_outlet),
-            fmt(sample.delta_t),
-            fmt(sample.delta_t_pt100),
             fmt(sample.flow_rate),
-            fmt(sample.heat_load),
-            fmt(sample.heat_load_pt100),
             '; '.join(sample.alarms),
             self._mode,
             self._status,

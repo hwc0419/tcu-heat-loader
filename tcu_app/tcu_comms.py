@@ -88,7 +88,7 @@ class TCUComms:
         """D<CR> → XX 1/min$ — flow rate in ℓ/min (0-60 ℓ/min)"""
         raw = self._send('D')
         try:
-            return int(raw.split()[0])
+            return float(raw.split()[0])
         except (ValueError, IndexError):
             return None
 

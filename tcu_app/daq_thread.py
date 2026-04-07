@@ -27,15 +27,6 @@ class Sample:
     b2:             Optional[int]   = None   # status byte 2
     b3:             Optional[int]   = None   # status byte 3
     alarms:         List[str]       = field(default_factory=lambda: ['No alarms'])
-    pt100_inlet:    Optional[float] = None   # ESP32 node 1
-    pt100_outlet:   Optional[float] = None   # ESP32 node 2
-    # Derived
-    delta_t:        Optional[float] = None
-    heat_load:      Optional[float] = None
-    delta_t_pt100:  Optional[float] = None
-    heat_load_pt100: Optional[float] = None
-    crosscheck_ok:  Optional[bool]  = None
-    crosscheck_msg: str             = ''
     # RS232 raw log line for command log panel
     raw_log:        str             = ''
 
@@ -52,18 +43,13 @@ class DAQThread(threading.Thread):
         daq.stop()
     """
 
-    def __init__(self, tcu, sensors, ui_queue: Queue, log_queue: Queue,
-                 parse_alarms_fn, calc_delta_t_fn, calc_heat_load_fn,
-                 check_crosscheck_fn, interval: float = 1.0):
+    def __init__(self, tcu, ui_queue: Queue, log_queue: Queue,
+                 parse_alarms_fn, interval: float = 1.0):
         super().__init__(daemon=True, name="DAQThread")
         self._tcu              = tcu
-        self._sensors          = sensors
         self._ui_queue         = ui_queue
         self._log_queue        = log_queue
         self._parse_alarms     = parse_alarms_fn
-        self._calc_delta_t     = calc_delta_t_fn
-        self._calc_heat_load   = calc_heat_load_fn
-        self._check_crosscheck = check_crosscheck_fn
         self._interval         = interval
         self._stop_event       = threading.Event()
 
@@ -101,19 +87,6 @@ class DAQThread(threading.Thread):
                 log_lines.append(f">BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$")
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
-
-        # --- PT100 sensor nodes ---
-        if self._sensors:
-            s.pt100_inlet  = self._sensors.get_inlet_temp()
-            s.pt100_outlet = self._sensors.get_outlet_temp()
-
-        # --- Derived values ---
-        s.delta_t        = self._calc_delta_t(s.inlet_temp, s.pt100_outlet)
-        s.heat_load      = self._calc_heat_load(s.inlet_temp, s.pt100_outlet, s.flow_rate)
-        s.delta_t_pt100  = self._calc_delta_t(s.pt100_inlet, s.pt100_outlet)
-        s.heat_load_pt100 = self._calc_heat_load(s.pt100_inlet, s.pt100_outlet, s.flow_rate)
-        s.crosscheck_ok, s.crosscheck_msg = self._check_crosscheck(s.inlet_temp, s.pt100_inlet)
-
         s.raw_log = '\n'.join(log_lines)
         return s
 
