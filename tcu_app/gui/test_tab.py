@@ -14,8 +14,9 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import DARK, PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from config import TEST_DURATION_MIN
 
-WINDOW = 1800   # 30 min at 1 Hz
+WINDOW = TEST_DURATION_MIN * 60   # test duration in seconds at 1 Hz
 
 
 class TestTab(QWidget):
@@ -71,7 +72,7 @@ class TestTab(QWidget):
 
         # Progress bar
         self.progress = QProgressBar()
-        self.progress.setRange(0, 1800)   # 30 min in seconds
+        self.progress.setRange(0, WINDOW)   # 30 min in seconds
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(8)
@@ -253,10 +254,10 @@ class TestTab(QWidget):
             return
         elapsed_s = time.time() - self._start_time
         elapsed_m = elapsed_s / 60.0
-        remaining_m = max(0, 30.0 - elapsed_m)
+        remaining_m = max(0, TEST_DURATION_MIN - elapsed_m)
         self.val_elapsed.setText(f"{elapsed_m:.1f} min")
         self.val_remaining.setText(f"{remaining_m:.1f} min")
-        self.progress.setValue(int(min(elapsed_s, 1800)))
+        self.progress.setValue(int(min(elapsed_s, WINDOW)))
 
     # ── Public: called by main window ─────────────────────────────────────────
     def update(self, sample, status_msg: str = '', passed=None):
