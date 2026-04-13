@@ -26,7 +26,7 @@ from test_logic import parse_alarms, check_pass_fail
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR,
-    TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN
+    TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN, WINDOWS
 )
 
 
@@ -233,18 +233,25 @@ class MainWindow(QMainWindow):
 
     # ── Test management ───────────────────────────────────────────────────────
     def _on_test_start(self, serial: str):
+        if WINDOWS:
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(
+                    0x80000000 | 0x00000001 | 0x00000002)
         self._test_active  = True
         self._test_start_t = time.time()
         self._test_serial  = serial
         self._logger_thread.start_session(serial, mode='TEST')
         self._test_tab.set_logfile(self._logger_thread.filename)
         self._status_bar.showMessage(
-            f"Heat load test running — TCU: {serial} — 30 min")
+            f"Heat load test running — TCU: {serial} — {TEST_DURATION_MIN} min")
 
     def _on_test_stop(self):
         self._end_test(False, 'Aborted by operator')
 
     def _end_test(self, passed, msg: str):
+        if WINDOWS:
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
         if not self._test_active:
             return
         self._test_active = False

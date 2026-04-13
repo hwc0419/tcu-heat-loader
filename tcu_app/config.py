@@ -6,6 +6,9 @@
 #
 # Platform: Raspberry Pi running Raspberry Pi OS
 # =============================================================================
+import sys
+WINDOWS = sys.platform == 'win32'
+LINUX = not WINDOWS
 
 # -----------------------------------------------------------------------------
 # Logging
@@ -16,7 +19,7 @@ LOG_DIR = 'logs'                        # folder for CSV output files
 # TCU RS232 connection settings
 # (from Haake ASM TCU manual page 34 — dip switch defaults)
 # -----------------------------------------------------------------------------
-TCU_PORT        = '/dev/ttyUSB0'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
+TCU_PORT        = '/dev/ttyUSB0'    if LINUX else 'COM5'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
 TCU_BAUD        = 2400              # baud rate per manual
 TCU_BYTESIZE    = 8                 # data bits
 TCU_PARITY      = 'N'               # no parity
@@ -55,6 +58,6 @@ TARGET_HEAT_LOAD    = 1200  # W — rated cooling capacity of Haake TCU
 #   Add to /boot/firmware/config.txt: dtoverlay=disable-bt
 #   sudo reboot
 # -----------------------------------------------------------------------------
-PZEM_PORT           = '/dev/ttyAMA0'   # RPi hardware UART (GPIO 14/15)
+PZEM_PORT           = '/dev/ttyAMA0'   if LINUX else 'COM6'    # RPi hardware UART (GPIO 14/15)
 PZEM_SLAVE          = 0xF8             # PZEM-004T default broadcast address
 PZEM_BAUD           = 9600             # PZEM-004T default baud rate
