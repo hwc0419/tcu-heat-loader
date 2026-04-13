@@ -15,7 +15,7 @@ import pyqtgraph as pg
 from collections import deque
 from datetime import datetime
 
-from gui.styles import DARK, PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
 from config import TEMP_SETPOINT
 
 
@@ -40,8 +40,8 @@ class MonitorTab(QWidget):
     sig_set_setpoint = pyqtSignal(float)
 
     def __init__(self, scale: float = 1.0, parent=None):
+        self._scale = scale
         super().__init__(parent)
-        self._scale     = scale
         self._times     = deque(maxlen=WINDOW)
         self._temps     = deque(maxlen=WINDOW)
         self._flows     = deque(maxlen=WINDOW)
@@ -105,7 +105,7 @@ class MonitorTab(QWidget):
         graph_box = QGroupBox("TEMPERATURE TREND (last 10 min)")
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground(SURFACE)
+        self.plot_widget.setBackground('w')
         self.plot_widget.setMinimumHeight(int(200 * self._scale))
         gg.addWidget(self.plot_widget)
         left.addWidget(graph_box, stretch=1)

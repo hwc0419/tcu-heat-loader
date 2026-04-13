@@ -13,8 +13,9 @@ import pyqtgraph as pg
 from collections import deque
 from datetime import datetime
 
-from gui.styles import DARK, PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
 from config import TEST_DURATION_MIN
+from settings_manager import settings
 
 WINDOW = TEST_DURATION_MIN * 60   # test duration in seconds at 1 Hz
 
@@ -28,8 +29,8 @@ class TestTab(QWidget):
     sig_test_stop  = pyqtSignal()
 
     def __init__(self, scale: float = 1.0, parent=None):
+        self._scale = scale
         super().__init__(parent)
-        self._scale        = scale
         self._test_active  = False
         self._start_time   = None
         self._t0_graph     = None
@@ -122,7 +123,7 @@ class TestTab(QWidget):
         graph_box = QGroupBox("TEMPERATURE & HEAT LOAD (test duration)")
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground(SURFACE)
+        self.plot_widget.setBackground('w')
         self.plot_widget.setMinimumHeight(int(220 * self._scale))
         gg.addWidget(self.plot_widget)
         left.addWidget(graph_box, stretch=1)

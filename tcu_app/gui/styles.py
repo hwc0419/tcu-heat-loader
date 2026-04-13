@@ -306,3 +306,17 @@ QStatusBar {{
 
 # Legacy constant — kept for any direct imports elsewhere
 APP_STYLE = get_app_style(1.0)
+
+
+# ── Convenience constants for direct import by tabs ───────────────────────────
+# These reflect the LIGHT theme defaults.
+# For dark theme, the stylesheet overrides these via QSS.
+PANEL    = "#FFFFFF"
+SURFACE  = "#EEEEEE"
+BORDER   = "#CCCCCC"
+ACCENT   = "#0077B6"
+GREEN    = "#1B7F4F"
+RED      = "#C0392B"
+AMBER    = "#B8860B"
+TEXT     = "#1A1A1A"
+TEXT_DIM = "#666666"
