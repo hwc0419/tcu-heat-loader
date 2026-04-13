@@ -112,6 +112,7 @@ class MainWindow(QMainWindow):
 
         # Tabs
         self._tabs = QTabWidget()
+        self._tabs.tabBar().setExpanding(False)
         self._monitor_tab = MonitorTab(scale=self._scale)
         self._test_tab    = TestTab(scale=self._scale)
         self._tabs.addTab(self._monitor_tab, "MONITOR")

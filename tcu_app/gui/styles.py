@@ -58,11 +58,11 @@ QTabWidget::pane {{
 QTabBar::tab {{
     background: {SURFACE};
     color: {TEXT_DIM};
-    padding: {px(8)} {px(16)};
+    padding: {px(6)} {px(10)};
     border: 1px solid {BORDER};
     border-bottom: none;
-    font-size: {pt(12)};
-    letter-spacing: {px(1)};
+    font-size: {pt(11)};
+    letter-spacing: 0px;
     text-transform: uppercase;
 }}
 
