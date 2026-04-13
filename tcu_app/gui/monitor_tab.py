@@ -75,9 +75,9 @@ class MonitorTab(QWidget):
         self.lbl_temp,     self.val_temp     = make_reading("INLET TEMP (TCU)")
         self.lbl_setpoint, self.val_setpoint = make_reading("SETPOINT")
         self.lbl_flow,     self.val_flow     = make_reading("FLOW RATE")
-        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (SDM120)")
-        self.lbl_current,  self.val_current  = make_reading("CURRENT (SDM120)")
-        self.lbl_power,    self.val_power    = make_reading("POWER (SDM120)")
+        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (PZEM004T)")
+        self.lbl_current,  self.val_current  = make_reading("CURRENT (PZEM004T)")
+        self.lbl_power,    self.val_power    = make_reading("POWER (PZEM004T)")
 
         for row, (lbl, val) in enumerate([
             (self.lbl_temp,     self.val_temp),

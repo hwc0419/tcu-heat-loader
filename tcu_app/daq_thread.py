@@ -27,7 +27,7 @@ class Sample:
     b2:             Optional[int]   = None   # status byte 2
     b3:             Optional[int]   = None   # status byte 3
     alarms:         List[str]       = field(default_factory=lambda: ['No alarms'])
-    # SDM120 energy meter
+    # PZEM004T energy meter
     voltage:        Optional[float] = None   # V
     current:        Optional[float] = None   # A
     power:          Optional[float] = None   # W (true watts — handles SCR load)
@@ -93,7 +93,7 @@ class DAQThread(threading.Thread):
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 
-        # --- SDM120 energy meter ---
+        # --- PZEM004T energy meter ---
         if self._pzem and self._pzem.connected:
             s.voltage, s.current, s.power = self._pzem.get_all()
 
