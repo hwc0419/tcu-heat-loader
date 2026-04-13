@@ -1,10 +1,11 @@
 # =============================================================================
-# daq_thread.py — 1 Hz Data Acquisition Thread
+# daq_thread.py — Configurable Rate Data Acquisition Thread
 # =============================================================================
-# Reads all sensors every second and pushes samples to two queues:
+# Reads all sensors at a configurable interval and pushes samples to two queues:
 #   ui_queue   (maxsize=1) — GUI gets latest sample only, never lags
 #   log_queue  (unbounded) — Logger gets every sample, no drops
 #
+# Poll interval is configurable at runtime via set_interval().
 # This is the ONLY thread that touches the serial port.
 # GUI and Logger never call TCUComms directly.
 # =============================================================================
@@ -37,13 +38,16 @@ class Sample:
 
 class DAQThread(threading.Thread):
     """
-    1 Hz polling thread. Reads TCU + PT100 sensors, pushes Sample objects
-    to ui_queue and log_queue.
+    Configurable rate polling thread. Reads TCU + PZEM sensors, pushes
+    Sample objects to ui_queue and log_queue.
+
+    Poll interval is set at construction from settings_manager and can be
+    updated at runtime via set_interval() without restarting the thread.
 
     Usage:
-        daq = DAQThread(tcu, sensors, ui_queue, log_queue)
+        daq = DAQThread(tcu, pzem, ui_queue, log_queue, parse_alarms_fn)
         daq.start()
-        ...
+        daq.set_interval(2.0)   # change to 2 seconds on the fly
         daq.stop()
     """
 
@@ -51,12 +55,21 @@ class DAQThread(threading.Thread):
                  parse_alarms_fn, interval: float = 1.0):
         super().__init__(daemon=True, name="DAQThread")
         self._tcu              = tcu
-        self._pzem              = pzem
+        self._pzem             = pzem
         self._ui_queue         = ui_queue
         self._log_queue        = log_queue
         self._parse_alarms     = parse_alarms_fn
         self._interval         = interval
+        self._interval_lock    = threading.Lock()
         self._stop_event       = threading.Event()
+
+    def stop(self):
+        self._stop_event.set()
+
+    def set_interval(self, seconds: float):
+        """Update poll interval live — takes effect on next cycle."""
+        with self._interval_lock:
+            self._interval = max(0.5, float(seconds))
 
     def stop(self):
         self._stop_event.set()
@@ -66,8 +79,10 @@ class DAQThread(threading.Thread):
             t0 = time.time()
             sample = self._read()
             self._push(sample)
+            with self._interval_lock:
+                interval = self._interval
             elapsed = time.time() - t0
-            sleep_time = self._interval - elapsed
+            sleep_time = interval - elapsed
             if sleep_time > 0:
                 self._stop_event.wait(timeout=sleep_time)
 

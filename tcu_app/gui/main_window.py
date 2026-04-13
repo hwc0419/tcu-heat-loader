@@ -90,6 +90,9 @@ class MainWindow(QMainWindow):
         self._ui_timer.timeout.connect(self._drain_ui_queue)
         self._ui_timer.start(16)  # ~60 fps
 
+        # ── Register settings callback for live updates ───────────────────────
+        settings.register_callback(self._on_settings_changed)
+
         # ── Connect to TCU on startup ────────────────────────────────────────
         QTimer.singleShot(500, self._connect_tcu)
 
@@ -173,6 +176,7 @@ class MainWindow(QMainWindow):
             ui_queue        = self._ui_queue,
             log_queue       = self._log_queue,
             parse_alarms_fn = parse_alarms,
+            interval        = float(settings.get('poll_interval', 1)),
         )
         self._daq_thread.start()
 
@@ -305,6 +309,11 @@ class MainWindow(QMainWindow):
         """Notify user that port changes take effect on next connection."""
         self._status_bar.showMessage(
             "Port settings updated — reconnect TCU to apply")
+
+    def _on_settings_changed(self, key, value):
+        """Called by settings_manager for any setting change — update DAQ interval live."""
+        if key == 'poll_interval' and self._daq_thread is not None:
+            self._daq_thread.set_interval(float(value))
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     def closeEvent(self, event):

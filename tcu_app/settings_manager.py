@@ -27,7 +27,7 @@ DEFAULTS = {
     'temp_setpoint':    22.0,
     'temp_tolerance':   0.5,
     'test_duration':    180,
-    'poll_interval':    5,
+    'poll_interval':    1,
 
     # UI preferences
     'theme':            'light',        # 'light' or 'dark'
