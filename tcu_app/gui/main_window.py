@@ -13,9 +13,13 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QObject
 from PyQt5.QtGui import QFont
 
-from gui.monitor_tab import MonitorTab
-from gui.test_tab    import TestTab
-from gui.styles      import get_app_style, DARK, ACCENT, TEXT_DIM, RED, GREEN, AMBER
+from gui.monitor_tab  import MonitorTab
+from gui.test_tab     import TestTab
+from gui.settings_tab import SettingsTab
+from gui.styles       import get_app_style, ACCENT, RED, GREEN, AMBER
+
+from settings_manager import settings
+from translations     import tr
 
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
@@ -100,29 +104,36 @@ class MainWindow(QMainWindow):
         # Header bar
         header = QWidget()
         header.setFixedHeight(int(44 * self._scale))
-        header.setStyleSheet(f"background: #0A0A0A; border-bottom: 1px solid #2A2A2A;")
+        self._header = header  # keep ref for theme reload
+        self._update_header_style()
         hl = QVBoxLayout(header)
         hl.setContentsMargins(16, 0, 16, 0)
         title = QLabel("HAAKE ASM  ·  TCU CONTROLLER")
-        title.setStyleSheet(
-            f"color: {ACCENT}; font-size: {max(10, round(14 * self._scale))}px; "
-            f"letter-spacing: {max(1, round(4 * self._scale))}px; font-family: 'Courier New';")
+        self._title_label = title
+        self._update_title_style()
         hl.addWidget(title)
         layout.addWidget(header)
 
         # Tabs
         self._tabs = QTabWidget()
         self._tabs.tabBar().setExpanding(False)
-        self._monitor_tab = MonitorTab(scale=self._scale)
-        self._test_tab    = TestTab(scale=self._scale)
-        self._tabs.addTab(self._monitor_tab, "MONITOR")
-        self._tabs.addTab(self._test_tab,    "HEAT LOAD TEST")
+        self._monitor_tab  = MonitorTab(scale=self._scale)
+        self._test_tab     = TestTab(scale=self._scale)
+        self._settings_tab = SettingsTab(scale=self._scale)
+        self._tabs.addTab(self._monitor_tab,  tr('tab_monitor'))
+        self._tabs.addTab(self._test_tab,     tr('tab_test'))
+        self._tabs.addTab(self._settings_tab, tr('tab_settings'))
         layout.addWidget(self._tabs)
+
+        # Wire settings signals
+        self._settings_tab.sig_theme_changed.connect(self._on_theme_changed)
+        self._settings_tab.sig_language_changed.connect(self._on_language_changed)
+        self._settings_tab.sig_ports_changed.connect(self._on_ports_changed)
 
         # Status bar
         self._status_bar = QStatusBar()
         self._status_bar.setStyleSheet(
-            f"background: #0A0A0A; color: {TEXT_DIM}; font-family: 'Courier New'; "
+            f"font-family: 'Courier New'; "
             f"font-size: {max(8, round(11 * self._scale))}px;")
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage(f"Port: {TCU_PORT}  |  Baud: {TCU_BAUD}  |  Connecting...")
@@ -264,6 +275,36 @@ class MainWindow(QMainWindow):
         self._logger_thread.end_session(result)
         self._status_bar.showMessage(
             f"Test complete — {result}: {msg}")
+
+    # ── Settings hot reload ───────────────────────────────────────────────────
+    def _update_header_style(self):
+        theme = settings.get('theme', 'light')
+        if theme == 'dark':
+            self._header.setStyleSheet("background: #0A0A0A; border-bottom: 1px solid #2A2A2A;")
+        else:
+            self._header.setStyleSheet("background: #E0E0E0; border-bottom: 1px solid #CCCCCC;")
+
+    def _update_title_style(self):
+        self._title_label.setStyleSheet(
+            f"color: {ACCENT}; font-size: {max(10, round(14 * self._scale))}px; "
+            f"letter-spacing: {max(1, round(4 * self._scale))}px; font-family: 'Courier New';")
+
+    def _on_theme_changed(self, theme: str):
+        """Hot reload stylesheet when theme changes."""
+        self.setStyleSheet(get_app_style(self._scale, theme=theme))
+        self._update_header_style()
+
+    def _on_language_changed(self, lang: str):
+        """Hot reload tab labels and settings tab when language changes."""
+        self._tabs.setTabText(0, tr('tab_monitor'))
+        self._tabs.setTabText(1, tr('tab_test'))
+        self._tabs.setTabText(2, tr('tab_settings'))
+        self._settings_tab.retranslate()
+
+    def _on_ports_changed(self):
+        """Notify user that port changes take effect on next connection."""
+        self._status_bar.showMessage(
+            "Port settings updated — reconnect TCU to apply")
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     def closeEvent(self, event):

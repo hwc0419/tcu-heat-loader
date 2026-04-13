@@ -1,63 +1,45 @@
 # =============================================================================
 # config.py — TCU Heat Load Test Configuration
 # =============================================================================
-# All settings are centralised here.
-# Change values here only — do not hardcode values in other files.
-#
-# Platform: Raspberry Pi running Raspberry Pi OS
+# Settings are now managed by settings_manager.py and persisted to
+# settings.json. This file reads live values from settings_manager at import.
+# To change settings at runtime, use the Settings tab in the GUI.
 # =============================================================================
+
 import sys
+from settings_manager import settings
+
+# ── Platform detection ────────────────────────────────────────────────────────
 WINDOWS = sys.platform == 'win32'
-LINUX = not WINDOWS
+LINUX   = not WINDOWS
 
-# -----------------------------------------------------------------------------
-# Logging
-# -----------------------------------------------------------------------------
-LOG_DIR = 'logs'                        # folder for CSV output files
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOG_DIR = 'logs'
 
-# -----------------------------------------------------------------------------
-# TCU RS232 connection settings
-# (from Haake ASM TCU manual page 34 — dip switch defaults)
-# -----------------------------------------------------------------------------
-TCU_PORT        = '/dev/ttyUSB0'    if LINUX else 'COM5'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
-TCU_BAUD        = 2400              # baud rate per manual
-TCU_BYTESIZE    = 8                 # data bits
-TCU_PARITY      = 'N'               # no parity
-TCU_STOPBITS    = 1                 # stop bits
-TCU_TIMEOUT     = 2                 # seconds to wait for response
+# ── Live values from settings_manager ────────────────────────────────────────
+# Read at import time — for hot reload, modules should call settings.get()
+# directly rather than importing these constants.
 
-# -----------------------------------------------------------------------------
-# Test parameters
-# -----------------------------------------------------------------------------
-TEST_DURATION_MIN   = 180    # total test duration in minutes
-POLL_INTERVAL_SEC   = 5     # how often to read TCU (seconds)
+TCU_PORT        = settings.get('tcu_port')
+TCU_BAUD        = settings.get('tcu_baud')
+TCU_BYTESIZE    = 8
+TCU_PARITY      = 'N'
+TCU_STOPBITS    = 1
+TCU_TIMEOUT     = 2
 
-# -----------------------------------------------------------------------------
-# Pass / fail thresholds
-# -----------------------------------------------------------------------------
-TEMP_SETPOINT       = 22.0  # °C — TCU target temperature
-TEMP_TOLERANCE      = 0.5   # °C — max allowed deviation from setpoint
-MIN_FLOW_RATE       = 1     # ℓ/min — minimum acceptable flow rate
+TEST_DURATION_MIN   = settings.get('test_duration')
+POLL_INTERVAL_SEC   = settings.get('poll_interval')
 
-# -----------------------------------------------------------------------------
-# Physics constants
-# -----------------------------------------------------------------------------
-CP_WATER            = 4186  # J/kg·K — specific heat of water at ~22°C
-TARGET_HEAT_LOAD    = 1200  # W — rated cooling capacity of Haake TCU
+TEMP_SETPOINT       = settings.get('temp_setpoint')
+TEMP_TOLERANCE      = settings.get('temp_tolerance')
+MIN_FLOW_RATE       = 1
 
-# -----------------------------------------------------------------------------
-# PZEM-004T Energy Meter — Modbus RTU via GPIO UART (saves USB ports)
-# Connected directly to RPi GPIO pins — no USB adapter needed:
-#   PZEM TX → RPi GPIO 15 (RX, pin 10)
-#   PZEM RX → RPi GPIO 14 (TX, pin 8)
-#   PZEM 5V → RPi pin 2
-#   PZEM GND → RPi pin 6
-#
-# RPi UART setup (run once):
-#   raspi-config → Interface Options → Serial Port → No shell / Yes hardware
-#   Add to /boot/firmware/config.txt: dtoverlay=disable-bt
-#   sudo reboot
-# -----------------------------------------------------------------------------
-PZEM_PORT           = '/dev/ttyAMA0'   if LINUX else 'COM6'    # RPi hardware UART (GPIO 14/15)
-PZEM_SLAVE          = 0xF8             # PZEM-004T default broadcast address
-PZEM_BAUD           = 9600             # PZEM-004T default baud rate
+CP_WATER            = 4186
+TARGET_HEAT_LOAD    = 1200
+
+# ── PZEM-004T GPIO UART settings ─────────────────────────────────────────────
+# RPi: GPIO UART /dev/ttyAMA0 (pins 14/15) — no USB port used
+# Windows: USB-TTL adapter COM port
+PZEM_PORT       = settings.get('pzem_port')
+PZEM_SLAVE      = 0xF8
+PZEM_BAUD       = settings.get('pzem_baud')
