@@ -21,12 +21,12 @@ from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
 from tcu_comms  import TCUComms
-from pzem004t   import SDM120
+from pzem004t   import PZEM004T
 from test_logic import parse_alarms, check_pass_fail
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR,
-    TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN, WINDOWS
+    TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN
 )
 
 
@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
 
         # ── Hardware ────────────────────────────────────────────────────────
         self._tcu     = TCUComms()
-        self._sdm     = SDM120()
+        self._pzem     = PZEM004T()
         self._connected = False
 
         # ── Threads ─────────────────────────────────────────────────────────
@@ -131,22 +131,22 @@ class MainWindow(QMainWindow):
     # ── TCU connection ────────────────────────────────────────────────────────
     def _connect_tcu(self):
         self._tcu.connect()
-        sdm_status = "SDM120 ✓" if self._sdm.connected else "SDM120 ✗"
+        pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
         if self._tcu.connected:
             self._connected = True
             self._monitor_tab.set_connected(True)
             self._status_bar.showMessage(
-                f"TCU: {TCU_PORT} {TCU_BAUD} baud ✓  |  {sdm_status}")
+                f"TCU: {TCU_PORT} {TCU_BAUD} baud ✓  |  {pzem_status}")
             self._start_daq()
         else:
             self._monitor_tab.set_connected(False)
             self._status_bar.showMessage(
-                f"TCU: {TCU_PORT} CONNECTION FAILED  |  {sdm_status}")
+                f"TCU: {TCU_PORT} CONNECTION FAILED  |  {pzem_status}")
 
     def _start_daq(self):
         self._daq_thread = DAQThread(
             tcu             = self._tcu,
-            sdm             = self._sdm,
+            pzem            = self._pzem,
             ui_queue        = self._ui_queue,
             log_queue       = self._log_queue,
             parse_alarms_fn = parse_alarms,
@@ -233,25 +233,18 @@ class MainWindow(QMainWindow):
 
     # ── Test management ───────────────────────────────────────────────────────
     def _on_test_start(self, serial: str):
-        if WINDOWS:
-            import ctypes
-            ctypes.windll.kernel32.SetThreadExecutionState(
-                    0x80000000 | 0x00000001 | 0x00000002)
         self._test_active  = True
         self._test_start_t = time.time()
         self._test_serial  = serial
         self._logger_thread.start_session(serial, mode='TEST')
         self._test_tab.set_logfile(self._logger_thread.filename)
         self._status_bar.showMessage(
-            f"Heat load test running — TCU: {serial} — {TEST_DURATION_MIN} min")
+            f"Heat load test running — TCU: {serial} — 30 min")
 
     def _on_test_stop(self):
         self._end_test(False, 'Aborted by operator')
 
     def _end_test(self, passed, msg: str):
-        if WINDOWS:
-            import ctypes
-            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
         if not self._test_active:
             return
         self._test_active = False

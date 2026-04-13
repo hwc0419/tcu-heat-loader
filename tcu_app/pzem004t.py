@@ -1,5 +1,5 @@
 # =============================================================================
-# sdm120.py — PZEM-004T Energy Meter via Modbus RTU (GPIO UART)
+# pzem004t.py — PZEM-004T Energy Meter via Modbus RTU (GPIO UART)
 # =============================================================================
 # Reads voltage, current and active power from PZEM-004T v3.0 via GPIO UART.
 #
@@ -37,13 +37,12 @@ import minimalmodbus
 from config import PZEM_PORT, PZEM_SLAVE, PZEM_BAUD
 
 
-class SDM120:
+class PZEM004T:
     """
     PZEM-004T v3.0 energy meter interface via Modbus RTU over GPIO UART.
-    Class kept as SDM120 for drop-in compatibility with rest of codebase.
 
     Usage:
-        sdm = SDM120()
+        sdm = PZEM004T()
         if sdm.connected:
             v, i, w = sdm.get_all()
     """
@@ -68,7 +67,7 @@ class SDM120:
         except Exception as e:
             self.connected = False
             print(f"PZEM-004T connection failed: {e}")
-            print(f"  Check GPIO UART enabled — see setup notes in sdm120.py")
+            print(f"  Check GPIO UART enabled — see setup notes in pzem004t.py")
 
     def get_voltage(self):
         """

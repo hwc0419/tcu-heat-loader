@@ -95,9 +95,9 @@ class TestTab(QWidget):
         self.lbl_temp,      self.val_temp      = reading("INLET TEMP (TCU)")
         self.lbl_sp,        self.val_sp        = reading("SETPOINT")
         self.lbl_flow,      self.val_flow      = reading("FLOW RATE")
-        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (SDM120)")
-        self.lbl_current,   self.val_current   = reading("CURRENT (SDM120)")
-        self.lbl_power,     self.val_power     = reading("POWER (SDM120)")
+        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (PZEM004T)")
+        self.lbl_current,   self.val_current   = reading("CURRENT (PZEM004T)")
+        self.lbl_power,     self.val_power     = reading("POWER (PZEM004T)")
         self.lbl_alarm,     self.val_alarm     = reading("ALARMS")
 
         rows = [

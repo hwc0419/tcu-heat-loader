@@ -47,11 +47,11 @@ class DAQThread(threading.Thread):
         daq.stop()
     """
 
-    def __init__(self, tcu, sdm, ui_queue: Queue, log_queue: Queue,
+    def __init__(self, tcu, pzem, ui_queue: Queue, log_queue: Queue,
                  parse_alarms_fn, interval: float = 1.0):
         super().__init__(daemon=True, name="DAQThread")
         self._tcu              = tcu
-        self._sdm              = sdm
+        self._pzem              = pzem
         self._ui_queue         = ui_queue
         self._log_queue        = log_queue
         self._parse_alarms     = parse_alarms_fn
@@ -94,8 +94,8 @@ class DAQThread(threading.Thread):
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 
         # --- SDM120 energy meter ---
-        if self._sdm and self._sdm.connected:
-            s.voltage, s.current, s.power = self._sdm.get_all()
+        if self._pzem and self._pzem.connected:
+            s.voltage, s.current, s.power = self._pzem.get_all()
 
         s.raw_log = '\n'.join(log_lines)
         return s
