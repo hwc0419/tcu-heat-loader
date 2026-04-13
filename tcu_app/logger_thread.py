@@ -17,6 +17,7 @@ HEADERS = [
     'Timestamp', 'Elapsed (min)',
     'Setpoint (C)', 'Inlet Temp TCU (C)',
     'Flow (L/min)',
+    'Voltage (V)', 'Current (A)', 'Power (W)',
     'Alarms', 'Mode', 'Status'
 ]
 
@@ -56,8 +57,7 @@ class LoggerThread(threading.Thread):
     def end_session(self, result: str = ''):
         """Flush, write final row and close CSV."""
         if self._writer and result:
-            self._writer.writerow(['', '', '', '', '', '', '', '', '',
-                                   '', '', '', '', '', f'FINAL: {result}'])
+            self._writer.writerow(['', '', '', '', '', '', '', '', '', '', f'FINAL: {result}'])
         if self._file:
             self._file.flush()
             self._file.close()
@@ -95,6 +95,9 @@ class LoggerThread(threading.Thread):
             fmt(sample.setpoint),
             fmt(sample.inlet_temp),
             fmt(sample.flow_rate),
+            fmt(sample.voltage),
+            fmt(sample.current),
+            fmt(sample.power),
             '; '.join(sample.alarms),
             self._mode,
             self._status,

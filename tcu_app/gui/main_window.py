@@ -21,6 +21,7 @@ from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
 from tcu_comms  import TCUComms
+from pzem004t   import SDM120
 from test_logic import parse_alarms, check_pass_fail
 
 from config import (
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow):
 
         # ── Hardware ────────────────────────────────────────────────────────
         self._tcu     = TCUComms()
+        self._sdm     = SDM120()
         self._connected = False
 
         # ── Threads ─────────────────────────────────────────────────────────
@@ -129,20 +131,22 @@ class MainWindow(QMainWindow):
     # ── TCU connection ────────────────────────────────────────────────────────
     def _connect_tcu(self):
         self._tcu.connect()
+        sdm_status = "SDM120 ✓" if self._sdm.connected else "SDM120 ✗"
         if self._tcu.connected:
             self._connected = True
             self._monitor_tab.set_connected(True)
             self._status_bar.showMessage(
-                f"Port: {TCU_PORT}  |  Baud: {TCU_BAUD}  |  Connected ✓")
+                f"TCU: {TCU_PORT} {TCU_BAUD} baud ✓  |  {sdm_status}")
             self._start_daq()
         else:
             self._monitor_tab.set_connected(False)
             self._status_bar.showMessage(
-                f"Port: {TCU_PORT}  |  Baud: {TCU_BAUD}  |  CONNECTION FAILED")
+                f"TCU: {TCU_PORT} CONNECTION FAILED  |  {sdm_status}")
 
     def _start_daq(self):
         self._daq_thread = DAQThread(
             tcu             = self._tcu,
+            sdm             = self._sdm,
             ui_queue        = self._ui_queue,
             log_queue       = self._log_queue,
             parse_alarms_fn = parse_alarms,

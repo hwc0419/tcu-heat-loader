@@ -73,11 +73,17 @@ class MonitorTab(QWidget):
         self.lbl_temp,     self.val_temp     = make_reading("INLET TEMP (TCU)")
         self.lbl_setpoint, self.val_setpoint = make_reading("SETPOINT")
         self.lbl_flow,     self.val_flow     = make_reading("FLOW RATE")
+        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (SDM120)")
+        self.lbl_current,  self.val_current  = make_reading("CURRENT (SDM120)")
+        self.lbl_power,    self.val_power    = make_reading("POWER (SDM120)")
 
         for row, (lbl, val) in enumerate([
-            (self.lbl_temp, self.val_temp),
+            (self.lbl_temp,     self.val_temp),
             (self.lbl_setpoint, self.val_setpoint),
-            (self.lbl_flow, self.val_flow),
+            (self.lbl_flow,     self.val_flow),
+            (self.lbl_voltage,  self.val_voltage),
+            (self.lbl_current,  self.val_current),
+            (self.lbl_power,    self.val_power),
         ]):
             rg.addWidget(lbl, row, 0)
             rg.addWidget(val, row, 1)
@@ -194,12 +200,17 @@ class MonitorTab(QWidget):
         self._curve_tcu = pw.plot(
             pen=pg.mkPen(color=ACCENT, width=2),
             name='TCU Inlet')
-        from config import TEMP_SETPOINT
+        self._curve_power = pw.plot(
+            pen=pg.mkPen(color=AMBER, width=2),
+            name='Power (W)')
         self._setpoint_line = pg.InfiniteLine(
             angle=0, pos=TEMP_SETPOINT,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine),
             label='Setpoint', labelOpts={'color': RED})
         pw.addItem(self._setpoint_line)
+
+        self._times_power = deque(maxlen=WINDOW)
+        self._power_vals  = deque(maxlen=WINDOW)
 
     # ── Public: update from DAQ sample ────────────────────────────────────────
     def update(self, sample):
@@ -220,6 +231,9 @@ class MonitorTab(QWidget):
         self.val_temp.setText(fmt_temp(sample.inlet_temp))
         self.val_setpoint.setText(fmt_temp(sample.setpoint))
         self.val_flow.setText(fmt_flow(sample.flow_rate))
+        self.val_voltage.setText(f"{sample.voltage:.1f} V"    if sample.voltage is not None else "---")
+        self.val_current.setText(f"{sample.current:.3f} A"    if sample.current is not None else "---")
+        self.val_power.setText(  f"{sample.power:.1f} W"      if sample.power   is not None else "---")
 
         # Alarm status
         if sample.alarms == ['No alarms']:
@@ -241,6 +255,11 @@ class MonitorTab(QWidget):
             self._times.append(t)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
+
+        if sample.power is not None:
+            self._times_power.append(t)
+            self._power_vals.append(sample.power)
+            self._curve_power.setData(list(self._times_power), list(self._power_vals))
 
         # Command log
         if sample.raw_log:

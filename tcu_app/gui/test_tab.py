@@ -15,12 +15,13 @@ from datetime import datetime
 
 from gui.styles import DARK, PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
 
-WINDOW = 1800   # 30 min at 1 Hz
+from config import TEST_DURATION_MIN
+WINDOW = TEST_DURATION_MIN * 60  # test duration in seconds at 1 Hz
 
 
 class TestTab(QWidget):
     """
-    Heat load test panel — 30-minute pass/fail test.
+    Heat load test panel — pass/fail test.
     Operator enters TCU serial, starts test, monitors progress.
     """
 
@@ -71,7 +72,7 @@ class TestTab(QWidget):
 
         # Progress bar
         self.progress = QProgressBar()
-        self.progress.setRange(0, 1800)   # 30 min in seconds
+        self.progress.setRange(0, TEST_DURATION_MIN * 60)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(8)
@@ -95,15 +96,21 @@ class TestTab(QWidget):
         self.lbl_temp,      self.val_temp      = reading("INLET TEMP (TCU)")
         self.lbl_sp,        self.val_sp        = reading("SETPOINT")
         self.lbl_flow,      self.val_flow      = reading("FLOW RATE")
+        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (SDM120)")
+        self.lbl_current,   self.val_current   = reading("CURRENT (SDM120)")
+        self.lbl_power,     self.val_power     = reading("POWER (SDM120)")
         self.lbl_alarm,     self.val_alarm     = reading("ALARMS")
 
         rows = [
-            (self.lbl_elapsed, self.val_elapsed),
+            (self.lbl_elapsed,   self.val_elapsed),
             (self.lbl_remaining, self.val_remaining),
-            (self.lbl_temp, self.val_temp),
-            (self.lbl_sp, self.val_sp),
-            (self.lbl_flow, self.val_flow),
-            (self.lbl_alarm, self.val_alarm),
+            (self.lbl_temp,      self.val_temp),
+            (self.lbl_sp,        self.val_sp),
+            (self.lbl_flow,      self.val_flow),
+            (self.lbl_voltage,   self.val_voltage),
+            (self.lbl_current,   self.val_current),
+            (self.lbl_power,     self.val_power),
+            (self.lbl_alarm,     self.val_alarm),
         ]
         for i, (l, v) in enumerate(rows):
             rg.addWidget(l, i, 0)
@@ -157,7 +164,7 @@ class TestTab(QWidget):
             f"✓  Inlet temp {TEMP_SETPOINT}°C ± {TEMP_TOLERANCE}°C\n"
             f"    for full {TEST_DURATION_MIN} minutes\n\n"
             f"✓  Flow rate ≥ {MIN_FLOW_RATE} ℓ/min\n"
-            "    continuously\n\n"
+            f"    continuously\n\n"
             "✓  No TCU alarms\n"
             "    (BS = 400000)\n\n"
             f"✓  Test duration {TEST_DURATION_MIN} min\n"
@@ -211,6 +218,8 @@ class TestTab(QWidget):
 
         self._curve_tcu = pw.plot(
             pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet')
+        self._curve_power = pw.plot(
+            pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
 
         from config import TEMP_SETPOINT, TEMP_TOLERANCE
         self._sp_hi = pg.InfiniteLine(
@@ -253,10 +262,10 @@ class TestTab(QWidget):
             return
         elapsed_s = time.time() - self._start_time
         elapsed_m = elapsed_s / 60.0
-        remaining_m = max(0, 30.0 - elapsed_m)
+        remaining_m = max(0, TEST_DURATION_MIN - elapsed_m)
         self.val_elapsed.setText(f"{elapsed_m:.1f} min")
         self.val_remaining.setText(f"{remaining_m:.1f} min")
-        self.progress.setValue(int(min(elapsed_s, 1800)))
+        self.progress.setValue(int(min(elapsed_s, TEST_DURATION_MIN * 60)))
 
     # ── Public: called by main window ─────────────────────────────────────────
     def update(self, sample, status_msg: str = '', passed=None):
@@ -275,6 +284,9 @@ class TestTab(QWidget):
         self.val_temp.setText(fmt_temp(sample.inlet_temp))
         self.val_sp.setText(fmt_temp(sample.setpoint))
         self.val_flow.setText(fmt_flow(sample.flow_rate))
+        self.val_voltage.setText(f"{sample.voltage:.1f} V"  if sample.voltage is not None else "---")
+        self.val_current.setText(f"{sample.current:.3f} A"  if sample.current is not None else "---")
+        self.val_power.setText(  f"{sample.power:.1f} W"    if sample.power   is not None else "---")
 
         # Alarms
         if sample.alarms == ['No alarms']:
@@ -291,6 +303,11 @@ class TestTab(QWidget):
             self._times.append(t_min)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
+
+        if sample.power is not None:
+            self._heat_times.append(t_min)
+            self._heat_loads.append(sample.power)
+            self._curve_power.setData(list(self._heat_times), list(self._heat_loads))
 
         # Check pass/fail
         if passed is True:

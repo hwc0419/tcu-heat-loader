@@ -16,7 +16,7 @@ LOG_DIR = 'logs'                        # folder for CSV output files
 # TCU RS232 connection settings
 # (from Haake ASM TCU manual page 34 — dip switch defaults)
 # -----------------------------------------------------------------------------
-TCU_PORT        = 'COM5'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
+TCU_PORT        = '/dev/ttyUSB0'    # RPi USB-to-RS232 adapter (check with: ls /dev/ttyUSB*)
 TCU_BAUD        = 2400              # baud rate per manual
 TCU_BYTESIZE    = 8                 # data bits
 TCU_PARITY      = 'N'               # no parity
@@ -41,3 +41,20 @@ MIN_FLOW_RATE       = 1     # ℓ/min — minimum acceptable flow rate
 # -----------------------------------------------------------------------------
 CP_WATER            = 4186  # J/kg·K — specific heat of water at ~22°C
 TARGET_HEAT_LOAD    = 1200  # W — rated cooling capacity of Haake TCU
+
+# -----------------------------------------------------------------------------
+# PZEM-004T Energy Meter — Modbus RTU via GPIO UART (saves USB ports)
+# Connected directly to RPi GPIO pins — no USB adapter needed:
+#   PZEM TX → RPi GPIO 15 (RX, pin 10)
+#   PZEM RX → RPi GPIO 14 (TX, pin 8)
+#   PZEM 5V → RPi pin 2
+#   PZEM GND → RPi pin 6
+#
+# RPi UART setup (run once):
+#   raspi-config → Interface Options → Serial Port → No shell / Yes hardware
+#   Add to /boot/firmware/config.txt: dtoverlay=disable-bt
+#   sudo reboot
+# -----------------------------------------------------------------------------
+PZEM_PORT           = '/dev/ttyAMA0'   # RPi hardware UART (GPIO 14/15)
+PZEM_SLAVE          = 0xF8             # PZEM-004T default broadcast address
+PZEM_BAUD           = 9600             # PZEM-004T default baud rate

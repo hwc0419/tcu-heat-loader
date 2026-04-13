@@ -27,6 +27,10 @@ class Sample:
     b2:             Optional[int]   = None   # status byte 2
     b3:             Optional[int]   = None   # status byte 3
     alarms:         List[str]       = field(default_factory=lambda: ['No alarms'])
+    # SDM120 energy meter
+    voltage:        Optional[float] = None   # V
+    current:        Optional[float] = None   # A
+    power:          Optional[float] = None   # W (true watts — handles SCR load)
     # RS232 raw log line for command log panel
     raw_log:        str             = ''
 
@@ -43,10 +47,11 @@ class DAQThread(threading.Thread):
         daq.stop()
     """
 
-    def __init__(self, tcu, ui_queue: Queue, log_queue: Queue,
+    def __init__(self, tcu, sdm, ui_queue: Queue, log_queue: Queue,
                  parse_alarms_fn, interval: float = 1.0):
         super().__init__(daemon=True, name="DAQThread")
         self._tcu              = tcu
+        self._sdm              = sdm
         self._ui_queue         = ui_queue
         self._log_queue        = log_queue
         self._parse_alarms     = parse_alarms_fn
@@ -87,6 +92,11 @@ class DAQThread(threading.Thread):
                 log_lines.append(f">BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$")
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
+
+        # --- SDM120 energy meter ---
+        if self._sdm and self._sdm.connected:
+            s.voltage, s.current, s.power = self._sdm.get_all()
+
         s.raw_log = '\n'.join(log_lines)
         return s
 
