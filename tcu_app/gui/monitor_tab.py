@@ -16,6 +16,7 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import DARK, PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from config import TEMP_SETPOINT
 
 
 # Rolling window: 10 minutes at 1 Hz
@@ -142,7 +143,6 @@ class MonitorTab(QWidget):
         self.spin_setpoint = QDoubleSpinBox()
         self.spin_setpoint.setRange(17.0, 27.0)
         self.spin_setpoint.setSingleStep(0.5)
-        from config import TEMP_SETPOINT
         self.spin_setpoint.setValue(TEMP_SETPOINT)
         self.spin_setpoint.setDecimals(2)
         self.spin_setpoint.setSuffix(" °C")
