@@ -27,8 +27,9 @@ class TestTab(QWidget):
     sig_test_start = pyqtSignal(str)   # emits tcu_serial
     sig_test_stop  = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, scale: float = 1.0, parent=None):
         super().__init__(parent)
+        self._scale        = scale
         self._test_active  = False
         self._start_time   = None
         self._t0_graph     = None
@@ -59,7 +60,7 @@ class TestTab(QWidget):
         self.banner = QLabel("READY — ENTER SERIAL NUMBER AND PRESS START TEST")
         self.banner.setAlignment(Qt.AlignCenter)
         self.banner.setObjectName("status_warn")
-        self.banner.setMinimumHeight(36)
+        self.banner.setMinimumHeight(int(36 * self._scale))
         self.banner.setStyleSheet(f"""
             background: {SURFACE};
             border: 1px solid {BORDER};
@@ -95,9 +96,9 @@ class TestTab(QWidget):
         self.lbl_temp,      self.val_temp      = reading("INLET TEMP (TCU)")
         self.lbl_sp,        self.val_sp        = reading("SETPOINT")
         self.lbl_flow,      self.val_flow      = reading("FLOW RATE")
-        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (PZEM004T)")
-        self.lbl_current,   self.val_current   = reading("CURRENT (PZEM004T)")
-        self.lbl_power,     self.val_power     = reading("POWER (PZEM004T)")
+        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (SDM120)")
+        self.lbl_current,   self.val_current   = reading("CURRENT (SDM120)")
+        self.lbl_power,     self.val_power     = reading("POWER (SDM120)")
         self.lbl_alarm,     self.val_alarm     = reading("ALARMS")
 
         rows = [
@@ -122,7 +123,7 @@ class TestTab(QWidget):
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground(SURFACE)
-        self.plot_widget.setMinimumHeight(220)
+        self.plot_widget.setMinimumHeight(int(220 * self._scale))
         gg.addWidget(self.plot_widget)
         left.addWidget(graph_box, stretch=1)
 
@@ -181,7 +182,7 @@ class TestTab(QWidget):
         self.lbl_result = QLabel("—")
         self.lbl_result.setAlignment(Qt.AlignCenter)
         self.lbl_result.setObjectName("val_large")
-        self.lbl_result.setMinimumHeight(60)
+        self.lbl_result.setMinimumHeight(int(60 * self._scale))
         rr.addWidget(self.lbl_result)
         self.lbl_result_reason = QLabel("")
         self.lbl_result_reason.setAlignment(Qt.AlignCenter)

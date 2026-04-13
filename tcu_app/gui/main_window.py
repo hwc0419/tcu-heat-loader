@@ -15,13 +15,13 @@ from PyQt5.QtGui import QFont
 
 from gui.monitor_tab import MonitorTab
 from gui.test_tab    import TestTab
-from gui.styles      import APP_STYLE, DARK, ACCENT, TEXT_DIM, RED, GREEN, AMBER
+from gui.styles      import get_app_style, DARK, ACCENT, TEXT_DIM, RED, GREEN, AMBER
 
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
 from tcu_comms  import TCUComms
-from pzem004t   import PZEM004T
+from pzem004t   import SDM120
 from test_logic import parse_alarms, check_pass_fail
 
 from config import (
@@ -42,8 +42,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("TCU Controller — SSMC")
-        self.setMinimumSize(1100, 700)
-        self.setStyleSheet(APP_STYLE)
+
+        # ── Dynamic scaling based on screen resolution ───────────────────────
+        # Reference resolution: 1920px wide (full HD)
+        # Scale clamped between 0.65 (small laptop) and 1.0 (full HD+)
+        from PyQt5.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().geometry()
+        scale  = max(0.65, min(1.0, screen.width() / 1920))
+        self.setMinimumSize(int(800 * scale), int(550 * scale))
+        self.setStyleSheet(get_app_style(scale))
+        self._scale = scale
 
         # ── Queues ──────────────────────────────────────────────────────────
         self._ui_queue  = Queue(maxsize=1)
@@ -51,7 +59,7 @@ class MainWindow(QMainWindow):
 
         # ── Hardware ────────────────────────────────────────────────────────
         self._tcu     = TCUComms()
-        self._pzem     = PZEM004T()
+        self._sdm     = SDM120()
         self._connected = False
 
         # ── Threads ─────────────────────────────────────────────────────────
@@ -91,19 +99,21 @@ class MainWindow(QMainWindow):
 
         # Header bar
         header = QWidget()
-        header.setFixedHeight(44)
+        header.setFixedHeight(int(44 * self._scale))
         header.setStyleSheet(f"background: #0A0A0A; border-bottom: 1px solid #2A2A2A;")
         hl = QVBoxLayout(header)
         hl.setContentsMargins(16, 0, 16, 0)
         title = QLabel("HAAKE ASM  ·  TCU CONTROLLER")
-        title.setStyleSheet(f"color: {ACCENT}; font-size: 14px; letter-spacing: 4px; font-family: 'Courier New';")
+        title.setStyleSheet(
+            f"color: {ACCENT}; font-size: {max(10, round(14 * self._scale))}px; "
+            f"letter-spacing: {max(1, round(4 * self._scale))}px; font-family: 'Courier New';")
         hl.addWidget(title)
         layout.addWidget(header)
 
         # Tabs
         self._tabs = QTabWidget()
-        self._monitor_tab = MonitorTab()
-        self._test_tab    = TestTab()
+        self._monitor_tab = MonitorTab(scale=self._scale)
+        self._test_tab    = TestTab(scale=self._scale)
         self._tabs.addTab(self._monitor_tab, "MONITOR")
         self._tabs.addTab(self._test_tab,    "HEAT LOAD TEST")
         layout.addWidget(self._tabs)
@@ -111,7 +121,8 @@ class MainWindow(QMainWindow):
         # Status bar
         self._status_bar = QStatusBar()
         self._status_bar.setStyleSheet(
-            f"background: #0A0A0A; color: {TEXT_DIM}; font-family: 'Courier New'; font-size: 11px;")
+            f"background: #0A0A0A; color: {TEXT_DIM}; font-family: 'Courier New'; "
+            f"font-size: {max(8, round(11 * self._scale))}px;")
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage(f"Port: {TCU_PORT}  |  Baud: {TCU_BAUD}  |  Connecting...")
 
@@ -131,22 +142,22 @@ class MainWindow(QMainWindow):
     # ── TCU connection ────────────────────────────────────────────────────────
     def _connect_tcu(self):
         self._tcu.connect()
-        pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
+        sdm_status = "SDM120 ✓" if self._sdm.connected else "SDM120 ✗"
         if self._tcu.connected:
             self._connected = True
             self._monitor_tab.set_connected(True)
             self._status_bar.showMessage(
-                f"TCU: {TCU_PORT} {TCU_BAUD} baud ✓  |  {pzem_status}")
+                f"TCU: {TCU_PORT} {TCU_BAUD} baud ✓  |  {sdm_status}")
             self._start_daq()
         else:
             self._monitor_tab.set_connected(False)
             self._status_bar.showMessage(
-                f"TCU: {TCU_PORT} CONNECTION FAILED  |  {pzem_status}")
+                f"TCU: {TCU_PORT} CONNECTION FAILED  |  {sdm_status}")
 
     def _start_daq(self):
         self._daq_thread = DAQThread(
             tcu             = self._tcu,
-            pzem            = self._pzem,
+            sdm             = self._sdm,
             ui_queue        = self._ui_queue,
             log_queue       = self._log_queue,
             parse_alarms_fn = parse_alarms,

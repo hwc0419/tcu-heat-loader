@@ -39,8 +39,9 @@ class MonitorTab(QWidget):
     sig_close_valve = pyqtSignal()
     sig_set_setpoint = pyqtSignal(float)
 
-    def __init__(self, parent=None):
+    def __init__(self, scale: float = 1.0, parent=None):
         super().__init__(parent)
+        self._scale     = scale
         self._times     = deque(maxlen=WINDOW)
         self._temps     = deque(maxlen=WINDOW)
         self._flows     = deque(maxlen=WINDOW)
@@ -74,9 +75,9 @@ class MonitorTab(QWidget):
         self.lbl_temp,     self.val_temp     = make_reading("INLET TEMP (TCU)")
         self.lbl_setpoint, self.val_setpoint = make_reading("SETPOINT")
         self.lbl_flow,     self.val_flow     = make_reading("FLOW RATE")
-        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (PZEM004T)")
-        self.lbl_current,  self.val_current  = make_reading("CURRENT (PZEM004T)")
-        self.lbl_power,    self.val_power    = make_reading("POWER (PZEM004T)")
+        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (SDM120)")
+        self.lbl_current,  self.val_current  = make_reading("CURRENT (SDM120)")
+        self.lbl_power,    self.val_power    = make_reading("POWER (SDM120)")
 
         for row, (lbl, val) in enumerate([
             (self.lbl_temp,     self.val_temp),
@@ -105,7 +106,7 @@ class MonitorTab(QWidget):
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground(SURFACE)
-        self.plot_widget.setMinimumHeight(200)
+        self.plot_widget.setMinimumHeight(int(200 * self._scale))
         gg.addWidget(self.plot_widget)
         left.addWidget(graph_box, stretch=1)
 
@@ -132,7 +133,7 @@ class MonitorTab(QWidget):
 
         for btn in [self.btn_start, self.btn_stop, self.btn_fill,
                     self.btn_precond, self.btn_clr_alarm, self.btn_close_valve]:
-            btn.setMinimumHeight(42)
+            btn.setMinimumHeight(int(42 * self._scale))
             cg.addWidget(btn)
 
         right.addWidget(ctrl_box)
@@ -156,7 +157,7 @@ class MonitorTab(QWidget):
         lg = QVBoxLayout(log_box)
         self.cmd_log = QTextEdit()
         self.cmd_log.setReadOnly(True)
-        self.cmd_log.setMinimumHeight(200)
+        self.cmd_log.setMinimumHeight(int(200 * self._scale))
         lg.addWidget(self.cmd_log)
         right.addWidget(log_box, stretch=1)
 
@@ -165,7 +166,7 @@ class MonitorTab(QWidget):
         ah = QVBoxLayout(ah_box)
         self.alarm_log = QTextEdit()
         self.alarm_log.setReadOnly(True)
-        self.alarm_log.setMaximumHeight(120)
+        self.alarm_log.setMaximumHeight(int(120 * self._scale))
         ah.addWidget(self.alarm_log)
         right.addWidget(ah_box)
 
