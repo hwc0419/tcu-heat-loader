@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from typing import Optional, List
 from queue import Queue, Full
 
+from test_logic import decode_status, is_abnormal
+
 
 @dataclass
 class Sample:
@@ -34,6 +36,10 @@ class Sample:
     power:          Optional[float] = None   # W (true watts — handles SCR load)
     # RS232 raw log line for command log panel
     raw_log:        str             = ''
+    # Human-readable decoded status for command log
+    decoded_log:    list            = field(default_factory=list)
+    # True if any condition is abnormal — used for log highlighting
+    is_abnormal:    bool            = False
 
 
 class DAQThread(threading.Thread):
@@ -112,7 +118,19 @@ class DAQThread(threading.Thread):
         if self._pzem and self._pzem.connected:
             s.voltage, s.current, s.power = self._pzem.get_all()
 
-        s.raw_log = '\n'.join(log_lines)
+        s.raw_log     = '\n'.join(log_lines)
+        s.decoded_log = decode_status(
+            s.b1, s.b2, s.b3,
+            inlet_temp=s.inlet_temp,
+            flow=s.flow_rate,
+            setpoint=s.setpoint,
+        )
+        s.is_abnormal = is_abnormal(
+            s.b1, s.b2, s.b3,
+            inlet_temp=s.inlet_temp,
+            setpoint=s.setpoint,
+            flow=s.flow_rate,
+        )
         return s
 
     def _push(self, sample: Sample):

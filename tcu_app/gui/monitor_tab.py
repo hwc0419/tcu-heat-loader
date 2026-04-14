@@ -263,15 +263,47 @@ class MonitorTab(QWidget):
             self._curve_power.setData(list(self._times_power), list(self._power_vals))
 
         # Command log
-        if sample.raw_log:
-            self.cmd_log.append(sample.raw_log)
+        if sample.raw_log or sample.decoded_log:
+            import time as _time
+            ts = _time.strftime('%H:%M:%S')
+
+            # Colour scheme: red for faults, amber for warnings, green for normal
+            if sample.is_abnormal:
+                hdr_color = RED
+            else:
+                hdr_color = TEXT_DIM
+
+            # Append timestamp + raw RS232 line
+            if sample.raw_log:
+                self.cmd_log.setTextColor(__import__('PyQt5.QtGui', fromlist=['QColor']).QColor(hdr_color))
+                self.cmd_log.append(f"[{ts}]  {sample.raw_log.replace(chr(10), '  |  ')}")
+
+            # Append decoded human-readable status lines
+            for line in sample.decoded_log:
+                if line.startswith('✕'):
+                    color = RED
+                elif line.startswith('⚠'):
+                    color = AMBER
+                elif '✓' in line:
+                    color = GREEN
+                else:
+                    color = TEXT_DIM
+                self.cmd_log.setTextColor(__import__('PyQt5.QtGui', fromlist=['QColor']).QColor(color))
+                self.cmd_log.append(f"         {line}")
+
+            # Blank separator line
+            self.cmd_log.setTextColor(__import__('PyQt5.QtGui', fromlist=['QColor']).QColor(BORDER))
+            self.cmd_log.append('')
+
+            # Trim to 500 blocks max
             doc = self.cmd_log.document()
-            while doc.blockCount() > 200:
+            while doc.blockCount() > 500:
                 cursor = self.cmd_log.textCursor()
                 cursor.movePosition(cursor.Start)
                 cursor.select(cursor.BlockUnderCursor)
                 cursor.removeSelectedText()
                 cursor.deleteChar()
+
             self.cmd_log.verticalScrollBar().setValue(
                 self.cmd_log.verticalScrollBar().maximum())
 
@@ -290,7 +322,11 @@ class MonitorTab(QWidget):
         self.lbl_conn.style().polish(self.lbl_conn)
 
     def log_command(self, cmd: str, response: str = ''):
+        """Log an operator-triggered RS232 command with timestamp and colour."""
+        from PyQt5.QtGui import QColor
         ts = datetime.now().strftime('%H:%M:%S')
-        self.cmd_log.append(f"[{ts}] >{cmd}  <{response}")
+        self.cmd_log.setTextColor(QColor(ACCENT))
+        self.cmd_log.append(f"[{ts}] ▶ OPERATOR: {cmd}  →  {response}")
+        self.cmd_log.setTextColor(QColor(TEXT_DIM))
         self.cmd_log.verticalScrollBar().setValue(
             self.cmd_log.verticalScrollBar().maximum())
