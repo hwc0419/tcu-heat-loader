@@ -14,10 +14,11 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
-from config import TEST_DURATION_MIN
 from settings_manager import settings
 
-WINDOW = TEST_DURATION_MIN * 60   # test duration in seconds at 1 Hz
+def _get_window():
+    """Return graph window size in samples based on current test duration."""
+    return settings.get('test_duration') * 60
 
 class TestTab(QWidget):
     """
@@ -36,10 +37,10 @@ class TestTab(QWidget):
         self._t0_graph     = None
         self._result       = None
 
-        self._times  = deque(maxlen=WINDOW)
-        self._temps  = deque(maxlen=WINDOW)
-        self._heat_loads = deque(maxlen=WINDOW)
-        self._heat_times = deque(maxlen=WINDOW)
+        self._times      = deque(maxlen=_get_window())
+        self._temps      = deque(maxlen=_get_window())
+        self._heat_loads = deque(maxlen=_get_window())
+        self._heat_times = deque(maxlen=_get_window())
 
         self._build_ui()
         self._setup_graph()
@@ -73,7 +74,7 @@ class TestTab(QWidget):
 
         # Progress bar
         self.progress = QProgressBar()
-        self.progress.setRange(0, WINDOW)   # 30 min in seconds
+        self.progress.setRange(0, settings.get('test_duration') * 60)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(8)
@@ -160,7 +161,8 @@ class TestTab(QWidget):
         # Pass/fail criteria reminder
         criteria_box = QGroupBox("PASS / FAIL CRITERIA")
         cr = QVBoxLayout(criteria_box)
-        from config import TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN, MIN_FLOW_RATE
+        from settings_manager import settings as _s
+        TEMP_SETPOINT = _s.get('temp_setpoint'); TEMP_TOLERANCE = _s.get('temp_tolerance'); TEST_DURATION_MIN = _s.get('test_duration'); MIN_FLOW_RATE = 1
         criteria_text = (
             f"✓  Inlet temp {TEMP_SETPOINT}°C ± {TEMP_TOLERANCE}°C\n"
             f"    for full {TEST_DURATION_MIN} minutes\n\n"
@@ -222,7 +224,8 @@ class TestTab(QWidget):
         self._curve_power = pw.plot(
             pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
 
-        from config import TEMP_SETPOINT, TEMP_TOLERANCE
+        from settings_manager import settings as _s
+        TEMP_SETPOINT = _s.get('temp_setpoint'); TEMP_TOLERANCE = _s.get('temp_tolerance')
         self._sp_hi = pg.InfiniteLine(
             angle=0, pos=TEMP_SETPOINT + TEMP_TOLERANCE,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
@@ -263,10 +266,10 @@ class TestTab(QWidget):
             return
         elapsed_s = time.time() - self._start_time
         elapsed_m = elapsed_s / 60.0
-        remaining_m = max(0, TEST_DURATION_MIN - elapsed_m)
+        remaining_m = max(0, settings.get('test_duration') - elapsed_m)
         self.val_elapsed.setText(f"{elapsed_m:.1f} min")
         self.val_remaining.setText(f"{remaining_m:.1f} min")
-        self.progress.setValue(int(min(elapsed_s, WINDOW)))
+        self.progress.setValue(int(min(elapsed_s, settings.get('test_duration') * 60)))
 
     # ── Public: called by main window ─────────────────────────────────────────
     def update(self, sample, status_msg: str = '', passed=None):

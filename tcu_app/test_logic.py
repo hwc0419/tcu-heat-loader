@@ -9,10 +9,7 @@
 #   - Pass/fail evaluation against configured thresholds
 # =============================================================================
 
-from config import (
-    TEMP_SETPOINT, TEMP_TOLERANCE,
-    MIN_FLOW_RATE, CP_WATER, TEST_DURATION_MIN
-)
+from config import CP_WATER
 
 
 # =============================================================================
@@ -73,20 +70,21 @@ def parse_alarms(b1, b2, b3):
 def check_pass_fail(inlet_temp, flow, alarms, elapsed_min):
     """
     Evaluate current test state against pass/fail criteria.
+    Reads TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN and MIN_FLOW_RATE
+    live from settings_manager so changes in the Settings tab take effect
+    immediately without restarting the app.
 
     Returns:
-        (True,  message) — test passed — 30 min completed
+        (True,  message) — test passed
         (False, message) — test failed — reason in message
         (None,  message) — test still running
-
-    Pass conditions (ALL must hold for full test duration):
-        1. Inlet temp within TEMP_SETPOINT ± TEMP_TOLERANCE
-        2. Flow rate >= MIN_FLOW_RATE
-        3. No TCU alarms
-        4. Test duration reached
-
-    Note: inlet sensor cross-check is advisory only — does not cause FAIL.
     """
+    from settings_manager import settings
+    TEMP_SETPOINT    = settings.get('temp_setpoint')
+    TEMP_TOLERANCE   = settings.get('temp_tolerance')
+    TEST_DURATION_MIN = settings.get('test_duration')
+    MIN_FLOW_RATE    = settings.get('poll_interval', 1)
+    MIN_FLOW_RATE    = 1   # always 1 ℓ/min — not user configurable
     if inlet_temp is None:
         return None, 'Cannot read inlet temperature'
     if flow is None:
@@ -224,9 +222,9 @@ def is_abnormal(b1, b2, b3, inlet_temp=None, setpoint=None,
       b1 bit 6 — water level FULL (always set in normal operation)
       b2 bit 2 — main contactor ON (set at START, cleared at STOP/ALARM)
     """
-    from config import TEMP_TOLERANCE, MIN_FLOW_RATE
-    tol      = tolerance if tolerance is not None else TEMP_TOLERANCE
-    min_flow = MIN_FLOW_RATE
+    from settings_manager import settings
+    tol      = tolerance if tolerance is not None else settings.get('temp_tolerance')
+    min_flow = 1   # always 1 ℓ/min
 
     if b1 is None:
         return True

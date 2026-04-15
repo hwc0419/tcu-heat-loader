@@ -29,8 +29,7 @@ from pzem004t   import PZEM004T
 from test_logic import parse_alarms, check_pass_fail
 
 from config import (
-    TCU_PORT, TCU_BAUD, LOG_DIR,
-    TEMP_SETPOINT, TEMP_TOLERANCE, TEST_DURATION_MIN
+    TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
 )
 
 

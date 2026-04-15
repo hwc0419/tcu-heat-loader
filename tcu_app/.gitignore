@@ -19,3 +19,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# User settings - machine-specific, generated on first run
+settings.json
