@@ -246,7 +246,7 @@ class MonitorTab(QWidget):
 
         # Alarm status
         if sample.alarms == ['No alarms']:
-            self.val_alarm.setText("✓  No alarms")
+            self.val_alarm.setText(tr('no_alarms'))
             self.val_alarm.setObjectName("status_ok")
         else:
             alarm_text = '\n'.join(f"⚠  {a}" for a in sample.alarms)
@@ -344,6 +344,14 @@ class MonitorTab(QWidget):
         self.btn_clr_alarm.setText(tr('btn_clr_alarm'))
         self.btn_close_valve.setText(tr('btn_close_valve'))
         self.btn_set_sp.setText(tr('btn_set'))
+        # Refresh alarm label if showing no alarms
+        if self.val_alarm.objectName() == 'status_ok':
+            self.val_alarm.setText(tr('no_alarms'))
+        # Refresh connection status
+        if self.lbl_conn.objectName() == 'status_ok':
+            self.lbl_conn.setText(tr('connected'))
+        else:
+            self.lbl_conn.setText(tr('disconnected'))
 
     def refresh_settings(self):
         """

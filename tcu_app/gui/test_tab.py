@@ -37,6 +37,8 @@ class TestTab(QWidget):
         self._start_time   = None
         self._t0_graph     = None
         self._result       = None
+        self._banner_state = 'ready'
+        self._banner_msg   = ''
 
         self._times      = deque(maxlen=_get_window())
         self._temps      = deque(maxlen=_get_window())
@@ -282,6 +284,8 @@ class TestTab(QWidget):
         self.btn_test_stop.setText(tr('btn_test_stop'))
         self.edit_serial.setPlaceholderText(tr('serial_ph'))
         self._refresh_criteria()
+        # Re-render banner in current language
+        self._update_banner(self._banner_state, self._banner_msg)
 
     def _refresh_criteria(self):
         """Update the pass/fail criteria label from current settings."""
@@ -402,23 +406,25 @@ class TestTab(QWidget):
             self.lbl_result.setStyleSheet(f"color: {AMBER}; font-size: 36px;")
 
     def _update_banner(self, state: str, msg: str):
+        self._banner_state = state   # track for retranslate
+        self._banner_msg   = msg
         if state == 'running':
             self.banner.setText(tr("test_running"))
             self.banner.setStyleSheet(
                 f"background: #064e3b; border: 1px solid {GREEN};"
                 f"color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
         elif state == 'pass':
-            self.banner.setText(f"✓  TEST PASSED — {msg}")
+            self.banner.setText(f"✓  {tr('test_result')} PASS — {msg}")
             self.banner.setStyleSheet(
                 f"background: #064e3b; border: 1px solid {GREEN};"
                 f"color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
         elif state == 'fail':
-            self.banner.setText(f"✗  TEST FAILED — {msg}")
+            self.banner.setText(f"✗  {tr('test_result')} FAIL — {msg}")
             self.banner.setStyleSheet(
                 f"background: #4c0519; border: 1px solid {RED};"
                 f"color: {RED}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
         elif state == 'aborted':
-            self.banner.setText("■  TEST ABORTED")
+            self.banner.setText(f"■  {tr('test_result')} ABORTED")
             self.banner.setStyleSheet(
                 f"background: {SURFACE}; border: 1px solid {AMBER};"
                 f"color: {AMBER}; font-size: 13px; letter-spacing: 2px; padding: 6px;")

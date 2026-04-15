@@ -216,11 +216,10 @@ class SettingsTab(QWidget):
             settings.set('theme', new_theme)
             self.sig_theme_changed.emit(new_theme)
 
-        # Language
+        # Language — always emit to force full retranslate
         new_lang = self.lang_combo.currentData()
-        if new_lang != settings.get('language'):
-            settings.set('language', new_lang)
-            self.sig_language_changed.emit(new_lang)
+        settings.set('language', new_lang)
+        self.sig_language_changed.emit(new_lang)
 
         if port_changed:
             self.sig_ports_changed.emit()
@@ -253,3 +252,11 @@ class SettingsTab(QWidget):
         # Notes
         self.restart_note.setText(tr('restart_note'))
         self.lbl_status.setText('')
+        # Reload theme combo with translated items
+        current_theme = self.theme_combo.currentData()
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.clear()
+        self.theme_combo.addItem(tr('theme_light'), 'light')
+        self.theme_combo.addItem(tr('theme_dark'),  'dark')
+        self.theme_combo.setCurrentIndex(max(0, self.theme_combo.findData(current_theme)))
+        self.theme_combo.blockSignals(False)
