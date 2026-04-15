@@ -14,6 +14,7 @@ STRINGS = {
     'tab_monitor':      {'en': 'MONITOR',           'zh': '监控',           'ms': 'MONITOR'},
     'tab_test':         {'en': 'HEAT LOAD TEST',    'zh': '热负载测试',      'ms': 'UJI BEBAN HABA'},
     'tab_settings':     {'en': 'SETTINGS',          'zh': '设置',           'ms': 'TETAPAN'},
+    'tab_docs':         {'en': 'DOCUMENTATION',     'zh': '文档',           'ms': 'DOKUMENTASI'},
 
     # ── Monitor tab ───────────────────────────────────────────────────────────
     'live_readings':    {'en': 'LIVE READINGS',     'zh': '实时读数',        'ms': 'BACAAN LANGSUNG'},

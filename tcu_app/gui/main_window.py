@@ -16,6 +16,7 @@ from PyQt5.QtGui import QFont
 from gui.monitor_tab  import MonitorTab
 from gui.test_tab     import TestTab
 from gui.settings_tab import SettingsTab
+from gui.docs_tab     import DocsTab
 from gui.styles       import get_app_style, ACCENT, RED, GREEN, AMBER
 
 from settings_manager import settings
@@ -122,9 +123,11 @@ class MainWindow(QMainWindow):
         self._monitor_tab  = MonitorTab(scale=self._scale)
         self._test_tab     = TestTab(scale=self._scale)
         self._settings_tab = SettingsTab(scale=self._scale)
+        self._docs_tab     = DocsTab(scale=self._scale)
         self._tabs.addTab(self._monitor_tab,  tr('tab_monitor'))
         self._tabs.addTab(self._test_tab,     tr('tab_test'))
         self._tabs.addTab(self._settings_tab, tr('tab_settings'))
+        self._tabs.addTab(self._docs_tab,     tr('tab_docs'))
         layout.addWidget(self._tabs)
 
         # Wire settings signals
@@ -302,6 +305,7 @@ class MainWindow(QMainWindow):
         self._tabs.setTabText(0, tr('tab_monitor'))
         self._tabs.setTabText(1, tr('tab_test'))
         self._tabs.setTabText(2, tr('tab_settings'))
+        self._tabs.setTabText(3, tr('tab_docs'))
         self._settings_tab.retranslate()
 
     def _on_ports_changed(self):
