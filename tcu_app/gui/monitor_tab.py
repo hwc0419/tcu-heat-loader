@@ -17,6 +17,7 @@ from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
 from settings_manager import settings
+from translations import tr
 
 
 # Rolling window: 10 minutes at 1 Hz
@@ -60,7 +61,7 @@ class MonitorTab(QWidget):
         left.setSpacing(8)
 
         # Big readings row
-        readings_box = QGroupBox("LIVE READINGS")
+        readings_box = QGroupBox(tr("live_readings"))
         rg = QGridLayout(readings_box)
         rg.setSpacing(12)
 
@@ -72,12 +73,12 @@ class MonitorTab(QWidget):
             val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             return lbl, val
 
-        self.lbl_temp,     self.val_temp     = make_reading("INLET TEMP (TCU)")
-        self.lbl_setpoint, self.val_setpoint = make_reading("SETPOINT")
-        self.lbl_flow,     self.val_flow     = make_reading("FLOW RATE")
-        self.lbl_voltage,  self.val_voltage  = make_reading("VOLTAGE (PZEM004T)")
-        self.lbl_current,  self.val_current  = make_reading("CURRENT (PZEM004T)")
-        self.lbl_power,    self.val_power    = make_reading("POWER (PZEM004T)")
+        self.lbl_temp,     self.val_temp     = make_reading(tr("inlet_temp"))
+        self.lbl_setpoint, self.val_setpoint = make_reading(tr("setpoint"))
+        self.lbl_flow,     self.val_flow     = make_reading(tr("flow_rate"))
+        self.lbl_voltage,  self.val_voltage  = make_reading(tr("voltage"))
+        self.lbl_current,  self.val_current  = make_reading(tr("current"))
+        self.lbl_power,    self.val_power    = make_reading(tr("power"))
 
         for row, (lbl, val) in enumerate([
             (self.lbl_temp,     self.val_temp),
@@ -93,16 +94,16 @@ class MonitorTab(QWidget):
         left.addWidget(readings_box)
 
         # Alarm status
-        alarm_box = QGroupBox("ALARM STATUS")
+        alarm_box = QGroupBox(tr("alarm_status"))
         ag = QVBoxLayout(alarm_box)
-        self.val_alarm = QLabel("No alarms")
+        self.val_alarm = QLabel(tr("no_alarms"))
         self.val_alarm.setObjectName("status_ok")
         self.val_alarm.setWordWrap(True)
         ag.addWidget(self.val_alarm)
         left.addWidget(alarm_box)
 
         # Temperature graph
-        graph_box = QGroupBox("TEMPERATURE TREND (last 10 min)")
+        graph_box = QGroupBox(tr("temp_trend"))
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
@@ -117,19 +118,19 @@ class MonitorTab(QWidget):
         right.setSpacing(8)
 
         # TCU controls
-        ctrl_box = QGroupBox("TCU CONTROLS")
+        ctrl_box = QGroupBox(tr("tcu_controls"))
         cg = QVBoxLayout(ctrl_box)
         cg.setSpacing(8)
 
-        self.btn_start = QPushButton("START")
+        self.btn_start = QPushButton(tr("btn_start"))
         self.btn_start.setObjectName("btn_start")
-        self.btn_stop  = QPushButton("STOP")
+        self.btn_stop  = QPushButton(tr("btn_stop"))
         self.btn_stop.setObjectName("btn_stop")
-        self.btn_fill  = QPushButton("FILL  (AFV)")
+        self.btn_fill  = QPushButton(tr("btn_fill"))
         self.btn_fill.setObjectName("btn_fill")
-        self.btn_precond    = QPushButton("PRECOND  (VT)")
-        self.btn_clr_alarm  = QPushButton("CLEAR ALARM  (ER)")
-        self.btn_close_valve = QPushButton("CLOSE VALVE  (CVE)")
+        self.btn_precond    = QPushButton(tr("btn_precond"))
+        self.btn_clr_alarm  = QPushButton(tr("btn_clr_alarm"))
+        self.btn_close_valve = QPushButton(tr("btn_close_valve"))
 
         for btn in [self.btn_start, self.btn_stop, self.btn_fill,
                     self.btn_precond, self.btn_clr_alarm, self.btn_close_valve]:
@@ -139,7 +140,7 @@ class MonitorTab(QWidget):
         right.addWidget(ctrl_box)
 
         # Setpoint control
-        sp_box = QGroupBox("SET SETPOINT")
+        sp_box = QGroupBox(tr("set_setpoint"))
         sg = QHBoxLayout(sp_box)
         self.spin_setpoint = QDoubleSpinBox()
         self.spin_setpoint.setRange(17.0, 27.0)
@@ -147,13 +148,13 @@ class MonitorTab(QWidget):
         self.spin_setpoint.setValue(settings.get('temp_setpoint'))
         self.spin_setpoint.setDecimals(2)
         self.spin_setpoint.setSuffix(" °C")
-        self.btn_set_sp = QPushButton("SET")
+        self.btn_set_sp = QPushButton(tr("btn_set"))
         sg.addWidget(self.spin_setpoint)
         sg.addWidget(self.btn_set_sp)
         right.addWidget(sp_box)
 
         # Command log
-        log_box = QGroupBox("COMMAND LOG  (RS232)")
+        log_box = QGroupBox(tr("cmd_log"))
         lg = QVBoxLayout(log_box)
         self.cmd_log = QTextEdit()
         self.cmd_log.setReadOnly(True)
@@ -162,7 +163,7 @@ class MonitorTab(QWidget):
         right.addWidget(log_box, stretch=1)
 
         # Alarm history
-        ah_box = QGroupBox("ALARM HISTORY")
+        ah_box = QGroupBox(tr("alarm_history"))
         ah = QVBoxLayout(ah_box)
         self.alarm_log = QTextEdit()
         self.alarm_log.setReadOnly(True)
@@ -171,7 +172,7 @@ class MonitorTab(QWidget):
         right.addWidget(ah_box)
 
         # Connection status
-        self.lbl_conn = QLabel("● DISCONNECTED")
+        self.lbl_conn = QLabel(tr("disconnected"))
         self.lbl_conn.setObjectName("status_err")
         self.lbl_conn.setAlignment(Qt.AlignCenter)
         right.addWidget(self.lbl_conn)
@@ -311,6 +312,22 @@ class MonitorTab(QWidget):
         if sample.setpoint:
             self._setpoint_line.setValue(sample.setpoint)
 
+    def retranslate(self):
+        """Update all labels to current language — called on language change."""
+        self.lbl_temp.setText(tr('inlet_temp'))
+        self.lbl_setpoint.setText(tr('setpoint'))
+        self.lbl_flow.setText(tr('flow_rate'))
+        self.lbl_voltage.setText(tr('voltage'))
+        self.lbl_current.setText(tr('current'))
+        self.lbl_power.setText(tr('power'))
+        self.btn_start.setText(tr('btn_start'))
+        self.btn_stop.setText(tr('btn_stop'))
+        self.btn_fill.setText(tr('btn_fill'))
+        self.btn_precond.setText(tr('btn_precond'))
+        self.btn_clr_alarm.setText(tr('btn_clr_alarm'))
+        self.btn_close_valve.setText(tr('btn_close_valve'))
+        self.btn_set.setText(tr('btn_set'))
+
     def refresh_settings(self):
         """
         Called by main_window when settings are applied.
@@ -322,10 +339,10 @@ class MonitorTab(QWidget):
 
     def set_connected(self, connected: bool):
         if connected:
-            self.lbl_conn.setText("● CONNECTED")
+            self.lbl_conn.setText(tr("connected"))
             self.lbl_conn.setObjectName("status_ok")
         else:
-            self.lbl_conn.setText("● DISCONNECTED")
+            self.lbl_conn.setText(tr("disconnected"))
             self.lbl_conn.setObjectName("status_err")
         self.lbl_conn.style().unpolish(self.lbl_conn)
         self.lbl_conn.style().polish(self.lbl_conn)

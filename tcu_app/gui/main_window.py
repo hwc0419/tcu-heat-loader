@@ -301,11 +301,13 @@ class MainWindow(QMainWindow):
         self._update_header_style()
 
     def _on_language_changed(self, lang: str):
-        """Hot reload tab labels and settings tab when language changes."""
+        """Hot reload all tab labels and UI strings when language changes."""
         self._tabs.setTabText(0, tr('tab_monitor'))
         self._tabs.setTabText(1, tr('tab_test'))
         self._tabs.setTabText(2, tr('tab_settings'))
         self._tabs.setTabText(3, tr('tab_docs'))
+        self._monitor_tab.retranslate()
+        self._test_tab.retranslate()
         self._settings_tab.retranslate()
 
     def _on_ports_changed(self):

@@ -15,6 +15,7 @@ from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
 from settings_manager import settings
+from translations import tr
 
 def _get_window():
     """Return graph window size in samples based on current test duration."""
@@ -59,7 +60,7 @@ class TestTab(QWidget):
         left.setSpacing(8)
 
         # Test status banner
-        self.banner = QLabel("READY — ENTER SERIAL NUMBER AND PRESS START TEST")
+        self.banner = QLabel(tr("ready_msg"))
         self.banner.setAlignment(Qt.AlignCenter)
         self.banner.setObjectName("status_warn")
         self.banner.setMinimumHeight(int(36 * self._scale))
@@ -81,7 +82,7 @@ class TestTab(QWidget):
         left.addWidget(self.progress)
 
         # Live readings grid
-        readings_box = QGroupBox("LIVE READINGS")
+        readings_box = QGroupBox(tr("live_readings"))
         rg = QGridLayout(readings_box)
         rg.setSpacing(10)
 
@@ -93,15 +94,15 @@ class TestTab(QWidget):
             v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             return l, v
 
-        self.lbl_elapsed,   self.val_elapsed   = reading("ELAPSED")
-        self.lbl_remaining, self.val_remaining = reading("REMAINING")
-        self.lbl_temp,      self.val_temp      = reading("INLET TEMP (TCU)")
-        self.lbl_sp,        self.val_sp        = reading("SETPOINT")
-        self.lbl_flow,      self.val_flow      = reading("FLOW RATE")
-        self.lbl_voltage,   self.val_voltage   = reading("VOLTAGE (PZEM004T)")
-        self.lbl_current,   self.val_current   = reading("CURRENT (PZEM004T)")
-        self.lbl_power,     self.val_power     = reading("POWER (PZEM004T)")
-        self.lbl_alarm,     self.val_alarm     = reading("ALARMS")
+        self.lbl_elapsed,   self.val_elapsed   = reading(tr("elapsed"))
+        self.lbl_remaining, self.val_remaining = reading(tr("remaining"))
+        self.lbl_temp,      self.val_temp      = reading(tr("inlet_temp"))
+        self.lbl_sp,        self.val_sp        = reading(tr("setpoint"))
+        self.lbl_flow,      self.val_flow      = reading(tr("flow_rate"))
+        self.lbl_voltage,   self.val_voltage   = reading(tr("voltage"))
+        self.lbl_current,   self.val_current   = reading(tr("current"))
+        self.lbl_power,     self.val_power     = reading(tr("power"))
+        self.lbl_alarm,     self.val_alarm     = reading(tr("alarms"))
 
         rows = [
             (self.lbl_elapsed,   self.val_elapsed),
@@ -136,21 +137,21 @@ class TestTab(QWidget):
         right.setSpacing(8)
 
         # Serial number input
-        serial_box = QGroupBox("TCU SERIAL NUMBER")
+        serial_box = QGroupBox(tr("tcu_serial"))
         sg = QVBoxLayout(serial_box)
         self.edit_serial = QLineEdit()
-        self.edit_serial.setPlaceholderText("e.g. ASM-001234")
+        self.edit_serial.setPlaceholderText(tr("serial_ph"))
         sg.addWidget(self.edit_serial)
         right.addWidget(serial_box)
 
         # Test controls
-        ctrl_box = QGroupBox("TEST CONTROLS")
+        ctrl_box = QGroupBox(tr("test_controls"))
         cg = QVBoxLayout(ctrl_box)
         cg.setSpacing(10)
 
-        self.btn_test_start = QPushButton("▶  START TEST")
+        self.btn_test_start = QPushButton(tr("btn_test_start"))
         self.btn_test_start.setObjectName("btn_test_start")
-        self.btn_test_stop  = QPushButton("■  ABORT TEST")
+        self.btn_test_stop  = QPushButton(tr("btn_test_stop"))
         self.btn_test_stop.setObjectName("btn_test_stop")
         self.btn_test_stop.setEnabled(False)
 
@@ -159,7 +160,7 @@ class TestTab(QWidget):
         right.addWidget(ctrl_box)
 
         # Pass/fail criteria reminder
-        criteria_box = QGroupBox("PASS / FAIL CRITERIA")
+        criteria_box = QGroupBox(tr("pass_criteria"))
         cr = QVBoxLayout(criteria_box)
         from settings_manager import settings as _s
         self.lbl_crit = QLabel()
@@ -170,7 +171,7 @@ class TestTab(QWidget):
         right.addWidget(criteria_box)
 
         # Result display
-        result_box = QGroupBox("TEST RESULT")
+        result_box = QGroupBox(tr("test_result"))
         rr = QVBoxLayout(result_box)
         self.lbl_result = QLabel("—")
         self.lbl_result.setAlignment(Qt.AlignCenter)
@@ -185,9 +186,9 @@ class TestTab(QWidget):
         right.addWidget(result_box)
 
         # Log file path
-        log_box = QGroupBox("LOG FILE")
+        log_box = QGroupBox(tr("log_file"))
         ll = QVBoxLayout(log_box)
-        self.lbl_logfile = QLabel("Not started")
+        self.lbl_logfile = QLabel(tr("not_started"))
         self.lbl_logfile.setObjectName("label_dim")
         self.lbl_logfile.setWordWrap(True)
         ll.addWidget(self.lbl_logfile)
@@ -229,7 +230,7 @@ class TestTab(QWidget):
     def _on_start(self):
         serial = self.edit_serial.text().strip()
         if not serial:
-            self.banner.setText("⚠  ENTER TCU SERIAL NUMBER FIRST")
+            self.banner.setText(tr("enter_serial"))
             return
         self._test_active = True
         self._start_time  = time.time()
@@ -249,6 +250,22 @@ class TestTab(QWidget):
     def _on_stop(self):
         self.sig_test_stop.emit()
         self._end_test('ABORTED', 'Stopped by operator')
+
+    def retranslate(self):
+        """Update all labels to current language — called on language change."""
+        self.lbl_elapsed.setText(tr('elapsed'))
+        self.lbl_remaining.setText(tr('remaining'))
+        self.lbl_temp.setText(tr('inlet_temp'))
+        self.lbl_sp.setText(tr('setpoint'))
+        self.lbl_flow.setText(tr('flow_rate'))
+        self.lbl_voltage.setText(tr('voltage'))
+        self.lbl_current.setText(tr('current'))
+        self.lbl_power.setText(tr('power'))
+        self.lbl_alarm.setText(tr('alarms'))
+        self.btn_test_start.setText(tr('btn_test_start'))
+        self.btn_test_stop.setText(tr('btn_test_stop'))
+        self.edit_serial.setPlaceholderText(tr('serial_ph'))
+        self._refresh_criteria()
 
     def _refresh_criteria(self):
         """Update the pass/fail criteria label from current settings."""
@@ -370,7 +387,7 @@ class TestTab(QWidget):
 
     def _update_banner(self, state: str, msg: str):
         if state == 'running':
-            self.banner.setText("● TEST RUNNING — DO NOT DISCONNECT")
+            self.banner.setText(tr("test_running"))
             self.banner.setStyleSheet(
                 f"background: #064e3b; border: 1px solid {GREEN};"
                 f"color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
@@ -390,7 +407,7 @@ class TestTab(QWidget):
                 f"background: {SURFACE}; border: 1px solid {AMBER};"
                 f"color: {AMBER}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
         else:
-            self.banner.setText("READY — ENTER SERIAL NUMBER AND PRESS START TEST")
+            self.banner.setText(tr("ready_msg"))
             self.banner.setStyleSheet(
                 f"background: {SURFACE}; border: 1px solid {BORDER};"
                 f"color: {AMBER}; font-size: 13px; letter-spacing: 2px; padding: 6px;")
