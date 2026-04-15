@@ -16,7 +16,7 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
-from config import TEMP_SETPOINT
+from settings_manager import settings
 
 
 # Rolling window: 10 minutes at 1 Hz
@@ -144,7 +144,7 @@ class MonitorTab(QWidget):
         self.spin_setpoint = QDoubleSpinBox()
         self.spin_setpoint.setRange(17.0, 27.0)
         self.spin_setpoint.setSingleStep(0.5)
-        self.spin_setpoint.setValue(TEMP_SETPOINT)
+        self.spin_setpoint.setValue(settings.get('temp_setpoint'))
         self.spin_setpoint.setDecimals(2)
         self.spin_setpoint.setSuffix(" °C")
         self.btn_set_sp = QPushButton("SET")
@@ -205,7 +205,7 @@ class MonitorTab(QWidget):
             pen=pg.mkPen(color=AMBER, width=2),
             name='Power (W)')
         self._setpoint_line = pg.InfiniteLine(
-            angle=0, pos=TEMP_SETPOINT,
+            angle=0, pos=settings.get('temp_setpoint'),
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine),
             label='Setpoint', labelOpts={'color': RED})
         pw.addItem(self._setpoint_line)
@@ -310,6 +310,15 @@ class MonitorTab(QWidget):
         # Update setpoint line
         if sample.setpoint:
             self._setpoint_line.setValue(sample.setpoint)
+
+    def refresh_settings(self):
+        """
+        Called by main_window when settings are applied.
+        Updates setpoint spinbox and graph setpoint line.
+        """
+        sp = settings.get('temp_setpoint')
+        self.spin_setpoint.setValue(sp)
+        self._setpoint_line.setValue(sp)
 
     def set_connected(self, connected: bool):
         if connected:

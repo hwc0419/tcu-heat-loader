@@ -162,21 +162,11 @@ class TestTab(QWidget):
         criteria_box = QGroupBox("PASS / FAIL CRITERIA")
         cr = QVBoxLayout(criteria_box)
         from settings_manager import settings as _s
-        TEMP_SETPOINT = _s.get('temp_setpoint'); TEMP_TOLERANCE = _s.get('temp_tolerance'); TEST_DURATION_MIN = _s.get('test_duration'); MIN_FLOW_RATE = 1
-        criteria_text = (
-            f"✓  Inlet temp {TEMP_SETPOINT}°C ± {TEMP_TOLERANCE}°C\n"
-            f"    for full {TEST_DURATION_MIN} minutes\n\n"
-            f"✓  Flow rate ≥ {MIN_FLOW_RATE} ℓ/min\n"
-            f"    continuously\n\n"
-            "✓  No TCU alarms\n"
-            "    (BS = 400000)\n\n"
-            f"✓  Test duration {TEST_DURATION_MIN} min\n"
-            "    completed without abort"
-        )
-        lbl_crit = QLabel(criteria_text)
-        lbl_crit.setObjectName("label_dim")
-        lbl_crit.setWordWrap(True)
-        cr.addWidget(lbl_crit)
+        self.lbl_crit = QLabel()
+        self.lbl_crit.setObjectName("label_dim")
+        self.lbl_crit.setWordWrap(True)
+        self._refresh_criteria()
+        cr.addWidget(self.lbl_crit)
         right.addWidget(criteria_box)
 
         # Result display
@@ -259,6 +249,45 @@ class TestTab(QWidget):
     def _on_stop(self):
         self.sig_test_stop.emit()
         self._end_test('ABORTED', 'Stopped by operator')
+
+    def _refresh_criteria(self):
+        """Update the pass/fail criteria label from current settings."""
+        sp  = settings.get('temp_setpoint')
+        tol = settings.get('temp_tolerance')
+        dur = settings.get('test_duration')
+        self.lbl_crit.setText(
+            f"✓  Inlet temp {sp}°C ± {tol}°C\n"
+            f"    for full {dur} minutes\n\n"
+            f"✓  Flow rate ≥ 1 ℓ/min\n"
+            f"    continuously\n\n"
+            f"✓  No TCU alarms\n"
+            f"    (BS = 400400)\n\n"
+            f"✓  Test duration {dur} min\n"
+            f"    completed without abort"
+        )
+
+    def refresh_settings(self):
+        """
+        Called by main_window when settings are applied.
+        Updates all widgets that depend on configurable test parameters.
+        """
+        sp  = settings.get('temp_setpoint')
+        tol = settings.get('temp_tolerance')
+        dur = settings.get('test_duration')
+
+        # Update criteria label
+        self._refresh_criteria()
+
+        # Update progress bar range
+        self.progress.setRange(0, dur * 60)
+
+        # Update tolerance band lines on graph
+        self._sp_hi.setValue(sp + tol)
+        self._sp_lo.setValue(sp - tol)
+
+        # Update setpoint reference line if it exists
+        if hasattr(self, '_setpoint_line'):
+            self._setpoint_line.setValue(sp)
 
     def _tick(self):
         """Called every second to update elapsed/remaining display."""

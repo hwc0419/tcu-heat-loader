@@ -310,9 +310,14 @@ class MainWindow(QMainWindow):
             "Port settings updated — reconnect TCU to apply")
 
     def _on_settings_changed(self, key, value):
-        """Called by settings_manager for any setting change — update DAQ interval live."""
+        """Called by settings_manager for any setting change — update live."""
+        # Update DAQ poll interval immediately
         if key == 'poll_interval' and self._daq_thread is not None:
             self._daq_thread.set_interval(float(value))
+        # Refresh both tabs on any test parameter change
+        if key in ('temp_setpoint', 'temp_tolerance', 'test_duration', 'poll_interval'):
+            self._monitor_tab.refresh_settings()
+            self._test_tab.refresh_settings()
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     def closeEvent(self, event):
