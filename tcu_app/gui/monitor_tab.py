@@ -343,7 +343,7 @@ class MonitorTab(QWidget):
         self.btn_precond.setText(tr('btn_precond'))
         self.btn_clr_alarm.setText(tr('btn_clr_alarm'))
         self.btn_close_valve.setText(tr('btn_close_valve'))
-        self.btn_set.setText(tr('btn_set'))
+        self.btn_set_sp.setText(tr('btn_set'))
 
     def refresh_settings(self):
         """
