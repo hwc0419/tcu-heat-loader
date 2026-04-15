@@ -82,7 +82,8 @@ class TestTab(QWidget):
         left.addWidget(self.progress)
 
         # Live readings grid
-        readings_box = QGroupBox(tr("live_readings"))
+        self._grp_readings = QGroupBox(tr("live_readings"))
+        readings_box = self._grp_readings
         rg = QGridLayout(readings_box)
         rg.setSpacing(10)
 
@@ -122,7 +123,8 @@ class TestTab(QWidget):
         left.addWidget(readings_box)
 
         # Graph
-        graph_box = QGroupBox("TEMPERATURE & HEAT LOAD (test duration)")
+        self._grp_graph = QGroupBox("TEMPERATURE & HEAT LOAD (test duration)")
+        graph_box = self._grp_graph
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
@@ -137,7 +139,8 @@ class TestTab(QWidget):
         right.setSpacing(8)
 
         # Serial number input
-        serial_box = QGroupBox(tr("tcu_serial"))
+        self._grp_serial = QGroupBox(tr("tcu_serial"))
+        serial_box = self._grp_serial
         sg = QVBoxLayout(serial_box)
         self.edit_serial = QLineEdit()
         self.edit_serial.setPlaceholderText(tr("serial_ph"))
@@ -145,7 +148,8 @@ class TestTab(QWidget):
         right.addWidget(serial_box)
 
         # Test controls
-        ctrl_box = QGroupBox(tr("test_controls"))
+        self._grp_ctrl = QGroupBox(tr("test_controls"))
+        ctrl_box = self._grp_ctrl
         cg = QVBoxLayout(ctrl_box)
         cg.setSpacing(10)
 
@@ -160,7 +164,8 @@ class TestTab(QWidget):
         right.addWidget(ctrl_box)
 
         # Pass/fail criteria reminder
-        criteria_box = QGroupBox(tr("pass_criteria"))
+        self._grp_criteria = QGroupBox(tr("pass_criteria"))
+        criteria_box = self._grp_criteria
         cr = QVBoxLayout(criteria_box)
         from settings_manager import settings as _s
         self.lbl_crit = QLabel()
@@ -171,7 +176,8 @@ class TestTab(QWidget):
         right.addWidget(criteria_box)
 
         # Result display
-        result_box = QGroupBox(tr("test_result"))
+        self._grp_result = QGroupBox(tr("test_result"))
+        result_box = self._grp_result
         rr = QVBoxLayout(result_box)
         self.lbl_result = QLabel("—")
         self.lbl_result.setAlignment(Qt.AlignCenter)
@@ -186,7 +192,8 @@ class TestTab(QWidget):
         right.addWidget(result_box)
 
         # Log file path
-        log_box = QGroupBox(tr("log_file"))
+        self._grp_log = QGroupBox(tr("log_file"))
+        log_box = self._grp_log
         ll = QVBoxLayout(log_box)
         self.lbl_logfile = QLabel(tr("not_started"))
         self.lbl_logfile.setObjectName("label_dim")
@@ -252,7 +259,15 @@ class TestTab(QWidget):
         self._end_test('ABORTED', 'Stopped by operator')
 
     def retranslate(self):
-        """Update all labels to current language — called on language change."""
+        """Update all labels and group box titles to current language."""
+        # Group box titles
+        self._grp_readings.setTitle(tr('live_readings'))
+        self._grp_serial.setTitle(tr('tcu_serial'))
+        self._grp_ctrl.setTitle(tr('test_controls'))
+        self._grp_criteria.setTitle(tr('pass_criteria'))
+        self._grp_result.setTitle(tr('test_result'))
+        self._grp_log.setTitle(tr('log_file'))
+        # Reading labels
         self.lbl_elapsed.setText(tr('elapsed'))
         self.lbl_remaining.setText(tr('remaining'))
         self.lbl_temp.setText(tr('inlet_temp'))
@@ -262,6 +277,7 @@ class TestTab(QWidget):
         self.lbl_current.setText(tr('current'))
         self.lbl_power.setText(tr('power'))
         self.lbl_alarm.setText(tr('alarms'))
+        # Buttons
         self.btn_test_start.setText(tr('btn_test_start'))
         self.btn_test_stop.setText(tr('btn_test_stop'))
         self.edit_serial.setPlaceholderText(tr('serial_ph'))

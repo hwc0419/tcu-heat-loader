@@ -49,7 +49,8 @@ class SettingsTab(QWidget):
         right.setSpacing(12)
 
         # ── Left: Serial ports ────────────────────────────────────────────────
-        port_box = QGroupBox(tr('settings_serial'))
+        self._grp_port = QGroupBox(tr('settings_serial'))
+        port_box = self._grp_port
         pg = QGridLayout(port_box)
         pg.setSpacing(10)
         pg.setColumnStretch(1, 1)
@@ -78,7 +79,8 @@ class SettingsTab(QWidget):
         left.addWidget(port_box)
 
         # ── Left: Test parameters ─────────────────────────────────────────────
-        test_box = QGroupBox(tr('settings_test'))
+        self._grp_test = QGroupBox(tr('settings_test'))
+        test_box = self._grp_test
         tg = QGridLayout(test_box)
         tg.setSpacing(10)
         tg.setColumnStretch(1, 1)
@@ -115,7 +117,8 @@ class SettingsTab(QWidget):
         left.addStretch()
 
         # ── Right: Display & Language ─────────────────────────────────────────
-        ui_box = QGroupBox(tr('settings_ui'))
+        self._grp_ui = QGroupBox(tr('settings_ui'))
+        ui_box = self._grp_ui
         ug = QGridLayout(ui_box)
         ug.setSpacing(10)
         ug.setColumnStretch(1, 1)
@@ -240,7 +243,13 @@ class SettingsTab(QWidget):
     # ── Called by main_window when language changes ───────────────────────────
     def retranslate(self):
         """Update all labels to current language."""
+        # Group box titles
+        self._grp_port.setTitle(tr('settings_serial'))
+        self._grp_test.setTitle(tr('settings_test'))
+        self._grp_ui.setTitle(tr('settings_ui'))
+        # Buttons
         self.btn_apply.setText(tr('btn_apply'))
         self.btn_reset.setText(tr('btn_reset'))
+        # Notes
         self.restart_note.setText(tr('restart_note'))
         self.lbl_status.setText('')

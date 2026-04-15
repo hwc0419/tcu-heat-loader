@@ -61,7 +61,8 @@ class MonitorTab(QWidget):
         left.setSpacing(8)
 
         # Big readings row
-        readings_box = QGroupBox(tr("live_readings"))
+        self._grp_readings = QGroupBox(tr("live_readings"))
+        readings_box = self._grp_readings
         rg = QGridLayout(readings_box)
         rg.setSpacing(12)
 
@@ -94,7 +95,8 @@ class MonitorTab(QWidget):
         left.addWidget(readings_box)
 
         # Alarm status
-        alarm_box = QGroupBox(tr("alarm_status"))
+        self._grp_alarm = QGroupBox(tr("alarm_status"))
+        alarm_box = self._grp_alarm
         ag = QVBoxLayout(alarm_box)
         self.val_alarm = QLabel(tr("no_alarms"))
         self.val_alarm.setObjectName("status_ok")
@@ -103,7 +105,8 @@ class MonitorTab(QWidget):
         left.addWidget(alarm_box)
 
         # Temperature graph
-        graph_box = QGroupBox(tr("temp_trend"))
+        self._grp_graph = QGroupBox(tr("temp_trend"))
+        graph_box = self._grp_graph
         gg = QVBoxLayout(graph_box)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
@@ -118,7 +121,8 @@ class MonitorTab(QWidget):
         right.setSpacing(8)
 
         # TCU controls
-        ctrl_box = QGroupBox(tr("tcu_controls"))
+        self._grp_ctrl = QGroupBox(tr("tcu_controls"))
+        ctrl_box = self._grp_ctrl
         cg = QVBoxLayout(ctrl_box)
         cg.setSpacing(8)
 
@@ -140,7 +144,8 @@ class MonitorTab(QWidget):
         right.addWidget(ctrl_box)
 
         # Setpoint control
-        sp_box = QGroupBox(tr("set_setpoint"))
+        self._grp_sp = QGroupBox(tr("set_setpoint"))
+        sp_box = self._grp_sp
         sg = QHBoxLayout(sp_box)
         self.spin_setpoint = QDoubleSpinBox()
         self.spin_setpoint.setRange(17.0, 27.0)
@@ -154,7 +159,8 @@ class MonitorTab(QWidget):
         right.addWidget(sp_box)
 
         # Command log
-        log_box = QGroupBox(tr("cmd_log"))
+        self._grp_log = QGroupBox(tr("cmd_log"))
+        log_box = self._grp_log
         lg = QVBoxLayout(log_box)
         self.cmd_log = QTextEdit()
         self.cmd_log.setReadOnly(True)
@@ -163,7 +169,8 @@ class MonitorTab(QWidget):
         right.addWidget(log_box, stretch=1)
 
         # Alarm history
-        ah_box = QGroupBox(tr("alarm_history"))
+        self._grp_ah = QGroupBox(tr("alarm_history"))
+        ah_box = self._grp_ah
         ah = QVBoxLayout(ah_box)
         self.alarm_log = QTextEdit()
         self.alarm_log.setReadOnly(True)
@@ -313,13 +320,23 @@ class MonitorTab(QWidget):
             self._setpoint_line.setValue(sample.setpoint)
 
     def retranslate(self):
-        """Update all labels to current language — called on language change."""
+        """Update all labels and group box titles to current language."""
+        # Group box titles
+        self._grp_readings.setTitle(tr('live_readings'))
+        self._grp_alarm.setTitle(tr('alarm_status'))
+        self._grp_graph.setTitle(tr('temp_trend'))
+        self._grp_ctrl.setTitle(tr('tcu_controls'))
+        self._grp_sp.setTitle(tr('set_setpoint'))
+        self._grp_log.setTitle(tr('cmd_log'))
+        self._grp_ah.setTitle(tr('alarm_history'))
+        # Reading labels
         self.lbl_temp.setText(tr('inlet_temp'))
         self.lbl_setpoint.setText(tr('setpoint'))
         self.lbl_flow.setText(tr('flow_rate'))
         self.lbl_voltage.setText(tr('voltage'))
         self.lbl_current.setText(tr('current'))
         self.lbl_power.setText(tr('power'))
+        # Buttons
         self.btn_start.setText(tr('btn_start'))
         self.btn_stop.setText(tr('btn_stop'))
         self.btn_fill.setText(tr('btn_fill'))
