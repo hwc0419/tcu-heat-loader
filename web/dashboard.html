@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TCU++ Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#E0E0E0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">HAAKE ASM · TCU++</div>
+    <div class="header-user">
+      <span id="conn-indicator"><span class="conn-dot offline"></span><span id="conn-text">Connecting...</span></span>
+      <span id="user-name"></span>
+      <button class="btn btn-small" onclick="logout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('monitor', this)">MONITOR</button>
+      <button class="tab" onclick="switchTab('test', this)">HEAT LOAD TEST</button>
+    </div>
+
+    <!-- ── Monitor Tab ─────────────────────────────────────────────────────── -->
+    <div id="tab-monitor" class="tab-content active">
+
+      <!-- Alarm banner -->
+      <div class="alarm-banner ok" id="alarm-banner">✓ No alarms</div>
+
+      <!-- Live readings -->
+      <div class="card">
+        <div class="card-title">Live Readings</div>
+        <div id="readings-list">
+          <div class="reading-row">
+            <span class="reading-label">INLET TEMP (TCU)</span>
+            <span class="reading-value accent" id="val-inlet">---</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">SETPOINT</span>
+            <span class="reading-value" id="val-setpoint">---</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">FLOW RATE</span>
+            <span class="reading-value" id="val-flow">---</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">VOLTAGE</span>
+            <span class="reading-value" id="val-voltage">---</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">CURRENT</span>
+            <span class="reading-value" id="val-current">---</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">POWER</span>
+            <span class="reading-value" id="val-power">---</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Temperature graph -->
+      <div class="card">
+        <div class="card-title">Temperature Trend (Last 10 min)</div>
+        <div class="graph-container">
+          <canvas id="monitor-graph" class="graph"></canvas>
+        </div>
+      </div>
+
+      <!-- TCU Controls (technician only) -->
+      <div class="card" id="controls-card">
+        <div class="card-title">TCU Controls</div>
+
+        <!-- Lock status -->
+        <div class="lock-status" id="lock-status-monitor">
+          <span id="lock-text-monitor">Checking lock...</span>
+          <button class="btn btn-small btn-green" id="btn-acquire-monitor"
+                  onclick="acquireLock()" style="display:none">ACQUIRE CONTROL</button>
+          <button class="btn btn-small btn-red" id="btn-release-monitor"
+                  onclick="releaseLock()" style="display:none">RELEASE</button>
+        </div>
+
+        <div class="controls-grid" id="tcu-controls">
+          <button class="btn btn-green" onclick="tcuCmd('start')">START</button>
+          <button class="btn btn-red"   onclick="tcuCmd('stop')">STOP</button>
+          <button class="btn"           onclick="tcuCmd('fill')">FILL (AFV)</button>
+          <button class="btn"           onclick="tcuCmd('precond')">PRECOND (VT)</button>
+          <button class="btn"           onclick="tcuCmd('clear_alarm')">CLEAR ALARM (ER)</button>
+          <button class="btn"           onclick="tcuCmd('close_valve')">CLOSE VALVE</button>
+        </div>
+
+        <!-- Set setpoint -->
+        <div style="margin-top: 10px;">
+          <div class="card-title">Set Setpoint</div>
+          <div class="setpoint-row">
+            <input class="setpoint-input" type="number" id="setpoint-input"
+                   min="17" max="27" step="0.5" value="22.0">
+            <button class="btn btn-small btn-primary" onclick="setSetpoint()">SET</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end monitor tab -->
+
+    <!-- ── Test Tab ────────────────────────────────────────────────────────── -->
+    <div id="tab-test" class="tab-content">
+
+      <!-- Test banner -->
+      <div class="test-banner" id="test-banner">
+        READY — ENTER SERIAL NUMBER AND PRESS START TEST
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-bar">
+        <div class="progress-fill" id="test-progress" style="width:0%"></div>
+      </div>
+
+      <!-- Test readings -->
+      <div class="card">
+        <div class="card-title">Live Readings</div>
+        <div class="reading-row">
+          <span class="reading-label">ELAPSED</span>
+          <span class="reading-value" id="val-elapsed">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">REMAINING</span>
+          <span class="reading-value" id="val-remaining">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">INLET TEMP (TCU)</span>
+          <span class="reading-value accent" id="val-test-inlet">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">SETPOINT</span>
+          <span class="reading-value" id="val-test-setpoint">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">FLOW RATE</span>
+          <span class="reading-value" id="val-test-flow">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">VOLTAGE</span>
+          <span class="reading-value" id="val-test-voltage">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">CURRENT</span>
+          <span class="reading-value" id="val-test-current">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">POWER</span>
+          <span class="reading-value" id="val-test-power">---</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">ALARMS</span>
+          <span class="reading-value" id="val-test-alarms">---</span>
+        </div>
+      </div>
+
+      <!-- Test graph -->
+      <div class="card">
+        <div class="card-title">Temperature & Power (Test Duration)</div>
+        <div class="graph-container">
+          <canvas id="test-graph" class="graph"></canvas>
+        </div>
+      </div>
+
+      <!-- Test controls (technician only) -->
+      <div class="card" id="test-controls-card">
+        <div class="card-title">Test Controls</div>
+
+        <!-- Lock status -->
+        <div class="lock-status" id="lock-status-test">
+          <span id="lock-text-test">Checking lock...</span>
+          <button class="btn btn-small btn-green" id="btn-acquire-test"
+                  onclick="acquireLock()" style="display:none">ACQUIRE CONTROL</button>
+          <button class="btn btn-small btn-red" id="btn-release-test"
+                  onclick="releaseLock()" style="display:none">RELEASE</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">TCU Serial Number</label>
+          <input class="form-input" type="text" id="test-serial"
+                 placeholder="e.g. ASM-001234">
+        </div>
+
+        <div class="controls-grid">
+          <button class="btn btn-green" onclick="startTest()">▶ START TEST</button>
+          <button class="btn btn-red"   onclick="stopTest()">■ ABORT TEST</button>
+        </div>
+
+        <!-- Pass/fail criteria -->
+        <div style="margin-top: 12px;">
+          <div class="card-title">Pass / Fail Criteria</div>
+          <div id="criteria-text" style="font-size:11px; color:var(--text-dim); line-height:1.8;"></div>
+        </div>
+
+        <!-- Test result -->
+        <div style="margin-top: 12px; text-align: center;">
+          <div id="test-result" style="font-size:32px; font-weight:bold; color:var(--text-dim);">—</div>
+          <div id="test-result-reason" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
+        </div>
+      </div>
+
+    </div><!-- end test tab -->
+
+  </div><!-- end dashboard -->
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

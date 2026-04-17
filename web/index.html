@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TCU++ — Login</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#E0E0E0">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">TCU++</div>
+      <div class="login-subtitle">HAAKE ASM · TCU CONTROLLER · SSMC</div>
+
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" type="text" id="username"
+                 autocomplete="username" autocapitalize="none"
+                 placeholder="Enter username" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="password"
+                 autocomplete="current-password"
+                 placeholder="Enter password" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-checkbox">
+            <input type="checkbox" id="remember">
+            Remember me for 3 hours
+          </label>
+        </div>
+
+        <div class="error-msg" id="error-msg"></div>
+
+        <button class="btn btn-primary" type="submit" id="login-btn">
+          LOGIN
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; text-align: center; font-size: 10px; color: var(--text-dim);">
+        Forgotten password? Contact admin.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(data => {
+        if (data.authenticated) window.location.href = '/dashboard';
+      });
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const err = document.getElementById('error-msg');
+      btn.disabled = true;
+      btn.textContent = 'LOGGING IN...';
+      err.textContent = '';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const remember = document.getElementById('remember').checked;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, remember })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          window.location.href = '/dashboard';
+        } else {
+          err.textContent = data.error || 'Login failed';
+          btn.disabled = false;
+          btn.textContent = 'LOGIN';
+        }
+      } catch {
+        err.textContent = 'Cannot reach server';
+        btn.disabled = false;
+        btn.textContent = 'LOGIN';
+      }
+    }
+  </script>
+</body>
+</html>
