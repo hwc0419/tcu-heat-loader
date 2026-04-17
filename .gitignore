@@ -1,5 +1,5 @@
 # Test logs - runtime output, do not commit
-logs/
+tcu_app/logs/
 *.csv
 
 # Python
@@ -21,4 +21,5 @@ Thumbs.db
 *.swp
 
 # User settings - machine-specific, generated on first run
-settings.json
+tcu_app/settings.json
+*.svg
