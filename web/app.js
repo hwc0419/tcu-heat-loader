@@ -107,7 +107,13 @@ async function poll() {
   try {
     const res = await fetch('/api/data');
     if (res.status === 401) { window.location.href = '/'; return; }
-    if (!res.ok) { setOffline(); return; }
+
+    if (!res.ok) {
+      // DAQ unavailable — still update lock and connection status
+      setOffline();
+      await pollLock();
+      return;
+    }
 
     const data = await res.json();
     setOnline();
@@ -118,6 +124,20 @@ async function poll() {
 
   } catch {
     setOffline();
+    await pollLock();
+  }
+}
+
+async function pollLock() {
+  try {
+    const res = await fetch('/api/lock/status');
+    if (res.status === 401) { window.location.href = '/'; return; }
+    if (res.ok) {
+      const lock = await res.json();
+      updateLockUI(lock);
+    }
+  } catch {
+    // ignore — lock UI stays at last known state
   }
 }
 
@@ -232,7 +252,9 @@ function checkAlarms(data) {
 
 // ── Lock management ───────────────────────────────────────────────────────────
 function updateLockUI(lock) {
-  if (!lock || me?.role !== 'technician') return;
+  if (!me) return;
+  if (me.role !== 'technician') return;
+  if (!lock) return;
 
   hasLock = lock.owner === me.username;
   const isTouchscreen = lock.owner === 'touchscreen';
@@ -429,8 +451,9 @@ setInterval(async () => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {
   await loadMe();
+  await pollLock();    // initialise lock UI immediately, don't wait for first poll
   initCharts();
   await setupPushNotifications();
   poll();
-  pollInterval = setInterval(poll, 2000);   // poll every 2 seconds
+  pollInterval = setInterval(poll, 2000);
 })();
