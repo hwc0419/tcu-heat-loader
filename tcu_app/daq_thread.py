@@ -1,9 +1,10 @@
 # =============================================================================
 # daq_thread.py — Configurable Rate Data Acquisition Thread
 # =============================================================================
-# Reads all sensors at a configurable interval and pushes samples to two queues:
+# Reads all sensors at a configurable interval and pushes samples to:
 #   ui_queue   (maxsize=1) — GUI gets latest sample only, never lags
 #   log_queue  (unbounded) — Logger gets every sample, no drops
+#   ipc        (IPCWriter) — Web server gets latest sample for phone dashboard
 #
 # Poll interval is configurable at runtime via set_interval().
 # This is the ONLY thread that touches the serial port.
@@ -17,6 +18,7 @@ from typing import Optional, List
 from queue import Queue, Full
 
 from test_logic import decode_status, is_abnormal
+from ipc import IPCWriter
 
 
 @dataclass
@@ -42,10 +44,29 @@ class Sample:
     is_abnormal:    bool            = False
 
 
+def _sample_to_dict(s: Sample) -> dict:
+    """Convert Sample dataclass to JSON-serialisable dict for IPC."""
+    return {
+        'timestamp':    s.timestamp,
+        'inlet_temp':   s.inlet_temp,
+        'flow_rate':    s.flow_rate,
+        'setpoint':     s.setpoint,
+        'b1':           s.b1,
+        'b2':           s.b2,
+        'b3':           s.b3,
+        'alarms':       s.alarms,
+        'voltage':      s.voltage,
+        'current':      s.current,
+        'power':        s.power,
+        'is_abnormal':  s.is_abnormal,
+        'decoded_log':  s.decoded_log,
+    }
+
+
 class DAQThread(threading.Thread):
     """
     Configurable rate polling thread. Reads TCU + PZEM sensors, pushes
-    Sample objects to ui_queue and log_queue.
+    Sample objects to ui_queue, log_queue and IPC (web server).
 
     Poll interval is set at construction from settings_manager and can be
     updated at runtime via set_interval() without restarting the thread.
@@ -59,7 +80,7 @@ class DAQThread(threading.Thread):
 
     def __init__(self, tcu, pzem, ui_queue: Queue, log_queue: Queue,
                  parse_alarms_fn, interval: float = 1.0):
-        super().__init__(daemon=True, name="DAQThread")
+        super().__init__(daemon=True, name='DAQThread')
         self._tcu              = tcu
         self._pzem             = pzem
         self._ui_queue         = ui_queue
@@ -68,17 +89,16 @@ class DAQThread(threading.Thread):
         self._interval         = interval
         self._interval_lock    = threading.Lock()
         self._stop_event       = threading.Event()
+        self._ipc              = IPCWriter()
 
     def stop(self):
         self._stop_event.set()
+        self._ipc.close()
 
     def set_interval(self, seconds: float):
         """Update poll interval live — takes effect on next cycle."""
         with self._interval_lock:
             self._interval = max(0.5, float(seconds))
-
-    def stop(self):
-        self._stop_event.set()
 
     def run(self):
         while not self._stop_event.is_set():
@@ -100,17 +120,17 @@ class DAQThread(threading.Thread):
         if self._tcu and self._tcu.connected:
             s.inlet_temp = self._tcu.get_inlet_temp()
             if s.inlet_temp is not None:
-                log_lines.append(f">M  <{s.inlet_temp:.2f} C$")
+                log_lines.append(f'>M  <{s.inlet_temp:.2f} C$')
 
             s.flow_rate = self._tcu.get_flow_rate()
             if s.flow_rate is not None:
-                log_lines.append(f">D  <{s.flow_rate} 1/min$")
+                log_lines.append(f'>D  <{s.flow_rate} 1/min$')
 
             s.setpoint = self._tcu.get_setpoint()
 
             s.b1, s.b2, s.b3 = self._tcu.get_status_bytes()
             if s.b1 is not None:
-                log_lines.append(f">BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$")
+                log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 
@@ -149,3 +169,9 @@ class DAQThread(threading.Thread):
 
         # Log queue — never drop
         self._log_queue.put(sample)
+
+        # IPC — web server gets latest sample (write errors are non-fatal)
+        try:
+            self._ipc.write(_sample_to_dict(sample))
+        except Exception as e:
+            print(f'IPC write error: {e}')

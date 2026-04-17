@@ -45,7 +45,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TCU Controller — SSMC")
+        self.setWindowTitle("TCU++ — SSMC")
 
         # ── Dynamic scaling based on screen resolution ───────────────────────
         # Reference resolution: 1920px wide (full HD)
@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         self._update_header_style()
         hl = QVBoxLayout(header)
         hl.setContentsMargins(16, 0, 16, 0)
-        title = QLabel("HAAKE ASM  ·  TCU CONTROLLER")
+        title = QLabel("HAAKE ASM  ·  TCU++")
         self._title_label = title
         self._update_title_style()
         hl.addWidget(title)

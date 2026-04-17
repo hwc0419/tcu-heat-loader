@@ -1,0 +1,12 @@
+{
+  "howard": {
+    "password": "494a715f7e9b4071aca61bac42ca858a309524e5864f0920030862a4ae7589be",
+    "role": "technician",
+    "name": "Howard"
+  },
+  "supervisor": {
+    "password": "02423ab2e61297b8262449c93e19be42fb5bbb275860a7d93b1ebdc7b6535ed7",
+    "role": "supervisor",
+    "name": "Supervisor"
+  }
+}
