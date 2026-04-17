@@ -22,4 +22,8 @@ Thumbs.db
 
 # User settings - machine-specific, generated on first run
 tcu_app/settings.json
+tcu_app/.tcu_ipc.json
+tcu_app/.tcu_cmd.json
+tcu_app/users.json
+tcu_app/vapid_keys.json
 *.svg
