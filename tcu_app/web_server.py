@@ -41,6 +41,7 @@ from ipc import IPCReader
 
 # ── Flask app setup ───────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder='../web', static_url_path='')
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable static file caching
 app.secret_key = secrets.token_hex(32)
 app.permanent_session_lifetime = timedelta(hours=3)
 
