@@ -1,0 +1,19 @@
+[Unit]
+Description=TCU++ Flask Web Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=hwc0419
+Group=hwc0419
+WorkingDirectory=/home/hwc0419/projects/tcu-heat-loader/tcu_app
+Environment=PATH=/home/hwc0419/projects/tcu-heat-loader/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/hwc0419/projects/tcu-heat-loader/venv/bin/python3 web_server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

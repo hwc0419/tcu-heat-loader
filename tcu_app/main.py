@@ -29,13 +29,18 @@ def main():
     # os.environ['QT_QPA_EGLFS_ROTATION'] = '90'
 
     app = QApplication(sys.argv)
-    app.setApplicationName("TCU Controller")
+    app.setApplicationName('TCU++')
 
     # Touchscreen: enable touch events
     app.setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, False)
 
     window = MainWindow()
-    window.show()
+
+    # Launch fullscreen if --fullscreen flag passed (used by systemd service)
+    if '--fullscreen' in sys.argv:
+        window.showFullScreen()
+    else:
+        window.show()
     sys.exit(app.exec_())
 
 

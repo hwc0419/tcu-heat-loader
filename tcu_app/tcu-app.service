@@ -1,0 +1,21 @@
+[Unit]
+Description=TCU++ PyQt5 Desktop App
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=hwc0419
+Group=hwc0419
+WorkingDirectory=/home/hwc0419/projects/tcu-heat-loader/tcu_app
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/hwc0419/.Xauthority
+Environment=PATH=/home/hwc0419/projects/tcu-heat-loader/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/hwc0419/projects/tcu-heat-loader/venv/bin/python3 main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
