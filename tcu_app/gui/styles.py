@@ -170,6 +170,22 @@ QPushButton#btn_stop:hover {{
     background-color: {btn_stop_hov};
 }}
 
+QPushButton#btn_estop {{
+    background-color: #B91C1C;
+    border: 2px solid #7F1D1D;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: {pt(10)};
+    font-weight: bold;
+    letter-spacing: {px(1)};
+}}
+QPushButton#btn_estop:hover {{
+    background-color: #DC2626;
+}}
+QPushButton#btn_estop:pressed {{
+    background-color: #991B1B;
+}}
+
 QPushButton#btn_fill {{
     background-color: {btn_fill_bg};
     border-color: {accent};

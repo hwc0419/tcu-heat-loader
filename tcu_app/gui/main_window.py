@@ -8,16 +8,18 @@ from queue import Queue
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QTabWidget, QVBoxLayout,
-    QLabel, QStatusBar, QMessageBox
+    QLabel, QStatusBar, QMessageBox, QPushButton
 )
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QObject
 from PyQt5.QtGui import QFont
 
-from gui.monitor_tab  import MonitorTab
-from gui.test_tab     import TestTab
-from gui.settings_tab import SettingsTab
-from gui.docs_tab     import DocsTab
-from gui.styles       import get_app_style, ACCENT, RED, GREEN, AMBER
+from gui.monitor_tab       import MonitorTab
+from gui.test_tab          import TestTab
+from gui.settings_tab      import SettingsTab
+from gui.docs_tab          import DocsTab
+from gui.heater_tab        import HeaterTab
+from gui.response_test_tab import ResponseTestTab
+from gui.styles            import get_app_style, ACCENT, RED, GREEN, AMBER
 
 from settings_manager import settings
 from translations     import tr
@@ -25,9 +27,10 @@ from translations     import tr
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
-from tcu_comms  import TCUComms
-from pzem004t   import PZEM004T
-from test_logic import parse_alarms, check_pass_fail
+from tcu_comms    import TCUComms
+from pzem004t     import PZEM004T
+from heater_comms import HeaterComms
+from test_logic   import parse_alarms, check_pass_fail
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
@@ -62,8 +65,9 @@ class MainWindow(QMainWindow):
         self._log_queue = Queue()
 
         # ── Hardware ────────────────────────────────────────────────────────
-        self._tcu     = TCUComms()
+        self._tcu      = TCUComms()
         self._pzem     = PZEM004T()
+        self._heater   = HeaterComms()
         self._connected = False
 
         # ── Threads ─────────────────────────────────────────────────────────
@@ -120,15 +124,37 @@ class MainWindow(QMainWindow):
         # Tabs
         self._tabs = QTabWidget()
         self._tabs.tabBar().setExpanding(False)
-        self._monitor_tab  = MonitorTab(scale=self._scale)
-        self._test_tab     = TestTab(scale=self._scale)
-        self._settings_tab = SettingsTab(scale=self._scale)
-        self._docs_tab     = DocsTab(scale=self._scale)
+        self._monitor_tab     = MonitorTab(scale=self._scale)
+        self._test_tab        = TestTab(scale=self._scale)
+        self._heater_tab      = HeaterTab(scale=self._scale)
+        self._response_tab    = ResponseTestTab(scale=self._scale)
+        self._settings_tab    = SettingsTab(scale=self._scale)
+        self._docs_tab        = DocsTab(scale=self._scale)
         self._tabs.addTab(self._monitor_tab,  tr('tab_monitor'))
         self._tabs.addTab(self._test_tab,     tr('tab_test'))
+        self._tabs.addTab(self._heater_tab,   tr('tab_heater'))
+        self._tabs.addTab(self._response_tab, tr('tab_response'))
         self._tabs.addTab(self._settings_tab, tr('tab_settings'))
         self._tabs.addTab(self._docs_tab,     tr('tab_docs'))
-        layout.addWidget(self._tabs)
+
+        # Emergency stop button — fixed bottom-right, always visible
+        self._estop_btn = QPushButton(tr('estop_btn'))
+        self._estop_btn.setObjectName('btn_estop')
+        self._estop_btn.setFixedSize(int(90 * self._scale), int(64 * self._scale))
+        self._estop_btn.clicked.connect(self._on_estop)
+
+        # Stack tabs and estop button in same area
+        from PyQt5.QtWidgets import QStackedLayout
+        tab_container = QWidget()
+        tab_container.setLayout(QVBoxLayout())
+        tab_container.layout().setContentsMargins(0, 0, 0, 0)
+        tab_container.layout().addWidget(self._tabs)
+        layout.addWidget(tab_container)
+
+        # Position estop button over bottom-right corner
+        self._estop_btn.setParent(central)
+        self._estop_btn.raise_()
+        self._tabs.resizeEvent = self._on_tabs_resize
 
         # Wire settings signals
         self._settings_tab.sig_theme_changed.connect(self._on_theme_changed)
@@ -156,7 +182,57 @@ class MainWindow(QMainWindow):
         self._test_tab.sig_test_start.connect(self._on_test_start)
         self._test_tab.sig_test_stop.connect(self._on_test_stop)
 
-    # ── TCU connection ────────────────────────────────────────────────────────
+        # Wire heater tab signals
+        self._heater_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
+
+        # Wire response test tab signals
+        self._response_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
+
+    def _on_tabs_resize(self, event):
+        """Reposition estop button on tab widget resize."""
+        r   = self._tabs.rect()
+        btn = self._estop_btn
+        btn.move(r.width() - btn.width() - 12,
+                 r.height() - btn.height() - 12)
+        QTabWidget.resizeEvent(self._tabs, event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, '_estop_btn') and hasattr(self, '_tabs'):
+            r   = self._tabs.geometry()
+            btn = self._estop_btn
+            btn.move(r.right()  - btn.width()  - 12,
+                     r.bottom() - btn.height() - 12)
+
+    # ── Emergency stop ────────────────────────────────────────────────────────
+    def _on_estop(self):
+        reply = QMessageBox.question(
+            self, tr('estop_title'), tr('estop_msg'),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        # Heater off FIRST — always before TCU stop
+        self._heater_tab.emergency_off()
+        ok = self._heater.emergency_off()
+        if not ok:
+            print("MainWindow: heater emergency_off Modbus failed")
+        # TCU stop
+        self._cmd_stop()
+        # Abort active tests
+        if self._test_active:
+            self._on_test_stop()
+        self._response_tab.on_tcu_abnormal()
+
+    # ── Heater command ────────────────────────────────────────────────────────
+    def _cmd_set_heater_watts(self, watts: int):
+        """Send watt setpoint to heater via Modbus."""
+        if not isinstance(watts, int):
+            return
+        ok  = self._heater.set_watts(watts)
+        msg = f'SET {watts}W → {"OK" if ok else "FAILED"}'
+        self._heater_tab.log_modbus_response(msg)
+        if ok:
+            self._heater_tab.update_setpoint_watts(watts)
     def _connect_tcu(self):
         self._tcu.connect()
         pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
@@ -191,8 +267,19 @@ class MainWindow(QMainWindow):
             pass
 
     def _on_sample(self, sample: Sample):
-        """Received in GUI thread — update both tabs."""
+        """Received in GUI thread — update all tabs."""
         self._monitor_tab.update(sample)
+        self._heater_tab.update_sample(sample)
+        self._response_tab.update_sample(sample)
+
+        # Auto-off heater if BS != 400400 (TCU abnormal)
+        if sample.b1 is not None:
+            bs = (sample.b1 << 16) | ((sample.b2 or 0) << 8) | (sample.b3 or 0)
+            if bs != 0x400400:
+                ok = self._heater.emergency_off()
+                if not ok:
+                    print("MainWindow: heater auto-off on TCU abnormal failed")
+                self._heater_tab.emergency_off()
 
         if self._test_active:
             elapsed_min = (time.time() - self._test_start_t) / 60.0
@@ -309,6 +396,16 @@ class MainWindow(QMainWindow):
         self._monitor_tab.retranslate()
         self._test_tab.retranslate()
         self._settings_tab.retranslate()
+        self._heater_tab.retranslate()
+        self._response_tab.retranslate()
+        # Update tab bar labels
+        self._tabs.setTabText(0, tr('tab_monitor'))
+        self._tabs.setTabText(1, tr('tab_test'))
+        self._tabs.setTabText(2, tr('tab_heater'))
+        self._tabs.setTabText(3, tr('tab_response'))
+        self._tabs.setTabText(4, tr('tab_settings'))
+        self._tabs.setTabText(5, tr('tab_docs'))
+        self._estop_btn.setText(tr('estop_btn'))
 
     def _on_ports_changed(self):
         """Notify user that port changes take effect on next connection."""

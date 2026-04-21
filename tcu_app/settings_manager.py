@@ -1,10 +1,9 @@
 # =============================================================================
 # settings_manager.py — Persistent Settings Manager
 # =============================================================================
-# Loads and saves user settings to settings.json in the project root.
-# Provides defaults for all settings.
-# All other modules should read live settings from SettingsManager instance,
-# not directly from config.py, so hot reload works correctly.
+# Loads and saves user settings to settings.json.
+# Falls back to DEFAULTS for any missing key.
+# Malay language ('ms') falls back to English ('en').
 # =============================================================================
 
 import json
@@ -12,26 +11,50 @@ import os
 import sys
 
 SETTINGS_FILE = 'settings.json'
-
-# Platform detection
 WINDOWS = sys.platform == 'win32'
 
 DEFAULTS = {
     # Serial ports
-    'tcu_port':         'COM5'         if WINDOWS else '/dev/ttyUSB0',
+    'tcu_port':         'COM5'              if WINDOWS else '/dev/ttyUSB0',
     'tcu_baud':         2400,
-    'pzem_port':        'COM6'         if WINDOWS else '/dev/ttyAMA0',
+    'pzem_port':        'COM6'              if WINDOWS else '/dev/ttyAMA0',
     'pzem_baud':        9600,
 
-    # Test parameters
+    # Post-repair test parameters
     'temp_setpoint':    22.0,
     'temp_tolerance':   0.5,
     'test_duration':    180,
     'poll_interval':    1,
+    'min_flow_rate':    1,
 
     # UI preferences
-    'theme':            'light',        # 'light' or 'dark'
-    'language':         'en',           # 'en', 'zh', 'ms'
+    'theme':            'light',
+    'language':         'en',           # 'en' or 'zh' only
+
+    # Heater Modbus
+    'heater_port':          'COM7'      if WINDOWS else '/dev/ttyAMA2',
+    'heater_baud':          9600,
+    'heater_slave_id':      1,
+    'heater_reg_setpoint':  0x0001,
+    'heater_reg_actual':    0x0002,
+    'heater_watts_tolerance': 200,
+    'heater_display_mode':  'both',     # 'percent', 'watts', 'both'
+
+    # Step response test
+    'heater_step_start_w':      2000,
+    'heater_step_end_w':        10000,
+    'heater_step_size_w':       1000,
+    'heater_dwell_time_min':    10,
+    'step_test_duration_min':   30,
+
+    # Steady state detection
+    'steady_state_window_sec':  60,
+    'steady_state_tolerance':   0.1,
+
+    # Thermal response detection
+    'thermal_response_threshold':   0.1,
+    'thermal_response_min_samples': 3,
+    'thermal_response_sigma':       3,
 }
 
 
@@ -40,27 +63,26 @@ class SettingsManager:
     Loads settings from settings.json on startup.
     Falls back to DEFAULTS for any missing key.
     Saves to settings.json on every change.
-
-    Usage:
-        from settings_manager import settings
-        port = settings.get('tcu_port')
-        settings.set('theme', 'dark')
     """
 
     def __init__(self):
         self._data = dict(DEFAULTS)
-        self._callbacks = []   # list of callables notified on any change
+        self._callbacks = []
         self._load()
 
     def _load(self):
         """Load settings.json — merge with defaults so new keys always exist."""
-        if os.path.exists(SETTINGS_FILE):
-            try:
-                with open(SETTINGS_FILE, 'r') as f:
-                    saved = json.load(f)
-                self._data.update(saved)
-            except Exception as e:
-                print(f"Settings: could not load {SETTINGS_FILE}: {e} — using defaults")
+        if not os.path.exists(SETTINGS_FILE):
+            return
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                saved = json.load(f)
+            self._data.update(saved)
+            # Migrate: Malay language falls back to English
+            if self._data.get('language') == 'ms':
+                self._data['language'] = 'en'
+        except Exception as e:
+            print(f"Settings: could not load {SETTINGS_FILE}: {e} — using defaults")
 
     def _save(self):
         """Write current settings to settings.json."""
@@ -76,6 +98,9 @@ class SettingsManager:
 
     def set(self, key, value):
         """Update a setting, save to disk and notify all callbacks."""
+        if key not in DEFAULTS:
+            print(f"Settings: unknown key '{key}' — ignoring")
+            return
         self._data[key] = value
         self._save()
         for cb in self._callbacks:
@@ -85,7 +110,7 @@ class SettingsManager:
                 print(f"Settings callback error: {e}")
 
     def register_callback(self, fn):
-        """Register a callable(key, value) called whenever any setting changes."""
+        """Register a callable(key, value) called on any setting change."""
         self._callbacks.append(fn)
 
     def all(self):
@@ -93,5 +118,5 @@ class SettingsManager:
         return dict(self._data)
 
 
-# ── Module-level singleton — import this everywhere ───────────────────────────
+# ── Module-level singleton ─────────────────────────────────────────────────────
 settings = SettingsManager()
