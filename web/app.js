@@ -109,7 +109,6 @@ async function poll() {
     if (res.status === 401) { window.location.href = '/'; return; }
 
     if (!res.ok) {
-      // DAQ unavailable — still update lock and connection status
       setOffline();
       await pollLock();
       return;

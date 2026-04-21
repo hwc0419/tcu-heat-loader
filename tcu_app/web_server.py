@@ -44,6 +44,17 @@ app = Flask(__name__, static_folder='../web', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable static file caching
 app.secret_key = secrets.token_hex(32)
 app.permanent_session_lifetime = timedelta(hours=3)
+SESSION_SHORT_LIFETIME = timedelta(minutes=10)  # when remember me not checked
+
+@app.before_request
+def check_session_expiry():
+    """Auto-logout if session has expired."""
+    if 'username' in session:
+        expires_at = session.get('expires_at')
+        if expires_at and datetime.utcnow().timestamp() > expires_at:
+            session.clear()
+            return jsonify({'error': 'Session expired'}), 401
+SESSION_SHORT_LIFETIME = timedelta(minutes=10)  # when remember me not checked
 
 WEB_DIR   = os.path.join(os.path.dirname(__file__), '..', 'web')
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
@@ -292,6 +303,12 @@ def api_login():
         return jsonify({'error': 'Invalid username or password'}), 401
 
     session.permanent = True
+    app.permanent_session_lifetime = timedelta(hours=3)
+    # Store expiry time in session for per-user timeout
+    if remember:
+        session['expires_at'] = (datetime.utcnow() + timedelta(hours=3)).timestamp()
+    else:
+        session['expires_at'] = (datetime.utcnow() + timedelta(minutes=10)).timestamp()
     session['username']     = username
     session['name']         = user['name']
     session['role']         = user['role']
