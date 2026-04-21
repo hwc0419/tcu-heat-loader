@@ -35,12 +35,7 @@ def main():
     app.setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, False)
 
     window = MainWindow()
-
-    # Launch fullscreen if --fullscreen flag passed (used by systemd service)
-    if '--fullscreen' in sys.argv:
-        window.showFullScreen()
-    else:
-        window.show()
+    window.show()
     sys.exit(app.exec_())
 
 

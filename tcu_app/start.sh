@@ -21,5 +21,5 @@ if [ ! -e /dev/ttyAMA0 ]; then
     echo "WARNING: /dev/ttyAMA0 not found — check raspi-config UART setup"
 fi
 
-# Launch app in fullscreen
-exec python3 main.py --fullscreen
+# Launch app
+exec python3 main.py
