@@ -14,7 +14,7 @@ LINUX   = not WINDOWS
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_DIR     = 'logs'
-REPORTS_DIR = 'logs/reports'
+REPORTS_DIR = 'reports'
 
 # ── TCU serial (fixed protocol constants) ─────────────────────────────────────
 TCU_BYTESIZE = 8
