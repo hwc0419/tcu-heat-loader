@@ -35,7 +35,7 @@ class HeaterTab(QWidget):
     def __init__(self, scale: float = 1.0, parent=None):
         super().__init__(parent)
         self._scale        = scale
-        self._locked       = False   # True when technician holds operator lock
+        self._locked       = True    # default enabled for desktop use
         self._role         = 'technician'
         self._current_pct  = 0
         self._graph_times  = deque(maxlen=_GRAPH_MAX_POINTS)
@@ -44,7 +44,7 @@ class HeaterTab(QWidget):
         self._inlet_temps  = deque(maxlen=_GRAPH_MAX_POINTS)
         self._t_start      = time.monotonic()
         self._build_ui()
-        self._set_controls_enabled(False)
+        self._set_controls_enabled(True)
 
     # ── Build UI ──────────────────────────────────────────────────────────────
     def _build_ui(self):

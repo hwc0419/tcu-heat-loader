@@ -69,6 +69,8 @@ class MainWindow(QMainWindow):
         self._pzem     = PZEM004T()
         self._heater   = HeaterComms()
         self._connected = False
+        # Attempt heater connection — non-fatal if hardware not present
+        self._heater.connect()
 
         # ── Threads ─────────────────────────────────────────────────────────
         self._daq_thread    = None
@@ -227,6 +229,10 @@ class MainWindow(QMainWindow):
     def _cmd_set_heater_watts(self, watts: int):
         """Send watt setpoint to heater via Modbus."""
         if not isinstance(watts, int):
+            return
+        if not self._heater.is_connected():
+            self._heater_tab.log_modbus_response(
+                f'SET {watts}W → NOT CONNECTED (check heater port in settings)')
             return
         ok  = self._heater.set_watts(watts)
         msg = f'SET {watts}W → {"OK" if ok else "FAILED"}'
