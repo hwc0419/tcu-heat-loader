@@ -108,3 +108,61 @@ def check_pass_fail(inlet_temp, flow, alarms, elapsed_min):
 
     remaining = test_duration - elapsed_min
     return None, f'RUNNING — {remaining:.1f} min remaining'
+
+
+# =============================================================================
+# BS status decode — human-readable log string
+# =============================================================================
+
+def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
+    """
+    Return a human-readable status string from BS bytes and live readings.
+    Used by DAQ thread to populate the command log in the monitor tab.
+    """
+    if b1 is None:
+        return 'BS: no data'
+
+    bs = (b1 << 16) | ((b2 or 0) << 8) | (b3 or 0)
+    alarms = parse_alarms(b1, b2, b3)
+    alarm_str = '; '.join(alarms)
+
+    temp_str = f'{inlet_temp:.2f}°C' if inlet_temp is not None else 'N/A'
+    flow_str = f'{flow:.2f} ℓ/min'  if flow      is not None else 'N/A'
+    sp_str   = f'{setpoint:.2f}°C'  if setpoint   is not None else 'N/A'
+
+    return (
+        f'BS={bs:#08x} | '
+        f'Inlet={temp_str} SP={sp_str} Flow={flow_str} | '
+        f'{alarm_str}'
+    )
+
+
+# =============================================================================
+# BS abnormal check
+# =============================================================================
+
+def is_abnormal(b1, b2, b3, inlet_temp=None, setpoint=None, flow=None):
+    """
+    Return True if TCU is in an abnormal state requiring heater auto-off.
+
+    Normal running state: BS = 0x400400 (b2 bit 2 = main contactor ON).
+    Any deviation from this — including alarms, sensor faults, or low flow —
+    is treated as abnormal.
+
+    Returns bool. Returns True (abnormal) if b1 is None (no data).
+    """
+    if b1 is None:
+        return True
+
+    bs = (b1 << 16) | ((b2 or 0) << 8) | (b3 or 0)
+    if bs != 0x400400:
+        return True
+
+    alarms = parse_alarms(b1, b2, b3)
+    if alarms != ['No alarms']:
+        return True
+
+    if flow is not None and flow < settings.get('min_flow_rate'):
+        return True
+
+    return False
