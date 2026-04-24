@@ -60,6 +60,7 @@ def _sample_to_dict(s: Sample) -> dict:
         'power':        s.power,
         'is_abnormal':  s.is_abnormal,
         'decoded_log':  s.decoded_log,
+        'rpi_active':   False,   # updated by main_window via set_rpi_active()
     }
 
 
@@ -90,6 +91,7 @@ class DAQThread(threading.Thread):
         self._interval_lock    = threading.Lock()
         self._stop_event       = threading.Event()
         self._ipc              = IPCWriter()
+        self._rpi_active       = False
 
     def stop(self):
         self._stop_event.set()
@@ -99,6 +101,12 @@ class DAQThread(threading.Thread):
         """Update poll interval live — takes effect on next cycle."""
         with self._interval_lock:
             self._interval = max(0.5, float(seconds))
+
+    def set_rpi_active(self, active: bool):
+        """Called by main_window on any desktop interaction."""
+        if not isinstance(active, bool):
+            return
+        self._rpi_active = active
 
     def run(self):
         while not self._stop_event.is_set():
@@ -172,6 +180,8 @@ class DAQThread(threading.Thread):
 
         # IPC — web server gets latest sample (write errors are non-fatal)
         try:
-            self._ipc.write(_sample_to_dict(sample))
+            payload = _sample_to_dict(sample)
+            payload['rpi_active'] = self._rpi_active
+            self._ipc.write(payload)
         except Exception as e:
             print(f'IPC write error: {e}')

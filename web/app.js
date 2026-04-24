@@ -120,10 +120,25 @@ async function poll() {
     updateLockUI(data.lock);
     updateGraphs(data);
     checkAlarms(data);
+    updateRpiLockout(data.rpi_active);
 
   } catch {
     setOffline();
     await pollLock();
+  }
+}
+
+function updateRpiLockout(rpiActive) {
+  const banner   = document.getElementById('rpi-lockout-banner');
+  const controls = document.querySelectorAll(
+    'button:not(#tab-monitor):not(#tab-test):not([data-tab])'
+    + ', input, select');
+  if (rpiActive) {
+    if (banner) banner.style.display = 'block';
+    controls.forEach(el => el.disabled = true);
+  } else {
+    if (banner) banner.style.display = 'none';
+    controls.forEach(el => el.disabled = false);
   }
 }
 

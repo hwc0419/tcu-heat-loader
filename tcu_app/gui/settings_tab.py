@@ -6,11 +6,14 @@
 # Settings persist to settings.json via SettingsManager.
 # =============================================================================
 
+import hashlib
+
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QComboBox,
     QDoubleSpinBox, QSpinBox, QLineEdit, QTabWidget,
-    QSizePolicy
+    QSizePolicy, QDialog, QDialogButtonBox, QTableWidget,
+    QTableWidgetItem, QHeaderView, QMessageBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 
@@ -25,6 +28,7 @@ class SettingsTab(QWidget):
     sig_theme_changed    = pyqtSignal(str)
     sig_language_changed = pyqtSignal(str)
     sig_ports_changed    = pyqtSignal()
+    sig_user_removed     = pyqtSignal(str)   # emitted when a web user is deleted
 
     def __init__(self, scale: float = 1.0, parent=None):
         super().__init__(parent)
@@ -44,6 +48,8 @@ class SettingsTab(QWidget):
         self._tabs.addTab(self._build_heater_tab(),      tr('subtab_heater'))
         self._tabs.addTab(self._build_response_tab(),    tr('subtab_response_test'))
         self._tabs.addTab(self._build_display_tab(),     tr('subtab_display'))
+        self._tabs.addTab(self._build_access_tab(),      tr('subtab_access'))
+        self._tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self._tabs)
 
         btn_row = QHBoxLayout()
@@ -404,6 +410,7 @@ class SettingsTab(QWidget):
         self._tabs.setTabText(2, tr('subtab_heater'))
         self._tabs.setTabText(3, tr('subtab_response_test'))
         self._tabs.setTabText(4, tr('subtab_display'))
+        self._tabs.setTabText(5, tr('subtab_access'))
         # Group box titles
         self._grp_serial.setTitle(tr('settings_serial'))
         self._grp_test.setTitle(tr('settings_test'))
@@ -465,6 +472,242 @@ class SettingsTab(QWidget):
         self.heater_display_combo.addItem(tr('display_both'),    'both')
         self._set_combo_data(self.heater_display_combo, current_disp)
         self.heater_display_combo.blockSignals(False)
+
+    # ── Access sub-tab ────────────────────────────────────────────────────────
+    def _build_access_tab(self):
+        w = QWidget()
+        v = QVBoxLayout(w)
+
+        # Password prompt shown initially
+        self._access_locked = True
+        self._access_content = QWidget()
+        self._access_content.setVisible(False)
+
+        self._grp_auth = QGroupBox('Authentication required')
+        auth_layout = QVBoxLayout(self._grp_auth)
+        auth_layout.addWidget(QLabel('Enter admin password to access this tab:'))
+        self._access_pw_edit = QLineEdit()
+        self._access_pw_edit.setEchoMode(QLineEdit.Password)
+        self._access_pw_edit.setPlaceholderText('Admin password')
+        auth_layout.addWidget(self._access_pw_edit)
+        self._access_pw_btn = QPushButton('Unlock')
+        self._access_pw_btn.setObjectName('btn_start')
+        self._access_pw_btn.clicked.connect(self._on_access_unlock)
+        auth_layout.addWidget(self._access_pw_btn)
+        self._access_pw_err = QLabel('')
+        self._access_pw_err.setStyleSheet('color: red;')
+        auth_layout.addWidget(self._access_pw_err)
+
+        # Access content (shown after authentication)
+        content_layout = QVBoxLayout(self._access_content)
+
+        # Inactivity timeout
+        self._grp_inactivity = QGroupBox('RPi4 Inactivity Timeout')
+        g = QGridLayout(self._grp_inactivity)
+        self._inactivity_spin = QSpinBox()
+        self._inactivity_spin.setRange(1, 60)
+        self._inactivity_spin.setSuffix(' min')
+        self._inactivity_spin.setValue(settings.get('rpi_inactivity_timeout_min'))
+        g.addWidget(QLabel('Inactivity timeout:'), 0, 0)
+        g.addWidget(self._inactivity_spin, 0, 1)
+        content_layout.addWidget(self._grp_inactivity)
+
+        # Change admin password
+        self._grp_pw = QGroupBox('Change Admin Password')
+        pw_g = QGridLayout(self._grp_pw)
+        self._new_pw_edit    = QLineEdit()
+        self._new_pw_edit.setEchoMode(QLineEdit.Password)
+        self._new_pw_edit.setPlaceholderText('New password')
+        self._confirm_pw_edit = QLineEdit()
+        self._confirm_pw_edit.setEchoMode(QLineEdit.Password)
+        self._confirm_pw_edit.setPlaceholderText('Confirm new password')
+        self._change_pw_btn  = QPushButton('Change Password')
+        self._change_pw_btn.setObjectName('btn_start')
+        self._change_pw_btn.clicked.connect(self._on_change_password)
+        self._pw_status_lbl  = QLabel('')
+        pw_g.addWidget(QLabel('New password:'),    0, 0)
+        pw_g.addWidget(self._new_pw_edit,          0, 1)
+        pw_g.addWidget(QLabel('Confirm:'),         1, 0)
+        pw_g.addWidget(self._confirm_pw_edit,      1, 1)
+        pw_g.addWidget(self._change_pw_btn,        2, 0, 1, 2)
+        pw_g.addWidget(self._pw_status_lbl,        3, 0, 1, 2)
+        content_layout.addWidget(self._grp_pw)
+
+        # User management
+        self._grp_users = QGroupBox('Web User Management')
+        users_v = QVBoxLayout(self._grp_users)
+        self._users_table = QTableWidget(0, 3)
+        self._users_table.setHorizontalHeaderLabels(['Username', 'Role', 'Action'])
+        self._users_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch)
+        users_v.addWidget(self._users_table)
+
+        add_row = QHBoxLayout()
+        self._new_user_edit = QLineEdit()
+        self._new_user_edit.setPlaceholderText('Username (work ID)')
+        self._new_user_pw_edit = QLineEdit()
+        self._new_user_pw_edit.setEchoMode(QLineEdit.Password)
+        self._new_user_pw_edit.setPlaceholderText('Password')
+        self._new_user_role  = QComboBox()
+        self._new_user_role.addItem('Technician', 'technician')
+        self._new_user_role.addItem('Supervisor', 'supervisor')
+        self._add_user_btn   = QPushButton('Add User')
+        self._add_user_btn.setObjectName('btn_start')
+        self._add_user_btn.clicked.connect(self._on_add_user)
+        add_row.addWidget(self._new_user_edit)
+        add_row.addWidget(self._new_user_pw_edit)
+        add_row.addWidget(self._new_user_role)
+        add_row.addWidget(self._add_user_btn)
+        users_v.addLayout(add_row)
+        self._user_status_lbl = QLabel('')
+        users_v.addWidget(self._user_status_lbl)
+        content_layout.addWidget(self._grp_users)
+
+        # Apply button for inactivity setting
+        self._access_apply_btn = QPushButton('Apply')
+        self._access_apply_btn.setObjectName('btn_start')
+        self._access_apply_btn.clicked.connect(self._on_access_apply)
+        content_layout.addWidget(self._access_apply_btn)
+        content_layout.addStretch()
+
+        v.addWidget(self._grp_auth)
+        v.addWidget(self._access_content)
+        return w
+
+    def _on_tab_changed(self, index: int):
+        """Lock access tab every time user navigates away and back."""
+        if not isinstance(index, int):
+            return
+        access_idx = self._tabs.count() - 1
+        if index == access_idx:
+            self._lock_access_tab()
+        else:
+            self._lock_access_tab()
+
+    def _lock_access_tab(self):
+        self._access_locked = True
+        self._access_content.setVisible(False)
+        self._grp_auth.setVisible(True)
+        self._access_pw_edit.clear()
+        self._access_pw_err.setText('')
+
+    def _on_access_unlock(self):
+        pw = self._access_pw_edit.text()
+        if not isinstance(pw, str) or not pw:
+            self._access_pw_err.setText('Password cannot be empty.')
+            return
+        hashed  = hashlib.sha256(pw.encode()).hexdigest()
+        stored  = settings.get('access_password_hash')
+        if hashed != stored:
+            self._access_pw_err.setText('Incorrect password.')
+            self._access_pw_edit.clear()
+            return
+        self._access_locked = False
+        self._grp_auth.setVisible(False)
+        self._access_content.setVisible(True)
+        self._refresh_users_table()
+
+    def _on_change_password(self):
+        new_pw     = self._new_pw_edit.text()
+        confirm_pw = self._confirm_pw_edit.text()
+        if not isinstance(new_pw, str) or len(new_pw) < 6:
+            self._pw_status_lbl.setText('Password must be at least 6 characters.')
+            return
+        if new_pw != confirm_pw:
+            self._pw_status_lbl.setText('Passwords do not match.')
+            return
+        hashed = hashlib.sha256(new_pw.encode()).hexdigest()
+        settings.set('access_password_hash', hashed)
+        self._pw_status_lbl.setText('✓ Password changed.')
+        self._new_pw_edit.clear()
+        self._confirm_pw_edit.clear()
+
+    def _on_access_apply(self):
+        val = self._inactivity_spin.value()
+        if not isinstance(val, int) or val <= 0:
+            return
+        settings.set('rpi_inactivity_timeout_min', val)
+        self._access_apply_btn.setText('✓ Applied')
+
+    def _refresh_users_table(self):
+        import json, os
+        path = 'users.json'
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path) as f:
+                users = json.load(f)
+        except Exception:
+            return
+        self._users_table.setRowCount(0)
+        for i, (uname, udata) in enumerate(users.items()):
+            if not isinstance(udata, dict):
+                continue
+            self._users_table.insertRow(i)
+            self._users_table.setItem(i, 0, QTableWidgetItem(uname))
+            self._users_table.setItem(i, 1, QTableWidgetItem(udata.get('role', '')))
+            del_btn = QPushButton('Remove')
+            del_btn.setObjectName('btn_stop')
+            del_btn.clicked.connect(lambda _, u=uname: self._on_remove_user(u))
+            self._users_table.setCellWidget(i, 2, del_btn)
+
+    def _on_add_user(self):
+        import json, os, hashlib as hl
+        uname = self._new_user_edit.text().strip()
+        pw    = self._new_user_pw_edit.text()
+        role  = self._new_user_role.currentData()
+        if not uname or not pw:
+            self._user_status_lbl.setText('Username and password required.')
+            return
+        path = 'users.json'
+        users = {}
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    users = json.load(f)
+            except Exception:
+                pass
+        if uname in users:
+            self._user_status_lbl.setText(f'User "{uname}" already exists.')
+            return
+        users[uname] = {
+            'password_hash': hl.sha256(pw.encode()).hexdigest(),
+            'role': role
+        }
+        try:
+            with open(path, 'w') as f:
+                json.dump(users, f, indent=2)
+            self._user_status_lbl.setText(f'✓ User "{uname}" added.')
+            self._new_user_edit.clear()
+            self._new_user_pw_edit.clear()
+            self._refresh_users_table()
+        except Exception as e:
+            self._user_status_lbl.setText(f'Error: {e}')
+
+    def _on_remove_user(self, uname: str):
+        import json, os
+        if not isinstance(uname, str):
+            return
+        reply = QMessageBox.question(
+            self, 'Remove User',
+            f'Remove user "{uname}"? Their active session will be invalidated.',
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        path = 'users.json'
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path) as f:
+                users = json.load(f)
+            users.pop(uname, None)
+            with open(path, 'w') as f:
+                json.dump(users, f, indent=2)
+            self.sig_user_removed.emit(uname)
+            self._user_status_lbl.setText(f'✓ User "{uname}" removed.')
+            self._refresh_users_table()
+        except Exception as e:
+            self._user_status_lbl.setText(f'Error: {e}')
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _set_combo(self, combo: QComboBox, text: str):

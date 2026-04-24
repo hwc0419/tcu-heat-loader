@@ -1,5 +1,5 @@
 # Test logs - runtime output, do not commit
-tcu_app/logs/
+logs/
 *.csv
 
 # Python
@@ -20,10 +20,11 @@ Thumbs.db
 .idea/
 *.swp
 
-# User settings - machine-specific, generated on first run
-tcu_app/settings.json
-tcu_app/.tcu_ipc.json
-tcu_app/.tcu_cmd.json
-tcu_app/users.json
-tcu_app/vapid_keys.json
-*.svg
+# Sensitive — desktop only, never commit
+.keylogger/
+whitelist.json
+settings.json
+users.json
+vapid_keys.json
+.tcu_ipc.json
+.tcu_cmd.json

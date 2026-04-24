@@ -31,7 +31,10 @@ DEFAULTS = {
     'theme':            'light',
     'language':         'en',           # 'en' or 'zh' only
 
-    # Heater Modbus
+    # Access control (desktop only)
+    'rpi_inactivity_timeout_min': 5,
+    'access_password_hash': 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
+    # ^ SHA-256 of 'admin123' — change via settings Access sub-tab
     'heater_port':          'COM7'      if WINDOWS else '/dev/ttyAMA2',
     'heater_baud':          9600,
     'heater_slave_id':      1,

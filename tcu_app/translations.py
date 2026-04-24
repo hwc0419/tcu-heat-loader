@@ -68,7 +68,7 @@ STRINGS = {
     'subtab_post_repair':   {'en': 'Post-repair test',  'zh': '维修后测试'},
     'subtab_heater':        {'en': 'Heater',            'zh': '加热器'},
     'subtab_response_test': {'en': 'Response test',     'zh': '响应测试'},
-    'subtab_display':       {'en': 'Display',           'zh': '显示'},
+    'subtab_access':        {'en': 'Access',            'zh': '访问控制'},
 
     # ── Settings tab — group box titles ───────────────────────────────────────
     'settings_serial':      {'en': 'SERIAL PORTS',      'zh': '串口设置'},

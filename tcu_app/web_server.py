@@ -48,12 +48,17 @@ SESSION_SHORT_LIFETIME = timedelta(minutes=10)  # when remember me not checked
 
 @app.before_request
 def check_session_expiry():
-    """Auto-logout if session has expired."""
+    """Auto-logout if session has expired or user has been invalidated."""
     if 'username' in session:
+        username   = session.get('username')
         expires_at = session.get('expires_at')
         if expires_at and datetime.utcnow().timestamp() > expires_at:
             session.clear()
             return jsonify({'error': 'Session expired'}), 401
+        if username in invalidated_users:
+            invalidated_users.discard(username)
+            session.clear()
+            return jsonify({'error': 'Your account has been removed'}), 401
 SESSION_SHORT_LIFETIME = timedelta(minutes=10)  # when remember me not checked
 
 WEB_DIR   = os.path.join(os.path.dirname(__file__), '..', 'web')
@@ -160,6 +165,12 @@ class OperatorLock:
             pos = next(i+1 for i, (_, u, _) in enumerate(self._queue)
                       if u == username)
             return False, pos
+
+    def release_all_web(self):
+        """Called when RPi becomes active — release any web operator lock."""
+        with self._lock:
+            if self._owner and self._owner != 'touchscreen':
+                self._release_locked()
 
     def release(self, username: str):
         """Release lock voluntarily."""
@@ -268,7 +279,8 @@ def technician_required(f):
     return decorated
 
 # ── Active sessions tracker (for lock queue ordering) ────────────────────────
-active_sessions = {}   # username -> login_time
+active_sessions      = {}   # username -> login_time
+invalidated_users    = set() # usernames whose sessions are immediately revoked
 active_sessions_lock = threading.Lock()
 
 # =============================================================================
@@ -334,6 +346,22 @@ def api_logout():
     session.clear()
     return jsonify({'ok': True})
 
+@app.route('/api/admin/invalidate_user', methods=['POST'])
+def api_invalidate_user():
+    """Called by desktop app (localhost only) when a user is removed."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Forbidden'}), 403
+    data     = request.get_json()
+    username = data.get('username') if data else None
+    if not username or not isinstance(username, str):
+        return jsonify({'error': 'username required'}), 400
+    invalidated_users.add(username)
+    operator_lock.release(username)
+    operator_lock.remove_from_queue(username)
+    with active_sessions_lock:
+        active_sessions.pop(username, None)
+    return jsonify({'ok': True})
+
 @app.route('/api/me')
 def api_me():
     if 'username' not in session:
@@ -357,8 +385,13 @@ def api_data():
     data = ipc_reader.read()
     if data is None:
         return jsonify({'error': 'No data available — PyQt5 app may not be running'}), 503
-    data['lock'] = operator_lock.status()
+    rpi_active = bool(data.get('rpi_active', False))
+    data['lock']        = operator_lock.status()
+    data['rpi_active']  = rpi_active
     data['server_time'] = time.time()
+    # If RPi is active, release any web operator lock
+    if rpi_active:
+        operator_lock.release_all_web()
     return jsonify(data)
 
 # =============================================================================
@@ -401,6 +434,11 @@ def api_lock_status():
 # Routes — TCU commands (technician + lock required)
 # =============================================================================
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+import audit_logger as _audit
+
 def _tcu_command(cmd_name: str) -> tuple[dict, int]:
     """Helper — checks lock ownership before forwarding command."""
     username = session.get('username')
@@ -408,7 +446,7 @@ def _tcu_command(cmd_name: str) -> tuple[dict, int]:
     if lock_status['owner'] != username:
         return {'error': 'You do not have control — acquire lock first'}, 403
     operator_lock.activity(username)
-    # Commands are forwarded to PyQt5 app via a command queue file
+    _audit.log(f'Web:{username}', username, f'TCU {cmd_name}', '')
     _write_command({'cmd': cmd_name, 'timestamp': time.time(), 'user': username})
     return {'ok': True, 'cmd': cmd_name}, 200
 
