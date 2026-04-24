@@ -2,6 +2,7 @@
 # main_window.py — Top-level application window
 # =============================================================================
 
+import audit_logger
 import threading
 import time
 from queue import Queue
@@ -81,6 +82,14 @@ class MainWindow(QMainWindow):
         self._test_active  = False
         self._test_start_t = None
         self._test_serial  = ''
+
+        # ── RPi priority / inactivity ────────────────────────────────────────
+        self._rpi_active        = False
+        self._last_interaction  = 0.0   # monotonic time of last interaction
+        self._inactivity_timer  = QTimer(self)
+        self._inactivity_timer.setInterval(1000)   # tick every second
+        self._inactivity_timer.timeout.connect(self._on_inactivity_tick)
+        self._inactivity_timer.start()
 
         # ── Signals ─────────────────────────────────────────────────────────
         self._sig = _Signals()
@@ -162,6 +171,7 @@ class MainWindow(QMainWindow):
         self._settings_tab.sig_theme_changed.connect(self._on_theme_changed)
         self._settings_tab.sig_language_changed.connect(self._on_language_changed)
         self._settings_tab.sig_ports_changed.connect(self._on_ports_changed)
+        self._settings_tab.sig_user_removed.connect(self._on_user_removed)
 
         # Status bar
         self._status_bar = QStatusBar()
@@ -170,6 +180,19 @@ class MainWindow(QMainWindow):
             f"font-size: {max(8, round(11 * self._scale))}px;")
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage(f"Port: {TCU_PORT}  |  Baud: {TCU_BAUD}  |  Connecting...")
+
+        # RPi priority countdown label (hidden until active)
+        self._priority_lbl = QLabel('')
+        self._priority_lbl.setStyleSheet('color: #F59E0B; font-weight: bold;')
+        self._status_bar.addPermanentWidget(self._priority_lbl)
+
+        # Release control button (hidden until RPi is active)
+        self._release_btn = QPushButton('Release Control')
+        self._release_btn.setObjectName('btn_fill')
+        self._release_btn.setFixedHeight(22)
+        self._release_btn.setVisible(False)
+        self._release_btn.clicked.connect(self._on_release_control)
+        self._status_bar.addPermanentWidget(self._release_btn)
 
         # Wire monitor tab signals
         self._monitor_tab.sig_start.connect(self._cmd_start)
@@ -207,12 +230,60 @@ class MainWindow(QMainWindow):
                      r.bottom() - btn.height() - 12)
 
     # ── Emergency stop ────────────────────────────────────────────────────────
+    # ── RPi priority / inactivity ─────────────────────────────────────────────
+    def record_interaction(self):
+        """Call on any desktop user interaction to reset inactivity timer."""
+        self._last_interaction = time.monotonic()
+        if not self._rpi_active:
+            self._rpi_active = True
+            self._release_btn.setVisible(True)
+            if self._daq_thread:
+                self._daq_thread.set_rpi_active(True)
+
+    def _on_inactivity_tick(self):
+        """Called every second — checks inactivity timeout."""
+        if not self._rpi_active:
+            self._priority_lbl.setText('')
+            return
+        timeout_sec = settings.get('rpi_inactivity_timeout_min') * 60
+        elapsed     = time.monotonic() - self._last_interaction
+        remaining   = max(0.0, timeout_sec - elapsed)
+        mm, ss      = divmod(int(remaining), 60)
+        self._priority_lbl.setText(f'Control releases in {mm:02d}:{ss:02d}')
+        if remaining <= 0:
+            self._on_release_control()
+
+    def _on_user_removed(self, username: str):
+        """Notify web server to immediately invalidate removed user's session."""
+        if not isinstance(username, str) or not username:
+            return
+        import urllib.request, json as _json
+        try:
+            payload = _json.dumps({'username': username}).encode()
+            req     = urllib.request.Request(
+                'http://127.0.0.1:5000/api/admin/invalidate_user',
+                data=payload,
+                headers={'Content-Type': 'application/json'},
+                method='POST')
+            urllib.request.urlopen(req, timeout=2)
+        except Exception as e:
+            print(f"MainWindow: could not invalidate web session for {username}: {e}")
+
+    def _on_release_control(self):
+        self._rpi_active = False
+        self._release_btn.setVisible(False)
+        self._priority_lbl.setText('')
+        if self._daq_thread:
+            self._daq_thread.set_rpi_active(False)
+
     def _on_estop(self):
         reply = QMessageBox.question(
             self, tr('estop_title'), tr('estop_msg'),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'EMERGENCY STOP', '')
         # Heater off FIRST — always before TCU stop
         self._heater_tab.emergency_off()
         ok = self._heater.emergency_off()
@@ -230,6 +301,8 @@ class MainWindow(QMainWindow):
         """Send watt setpoint to heater via Modbus."""
         if not isinstance(watts, int):
             return
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'HEATER SETPOINT', f'{watts}W')
         if not self._heater.is_connected():
             self._heater_tab.log_modbus_response(
                 f'SET {watts}W → NOT CONNECTED (check heater port in settings)')
@@ -277,6 +350,8 @@ class MainWindow(QMainWindow):
         self._monitor_tab.update(sample)
         self._heater_tab.update_sample(sample)
         self._response_tab.update_sample(sample)
+        # Always update test tab graph — even when no test is running
+        self._test_tab.update(sample)
 
         # Auto-off heater if BS != 400400 (TCU abnormal)
         if sample.b1 is not None:
@@ -301,32 +376,44 @@ class MainWindow(QMainWindow):
 
     # ── TCU commands ──────────────────────────────────────────────────────────
     def _cmd_start(self):
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU START', '')
         if self._tcu.connected:
             self._tcu.start()
             self._monitor_tab.log_command('START', '$')
 
     def _cmd_stop(self):
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU STOP', '')
         if self._tcu.connected:
             self._tcu.stop()
             self._monitor_tab.log_command('STOP', '$')
 
     def _cmd_clear_alarm(self):
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU CLEAR ALARM', '')
         if self._tcu.connected:
             self._tcu.release_alarm()
             self._monitor_tab.log_command('ER', '$')
 
     def _cmd_close_valve(self):
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU CLOSE VALVE', '')
         if self._tcu.connected:
             self._tcu._send('CVE')
             self._monitor_tab.log_command('CVE', '$')
 
     def _cmd_set_setpoint(self, temp: float):
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU SET SETPOINT', f'{temp:.2f}°C')
         if self._tcu.connected:
             self._tcu.set_setpoint(temp)
             self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$')
 
     def _cmd_precond(self):
         """VT — pretemperature control only (no fill)."""
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU PRECOND', '')
         if self._tcu.connected:
             threading.Thread(
                 target=self._tcu._send, args=('VT',), daemon=True).start()
@@ -334,6 +421,8 @@ class MainWindow(QMainWindow):
 
     def _cmd_fill(self):
         """AFV — blocking fill. Runs in background thread."""
+        self.record_interaction()
+        audit_logger.log('Desktop', 'desktop', 'TCU FILL', '')
         if not self._tcu.connected:
             return
         self._monitor_tab.log_command('AFV', '(filling — please wait...)')
@@ -420,6 +509,7 @@ class MainWindow(QMainWindow):
 
     def _on_settings_changed(self, key, value):
         """Called by settings_manager for any setting change — update live."""
+        audit_logger.log('Desktop', 'desktop', f'SETTING CHANGED: {key}', str(value))
         # Update DAQ poll interval immediately
         if key == 'poll_interval' and self._daq_thread is not None:
             self._daq_thread.set_interval(float(value))

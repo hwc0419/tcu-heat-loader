@@ -339,14 +339,26 @@ class TestTab(QWidget):
 
     # ── Public: called by main window ─────────────────────────────────────────
     def update(self, sample, status_msg: str = '', passed=None):
-        """Update readings from DAQ sample."""
-        if not self._test_active:
-            return
-
+        """Update readings and graph from DAQ sample."""
         if self._t0_graph is None:
             self._t0_graph = sample.timestamp
 
         t_min = (sample.timestamp - self._t0_graph) / 60.0
+
+        # Always update graph
+        if sample.inlet_temp is not None:
+            self._times.append(t_min)
+            self._temps.append(sample.inlet_temp)
+            self._curve_tcu.setData(list(self._times), list(self._temps))
+
+        if sample.power is not None:
+            self._heat_times.append(t_min)
+            self._heat_loads.append(sample.power)
+            self._curve_power.setData(list(self._heat_times), list(self._heat_loads))
+
+        # Only update readings and pass/fail when test is active
+        if not self._test_active:
+            return
 
         def fmt_temp(v): return f"{v:.2f} °C" if v is not None else "---"
         def fmt_flow(v): return f"{v:.1f} ℓ/min" if v is not None else "---"
@@ -367,17 +379,6 @@ class TestTab(QWidget):
             self.val_alarm.setObjectName("status_err")
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
-
-        # Graph
-        if sample.inlet_temp is not None:
-            self._times.append(t_min)
-            self._temps.append(sample.inlet_temp)
-            self._curve_tcu.setData(list(self._times), list(self._temps))
-
-        if sample.power is not None:
-            self._heat_times.append(t_min)
-            self._heat_loads.append(sample.power)
-            self._curve_power.setData(list(self._heat_times), list(self._heat_loads))
 
         # Check pass/fail
         if passed is True:
