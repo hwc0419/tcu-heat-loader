@@ -333,9 +333,11 @@ class ResponseTestTab(QWidget):
     def update_sample(self, sample):
         """Called by main_window on every DAQ sample."""
         now = time.monotonic() - self._t0
-        water   = sample.water_temp   if sample.water_temp   is not None else float('nan')
-        element = sample.element_temp if sample.element_temp is not None else float('nan')
-        inlet   = sample.inlet_temp   if sample.inlet_temp   is not None else float('nan')
+        water   = getattr(sample, 'water_temp',   None)
+        element = getattr(sample, 'element_temp', None)
+        water   = water   if water   is not None else float('nan')
+        element = element if element is not None else float('nan')
+        inlet   = sample.inlet_temp if sample.inlet_temp is not None else float('nan')
 
         self._graph_times.append(now)
         self._water_temps.append(water)

@@ -198,9 +198,12 @@ class HeaterTab(QWidget):
         now = time.monotonic() - self._t_start
         self._graph_times.append(now)
 
-        water   = sample.water_temp   if sample.water_temp   is not None else float('nan')
-        element = sample.element_temp if sample.element_temp is not None else float('nan')
-        inlet   = sample.inlet_temp   if sample.inlet_temp   is not None else float('nan')
+        # water_temp and element_temp only exist once MAX31865/MAX31855 hardware arrives
+        water   = getattr(sample, 'water_temp',   None)
+        element = getattr(sample, 'element_temp', None)
+        water   = water   if water   is not None else float('nan')
+        element = element if element is not None else float('nan')
+        inlet   = sample.inlet_temp if sample.inlet_temp is not None else float('nan')
 
         self._water_temps.append(water)
         self._element_temps.append(element)
