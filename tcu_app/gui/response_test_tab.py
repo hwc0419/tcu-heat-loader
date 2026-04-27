@@ -157,29 +157,23 @@ class ResponseTestTab(QWidget):
         return layout
 
     def _build_graph(self):
-        self._grp_graph = QGroupBox(tr('resp_graph'))
-        v = QVBoxLayout(self._grp_graph)
-        self._plot = pg.PlotWidget()
+        panel, self._plot, _ = make_graph_panel(tr('resp_graph'), self._scale)
         self._plot.setLabel('left',   'Temperature', units='°C')
         self._plot.setLabel('bottom', 'Time', units='s')
         self._plot.addLegend()
         self._plot.showGrid(x=True, y=True, alpha=0.3)
         self._plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._plot.setMinimumHeight(200)
-
         self._curve_water   = self._plot.plot(pen=pg.mkPen('#2196F3', width=2),
                                                name='Water @ —')
         self._curve_element = self._plot.plot(pen=pg.mkPen('#F44336', width=2),
                                                name='Element @ —')
         self._curve_inlet   = self._plot.plot(pen=pg.mkPen('#4CAF50', width=2),
                                                name='TCU Inlet')
-        v.addWidget(self._plot)
-        return self._grp_graph
+        return panel
 
     def _build_summary_graph(self):
-        self._grp_summary = QGroupBox(tr('resp_summary'))
-        v = QVBoxLayout(self._grp_summary)
-        self._summary_plot = pg.PlotWidget()
+        panel, self._summary_plot, _ = make_graph_panel(tr('resp_summary'), self._scale)
         self._summary_plot.setLabel('left',   'Response time', units='s')
         self._summary_plot.setLabel('bottom', 'Heat load', units='W')
         self._summary_plot.showGrid(x=True, y=True, alpha=0.3)
@@ -188,8 +182,7 @@ class ResponseTestTab(QWidget):
         self._summary_curve = self._summary_plot.plot(
             pen=pg.mkPen('#FF9800', width=2),
             symbol='o', symbolSize=6, symbolBrush='#FF9800')
-        v.addWidget(self._summary_plot)
-        return self._grp_summary
+        return panel
 
     # ── Start / Abort ─────────────────────────────────────────────────────────
     def _on_start(self):
@@ -204,7 +197,6 @@ class ResponseTestTab(QWidget):
             QMessageBox.warning(self, 'Config Error', 'Invalid step range or size.')
             return
 
-        # Check soft limit — prompt admin password if step_end exceeds it
         soft_limit = settings.get('heater_soft_limit_w')
         if step_end > soft_limit:
             if not self._prompt_admin_password():

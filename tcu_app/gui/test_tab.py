@@ -6,7 +6,7 @@ import time
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QLineEdit, QProgressBar, QSizePolicy
+    QLineEdit, QProgressBar, QSizePolicy, QDialog
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 import pyqtgraph as pg
@@ -14,6 +14,7 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from gui.graph_utils import make_graph_panel
 from settings_manager import settings
 from translations import tr
 
@@ -44,9 +45,12 @@ class TestTab(QWidget):
         self._temps      = deque(maxlen=_get_window())
         self._heat_loads = deque(maxlen=_get_window())
         self._heat_times = deque(maxlen=_get_window())
+        self._flow_times = deque(maxlen=_get_window())
+        self._flow_vals  = deque(maxlen=_get_window())
 
         self._build_ui()
         self._setup_graph()
+        self._build_popup_graphs()
 
         # Timer updates elapsed display every second
         self._timer = QTimer(self)
@@ -124,14 +128,11 @@ class TestTab(QWidget):
 
         left.addWidget(readings_box)
 
-        # Graph
-        self._grp_graph = QGroupBox("TEMPERATURE & HEAT LOAD (test duration)")
-        graph_box = self._grp_graph
-        gg = QVBoxLayout(graph_box)
-        self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground('w')
-        self.plot_widget.setMinimumHeight(int(220 * self._scale))
-        gg.addWidget(self.plot_widget)
+        # Graph popup button (replaces inline graph)
+        self._btn_graphs = QPushButton("📈 Show Graphs")
+        self._btn_graphs.setObjectName('btn_fill')
+        self._btn_graphs.clicked.connect(self._on_show_graphs)
+        left.addWidget(self._btn_graphs)
         left.addWidget(graph_box, stretch=1)
 
         root.addLayout(left, stretch=3)
@@ -211,29 +212,51 @@ class TestTab(QWidget):
         self.btn_test_stop.clicked.connect(self._on_stop)
 
     def _setup_graph(self):
-        pw = self.plot_widget
-        pw.showGrid(x=True, y=True, alpha=0.2)
-        pw.setLabel('left', 'Temperature (°C)', color=TEXT,
-                    font={'family': 'Courier New', 'size': '11px'})
-        pw.setLabel('bottom', 'Elapsed (min)', color=TEXT_DIM,
-                    font={'family': 'Courier New', 'size': '10px'})
-        pw.addLegend(offset=(10, 10))
+        """No-op — graph lives in popup dialog."""
+        pass
 
-        self._curve_tcu = pw.plot(
+    def _build_popup_graphs(self):
+        """Build popup dialog with temperature + flow rate graphs."""
+        self._popup = QDialog(self)
+        self._popup.setWindowTitle('Test Graphs')
+        self._popup.setMinimumSize(700, 500)
+        v = QVBoxLayout(self._popup)
+
+        temp_panel, self._popup_plot_temp, _ = make_graph_panel(
+            'TCU Inlet Temperature', self._scale)
+        self._popup_plot_temp.setLabel('left',   'Temperature', units='°C')
+        self._popup_plot_temp.setLabel('bottom', 'Elapsed',     units='min')
+        self._popup_plot_temp.showGrid(x=True, y=True, alpha=0.2)
+        self._popup_plot_temp.addLegend()
+        self._curve_tcu = self._popup_plot_temp.plot(
             pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet')
-        self._curve_power = pw.plot(
-            pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
 
-        from settings_manager import settings as _s
-        TEMP_SETPOINT = _s.get('temp_setpoint'); TEMP_TOLERANCE = _s.get('temp_tolerance')
+        # Threshold lines
+        sp  = settings.get('temp_setpoint')
+        tol = settings.get('temp_tolerance')
         self._sp_hi = pg.InfiniteLine(
-            angle=0, pos=TEMP_SETPOINT + TEMP_TOLERANCE,
+            angle=0, pos=sp + tol,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
         self._sp_lo = pg.InfiniteLine(
-            angle=0, pos=TEMP_SETPOINT - TEMP_TOLERANCE,
+            angle=0, pos=sp - tol,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
-        pw.addItem(self._sp_hi)
-        pw.addItem(self._sp_lo)
+        self._popup_plot_temp.addItem(self._sp_hi)
+        self._popup_plot_temp.addItem(self._sp_lo)
+        v.addWidget(temp_panel)
+
+        flow_panel, self._popup_plot_flow, _ = make_graph_panel(
+            'Flow Rate', self._scale)
+        self._popup_plot_flow.setLabel('left',   'Flow rate', units='ℓ/min')
+        self._popup_plot_flow.setLabel('bottom', 'Elapsed',   units='min')
+        self._popup_plot_flow.showGrid(x=True, y=True, alpha=0.2)
+        self._curve_flow = self._popup_plot_flow.plot(
+            pen=pg.mkPen(color='#2196F3', width=2), name='Flow rate')
+        v.addWidget(flow_panel)
+
+    def _on_show_graphs(self):
+        """Show popup with live test graphs."""
+        self._popup.show()
+        self._popup.raise_()
 
     # ── Button handlers ───────────────────────────────────────────────────────
     def _on_start(self):
@@ -351,10 +374,10 @@ class TestTab(QWidget):
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
 
-        if sample.power is not None:
-            self._heat_times.append(t_min)
-            self._heat_loads.append(sample.power)
-            self._curve_power.setData(list(self._heat_times), list(self._heat_loads))
+        if sample.flow_rate is not None:
+            self._flow_times.append(t_min)
+            self._flow_vals.append(sample.flow_rate)
+            self._curve_flow.setData(list(self._flow_times), list(self._flow_vals))
 
         # Only update readings and pass/fail when test is active
         if not self._test_active:

@@ -186,6 +186,32 @@ QPushButton#btn_estop:pressed {{
     background-color: #991B1B;
 }}
 
+QPushButton#btn_export {{
+    background-color: transparent;
+    border: 1px solid {border};
+    border-radius: 4px;
+    color: {text_dim};
+    font-size: {pt(9)};
+    padding: 1px 4px;
+}}
+QPushButton#btn_export:hover {{
+    background-color: {surface};
+    color: {text};
+}}
+
+QWidget#graph_header {{
+    background-color: {panel};
+    border: 1px solid {border};
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}}
+
+QLabel#graph_title {{
+    font-size: {pt(10)};
+    font-weight: bold;
+    color: {text};
+}}
+
 QPushButton#btn_fill {{
     background-color: {btn_fill_bg};
     border-color: {accent};

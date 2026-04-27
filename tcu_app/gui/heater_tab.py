@@ -120,24 +120,20 @@ class HeaterTab(QWidget):
         return layout
 
     def _build_graph(self):
-        self._grp_graph = QGroupBox(tr('heater_graph'))
-        v = QVBoxLayout(self._grp_graph)
-        self._plot = pg.PlotWidget()
+        panel, self._plot, _ = make_graph_panel(tr('heater_graph'), self._scale)
         self._plot.setLabel('left',   'Temperature', units='°C')
         self._plot.setLabel('bottom', 'Time', units='s')
         self._plot.addLegend()
         self._plot.showGrid(x=True, y=True, alpha=0.3)
         self._plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._plot.setMinimumHeight(200)
-
         self._curve_water   = self._plot.plot(pen=pg.mkPen('#2196F3', width=2),
                                                name='Water @ 0W')
         self._curve_element = self._plot.plot(pen=pg.mkPen('#F44336', width=2),
                                                name='Element @ 0W')
         self._curve_inlet   = self._plot.plot(pen=pg.mkPen('#4CAF50', width=2),
                                                name='TCU Inlet')
-        v.addWidget(self._plot)
-        return self._grp_graph
+        return panel
 
     def _build_modbus_log(self):
         self._grp_log = QGroupBox(tr('heater_modbus_log'))
