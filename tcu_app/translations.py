@@ -35,10 +35,10 @@ STRINGS = {
     'alarm_history':    {'en': 'ALARM HISTORY',         'zh': '报警历史'},
     'btn_start':        {'en': 'START',                 'zh': '启动'},
     'btn_stop':         {'en': 'STOP',                  'zh': '停止'},
-    'btn_fill':         {'en': 'FILL  (AFV)',            'zh': '注水 (AFV)'},
-    'btn_precond':      {'en': 'PRECOND  (VT)',          'zh': '预调温 (VT)'},
-    'btn_clr_alarm':    {'en': 'CLEAR ALARM  (ER)',     'zh': '清除报警 (ER)'},
-    'btn_close_valve':  {'en': 'CLOSE VALVE  (CVE)',    'zh': '关阀 (CVE)'},
+    'btn_fill':         {'en': 'FILL',            'zh': '注水'},
+    'btn_precond':      {'en': 'PRECOND',          'zh': '预调温'},
+    'btn_clr_alarm':    {'en': 'CLEAR ALARM',     'zh': '清除报警'},
+    'btn_close_valve':  {'en': 'CLOSE VALVE',    'zh': '关阀'},
     'btn_set':          {'en': 'SET',                   'zh': '设置'},
     'connected':        {'en': '● CONNECTED',           'zh': '● 已连接'},
     'disconnected':     {'en': '● DISCONNECTED',        'zh': '● 未连接'},
@@ -68,7 +68,7 @@ STRINGS = {
     'subtab_post_repair':   {'en': 'Post-repair test',  'zh': '维修后测试'},
     'subtab_heater':        {'en': 'Heater',            'zh': '加热器'},
     'subtab_response_test': {'en': 'Response test',     'zh': '响应测试'},
-    'subtab_advanced':      {'en': 'Advanced',          'zh': '高级'},
+    'subtab_access':        {'en': 'Access',            'zh': '访问控制'},
 
     # ── Settings tab — group box titles ───────────────────────────────────────
     'settings_serial':      {'en': 'SERIAL PORTS',      'zh': '串口设置'},
