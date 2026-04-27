@@ -133,7 +133,6 @@ class TestTab(QWidget):
         self._btn_graphs.setObjectName('btn_fill')
         self._btn_graphs.clicked.connect(self._on_show_graphs)
         left.addWidget(self._btn_graphs)
-        left.addWidget(graph_box, stretch=1)
 
         root.addLayout(left, stretch=3)
 
