@@ -28,9 +28,9 @@ from translations     import tr
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
-from tcu    import TCU
+from tcu_comms    import TCUComms
 from pzem004t     import PZEM004T
-from heater import Heater
+from heater_comms import HeaterComms
 from test_logic   import parse_alarms, check_pass_fail
 
 from config import (
@@ -66,9 +66,9 @@ class MainWindow(QMainWindow):
         self._log_queue = Queue()
 
         # ── Hardware ────────────────────────────────────────────────────────
-        self._tcu      = TCU()
+        self._tcu      = TCUComms()
         self._pzem     = PZEM004T()
-        self._heater   = Heater()
+        self._heater   = HeaterComms()
         self._connected = False
         # Attempt heater connection — non-fatal if hardware not present
         self._heater.connect()
@@ -315,7 +315,7 @@ class MainWindow(QMainWindow):
     def _connect_tcu(self):
         self._tcu.connect()
         pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._connected = True
             self._monitor_tab.set_connected(True)
             self._status_bar.showMessage(
@@ -378,51 +378,58 @@ class MainWindow(QMainWindow):
     def _cmd_start(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU START', '')
-        self._tcu.start()
-        self._monitor_tab.log_command('START', '$')
+        if self._tcu.connected:
+            self._tcu.start()
+            self._monitor_tab.log_command('START', '$')
 
     def _cmd_stop(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU STOP', '')
-        self._tcu.stop()
-        self._monitor_tab.log_command('STOP', '$')
+        if self._tcu.connected:
+            self._tcu.stop()
+            self._monitor_tab.log_command('STOP', '$')
 
     def _cmd_clear_alarm(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLEAR ALARM', '')
-        self._tcu.release_alarm()
-        self._monitor_tab.log_command('ER', '$')
+        if self._tcu.connected:
+            self._tcu.release_alarm()
+            self._monitor_tab.log_command('ER', '$')
 
     def _cmd_close_valve(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLOSE VALVE', '')
-        self._tcu.close_valve()
-        self._monitor_tab.log_command('CVE', '$')
+        if self._tcu.connected:
+            self._tcu._send('CVE')
+            self._monitor_tab.log_command('CVE', '$')
 
     def _cmd_set_setpoint(self, temp: float):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU SET SETPOINT', f'{temp:.2f}°C')
-        self._tcu.set_setpoint(temp)
-        self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$')
+        if self._tcu.connected:
+            self._tcu.set_setpoint(temp)
+            self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$')
 
     def _cmd_precond(self):
-        """VT — pretemperature control only (no fill). Runs in background thread."""
+        """VT — pretemperature control only (no fill)."""
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU PRECOND', '')
-        threading.Thread(target=self._tcu.precond, daemon=True).start()
-        self._monitor_tab.log_command('VT', '(running...)')
+        if self._tcu.connected:
+            threading.Thread(
+                target=self._tcu._send, args=('VT',), daemon=True).start()
+            self._monitor_tab.log_command('VT', '(running...)')
 
     def _cmd_fill(self):
         """AFV — blocking fill. Runs in background thread."""
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU FILL', '')
-        if not self._tcu.is_connected():
+        if not self._tcu.connected:
             return
         self._monitor_tab.log_command('AFV', '(filling — please wait...)')
-        self._status_bar.showMessage('AFV: Filling and pretemperature control in progress...')
+        self._status_bar.showMessage("AFV: Filling and pretemperature control in progress...")
 
         def _fill_worker():
-            self._tcu.fill(on_status=lambda line: self._sig.fill_status.emit(line))
+            self._tcu.fill(status_callback=lambda line: self._sig.fill_status.emit(line))
             self._sig.fill_done.emit()
 
         threading.Thread(target=_fill_worker, daemon=True).start()
@@ -477,10 +484,6 @@ class MainWindow(QMainWindow):
 
     def _on_language_changed(self, lang: str):
         """Hot reload all tab labels and UI strings when language changes."""
-        self._tabs.setTabText(0, tr('tab_monitor'))
-        self._tabs.setTabText(1, tr('tab_test'))
-        self._tabs.setTabText(2, tr('tab_settings'))
-        self._tabs.setTabText(3, tr('tab_docs'))
         self._monitor_tab.retranslate()
         self._test_tab.retranslate()
         self._settings_tab.retranslate()
