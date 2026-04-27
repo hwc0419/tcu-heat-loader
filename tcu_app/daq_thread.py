@@ -42,6 +42,9 @@ class Sample:
     decoded_log:    list            = field(default_factory=list)
     # True if any condition is abnormal — used for log highlighting
     is_abnormal:    bool            = False
+    # Heating/cooling percentage (Y command — polled every 5th sample)
+    heating_pct:    Optional[int]   = None   # 0-100%
+    is_cooling:     Optional[bool]  = None   # True = compressor active
 
 
 def _sample_to_dict(s: Sample) -> dict:
@@ -60,6 +63,8 @@ def _sample_to_dict(s: Sample) -> dict:
         'power':        s.power,
         'is_abnormal':  s.is_abnormal,
         'decoded_log':  s.decoded_log,
+        'heating_pct':  s.heating_pct,
+        'is_cooling':   s.is_cooling,
         'rpi_active':   False,   # updated by main_window via set_rpi_active()
     }
 
@@ -92,6 +97,8 @@ class DAQThread(threading.Thread):
         self._stop_event       = threading.Event()
         self._ipc              = IPCWriter()
         self._rpi_active       = False
+        self._sample_count     = 0          # used to poll Y every 5th sample
+        _Y_POLL_EVERY          = 5          # poll heating % every N samples
 
     def stop(self):
         self._stop_event.set()
@@ -123,6 +130,7 @@ class DAQThread(threading.Thread):
     def _read(self) -> Sample:
         s = Sample(timestamp=time.time())
         log_lines = []
+        self._sample_count += 1
 
         # --- TCU RS232 ---
         if self._tcu and self._tcu.connected:
@@ -139,6 +147,12 @@ class DAQThread(threading.Thread):
             s.b1, s.b2, s.b3 = self._tcu.get_status_bytes()
             if s.b1 is not None:
                 log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
+
+            # Poll heating % every 5th sample to avoid slowing down poll cycle
+            if self._sample_count % 5 == 0:
+                s.heating_pct, s.is_cooling = self._tcu.get_heating_pct()
+                if s.heating_pct is not None:
+                    log_lines.append(f'>Y  <{s.heating_pct}%')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 

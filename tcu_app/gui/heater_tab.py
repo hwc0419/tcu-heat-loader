@@ -180,7 +180,9 @@ class HeaterTab(QWidget):
         self._send_setpoint(0)
 
     def _send_setpoint(self, pct: int):
-        """Convert percentage to watts and emit signal. Reject if > max."""
+        """Convert percentage to watts and emit signal.
+        Prompts admin password if watts exceeds soft limit.
+        Rejects if watts > HEATER_MAX_WATTS."""
         if not isinstance(pct, int):
             return
         watts = int(pct * HEATER_MAX_WATTS / 100)
@@ -189,8 +191,29 @@ class HeaterTab(QWidget):
                 f'Setpoint {watts}W exceeds maximum {HEATER_MAX_WATTS}W.\n'
                 'Please try a lower value.')
             return
+        soft_limit = settings.get('heater_soft_limit_w')
+        if watts > soft_limit:
+            if not self._prompt_admin_password():
+                QMessageBox.warning(self, 'Setpoint Rejected',
+                    f'Admin authentication failed.\n'
+                    f'Setpoint above {soft_limit}W requires admin password.')
+                return
         self._log_modbus(f'→ SET {watts}W ({pct}%)')
         self.sig_set_watts.emit(watts)
+
+    def _prompt_admin_password(self) -> bool:
+        """Show password dialog. Returns True if correct admin password entered."""
+        import hashlib
+        from PyQt5.QtWidgets import QInputDialog, QLineEdit
+        pw, ok = QInputDialog.getText(
+            self, 'Admin Authentication',
+            f'Setpoint exceeds soft limit ({settings.get("heater_soft_limit_w")}W).\n'
+            'Enter admin password to proceed:',
+            QLineEdit.Password)
+        if not ok or not pw:
+            return False
+        hashed = hashlib.sha256(pw.encode()).hexdigest()
+        return hashed == settings.get('access_password_hash')
 
     # ── Public: called by main_window with new DAQ sample ────────────────────
     def update_sample(self, sample):

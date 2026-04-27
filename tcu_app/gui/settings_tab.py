@@ -43,12 +43,11 @@ class SettingsTab(QWidget):
         root.setContentsMargins(16, 12, 16, 12)
 
         self._tabs = QTabWidget()
-        self._tabs.addTab(self._build_serial_tab(),      tr('subtab_serial'))
         self._tabs.addTab(self._build_post_repair_tab(), tr('subtab_post_repair'))
         self._tabs.addTab(self._build_heater_tab(),      tr('subtab_heater'))
         self._tabs.addTab(self._build_response_tab(),    tr('subtab_response_test'))
         self._tabs.addTab(self._build_display_tab(),     tr('subtab_display'))
-        self._tabs.addTab(self._build_access_tab(),      tr('subtab_access'))
+        self._tabs.addTab(self._build_advanced_tab(),    tr('subtab_advanced'))
         self._tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self._tabs)
 
@@ -405,12 +404,11 @@ class SettingsTab(QWidget):
     # ── Retranslate ───────────────────────────────────────────────────────────
     def retranslate(self):
         # Sub-tab labels
-        self._tabs.setTabText(0, tr('subtab_serial'))
-        self._tabs.setTabText(1, tr('subtab_post_repair'))
-        self._tabs.setTabText(2, tr('subtab_heater'))
-        self._tabs.setTabText(3, tr('subtab_response_test'))
-        self._tabs.setTabText(4, tr('subtab_display'))
-        self._tabs.setTabText(5, tr('subtab_access'))
+        self._tabs.setTabText(0, tr('subtab_post_repair'))
+        self._tabs.setTabText(1, tr('subtab_heater'))
+        self._tabs.setTabText(2, tr('subtab_response_test'))
+        self._tabs.setTabText(3, tr('subtab_display'))
+        self._tabs.setTabText(4, tr('subtab_advanced'))
         # Group box titles
         self._grp_serial.setTitle(tr('settings_serial'))
         self._grp_test.setTitle(tr('settings_test'))
@@ -474,7 +472,7 @@ class SettingsTab(QWidget):
         self.heater_display_combo.blockSignals(False)
 
     # ── Access sub-tab ────────────────────────────────────────────────────────
-    def _build_access_tab(self):
+    def _build_advanced_tab(self):
         w = QWidget()
         v = QVBoxLayout(w)
 
@@ -511,6 +509,46 @@ class SettingsTab(QWidget):
         g.addWidget(QLabel('Inactivity timeout:'), 0, 0)
         g.addWidget(self._inactivity_spin, 0, 1)
         content_layout.addWidget(self._grp_inactivity)
+
+        # Serial ports (moved from main settings tabs)
+        self._grp_serial_adv = QGroupBox(tr('settings_serial'))
+        g2 = QGridLayout(self._grp_serial_adv)
+        g2.setSpacing(10)
+        g2.setColumnStretch(1, 1)
+        self.tcu_port_edit   = QLineEdit()
+        self.tcu_baud_combo  = QComboBox()
+        self.tcu_baud_combo.addItems(['1200', '2400', '4800', '9600'])
+        self.pzem_port_edit  = QLineEdit()
+        self.pzem_baud_combo = QComboBox()
+        self.pzem_baud_combo.addItems(['4800', '9600', '19200'])
+        self.tcu_port_edit.setText(settings.get('tcu_port'))
+        self._set_combo(self.tcu_baud_combo, str(settings.get('tcu_baud')))
+        self.pzem_port_edit.setText(settings.get('pzem_port'))
+        self._set_combo(self.pzem_baud_combo, str(settings.get('pzem_baud')))
+        self._lbl_tcu_port  = QLabel(tr('tcu_port_lbl'))
+        self._lbl_tcu_baud  = QLabel(tr('tcu_baud_lbl'))
+        self._lbl_pzem_port = QLabel(tr('pzem_port_lbl'))
+        self._lbl_pzem_baud = QLabel(tr('pzem_baud_lbl'))
+        g2.addWidget(self._lbl_tcu_port,   0, 0); g2.addWidget(self.tcu_port_edit,   0, 1)
+        g2.addWidget(self._lbl_tcu_baud,   1, 0); g2.addWidget(self.tcu_baud_combo,  1, 1)
+        g2.addWidget(self._lbl_pzem_port,  2, 0); g2.addWidget(self.pzem_port_edit,  2, 1)
+        g2.addWidget(self._lbl_pzem_baud,  3, 0); g2.addWidget(self.pzem_baud_combo, 3, 1)
+        self.restart_note = QLabel(tr('restart_note'))
+        self.restart_note.setObjectName('label_dim')
+        self.restart_note.setWordWrap(True)
+        g2.addWidget(self.restart_note, 4, 0, 1, 2)
+        content_layout.addWidget(self._grp_serial_adv)
+
+        # Soft wattage limit
+        self._grp_soft_limit = QGroupBox('Heater Soft Limit')
+        g3 = QGridLayout(self._grp_soft_limit)
+        self._soft_limit_spin = QSpinBox()
+        self._soft_limit_spin.setRange(0, HEATER_MAX_WATTS)
+        self._soft_limit_spin.setSuffix(' W')
+        self._soft_limit_spin.setValue(settings.get('heater_soft_limit_w'))
+        g3.addWidget(QLabel('Soft limit (admin password required above):'), 0, 0)
+        g3.addWidget(self._soft_limit_spin, 0, 1)
+        content_layout.addWidget(self._grp_soft_limit)
 
         # Change admin password
         self._grp_pw = QGroupBox('Change Admin Password')
@@ -627,7 +665,15 @@ class SettingsTab(QWidget):
         if not isinstance(val, int) or val <= 0:
             return
         settings.set('rpi_inactivity_timeout_min', val)
+        # Serial ports
+        settings.set('tcu_port',  self.tcu_port_edit.text().strip())
+        settings.set('tcu_baud',  int(self.tcu_baud_combo.currentText()))
+        settings.set('pzem_port', self.pzem_port_edit.text().strip())
+        settings.set('pzem_baud', int(self.pzem_baud_combo.currentText()))
+        # Soft limit
+        settings.set('heater_soft_limit_w', self._soft_limit_spin.value())
         self._access_apply_btn.setText('✓ Applied')
+        self.sig_ports_changed.emit()
 
     def _refresh_users_table(self):
         import json, os

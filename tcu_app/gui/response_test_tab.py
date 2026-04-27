@@ -204,6 +204,15 @@ class ResponseTestTab(QWidget):
             QMessageBox.warning(self, 'Config Error', 'Invalid step range or size.')
             return
 
+        # Check soft limit — prompt admin password if step_end exceeds it
+        soft_limit = settings.get('heater_soft_limit_w')
+        if step_end > soft_limit:
+            if not self._prompt_admin_password():
+                QMessageBox.warning(self, 'Start Rejected',
+                    f'Step End ({step_end}W) exceeds soft limit ({soft_limit}W).\n'
+                    'Admin authentication required.')
+                return
+
         self._stages = list(range(step_start, step_end + step_size, step_size))
         # Clamp to _MAX_STAGES upper bound
         self._stages = self._stages[:_MAX_STAGES]
@@ -539,6 +548,20 @@ class ResponseTestTab(QWidget):
             print(f"ResponseTest: SVG export error — {e}")
 
     # ── Retranslate ───────────────────────────────────────────────────────────
+    def _prompt_admin_password(self) -> bool:
+        """Show password dialog. Returns True if correct admin password entered."""
+        import hashlib
+        from PyQt5.QtWidgets import QInputDialog, QLineEdit
+        pw, ok = QInputDialog.getText(
+            self, 'Admin Authentication',
+            f'Step End exceeds soft limit ({settings.get("heater_soft_limit_w")}W).\n'
+            'Enter admin password to proceed:',
+            QLineEdit.Password)
+        if not ok or not pw:
+            return False
+        hashed = hashlib.sha256(pw.encode()).hexdigest()
+        return hashed == settings.get('access_password_hash')
+
     def retranslate(self):
         self._grp_status.setTitle(tr('resp_status'))
         self._grp_ctrl.setTitle(tr('test_controls'))

@@ -109,6 +109,27 @@ class TCU:
         except (ValueError, AttributeError):
             return None
 
+    def get_heating_pct(self):
+        """Y → <VZ><y> – <ynorm>$ — correcting variable.
+        Returns (heating_pct, is_cooling) where:
+            heating_pct: int 0-100 (% heating power applied)
+            is_cooling:  bool (True when y is negative = compressor active)
+        Returns (None, None) on failure."""
+        raw = self._send('Y')
+        try:
+            # Format: +XXXXXX-XXXX$ or -XXXXXX-XXXX$
+            # Split on ' – ' or '-' after sign
+            parts = raw.replace('$', '').strip().split(' – ')
+            if len(parts) != 2:
+                return None, None
+            y_str    = parts[0].strip()
+            ynorm    = int(parts[1].strip())
+            is_cooling = y_str.startswith('-')
+            heating_pct = max(0, min(100, ynorm))
+            return heating_pct, is_cooling
+        except (ValueError, IndexError):
+            return None, None
+
     def get_status_bytes(self):
         """BS → XXXXXX$ — three status bytes as integers (b1, b2, b3).
         Normal healthy running state: 0x400400."""

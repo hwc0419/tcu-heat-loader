@@ -34,6 +34,7 @@ DEFAULTS = {
     # Access control (desktop only)
     'rpi_inactivity_timeout_min': 5,
     'access_password_hash': '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
+    'heater_soft_limit_w': 10000,   # admin password required above this
     # ^ SHA-256 of 'admin123' — change via settings Access sub-tab
     'heater_port':          'COM7'      if WINDOWS else '/dev/ttyAMA2',
     'heater_baud':          9600,

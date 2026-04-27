@@ -7,7 +7,7 @@ import threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QDoubleSpinBox, QSizePolicy
+    QDoubleSpinBox, QSizePolicy, QDialog
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -43,12 +43,15 @@ class MonitorTab(QWidget):
     def __init__(self, scale: float = 1.0, parent=None):
         self._scale = scale
         super().__init__(parent)
-        self._times     = deque(maxlen=WINDOW)
-        self._temps     = deque(maxlen=WINDOW)
-        self._flows     = deque(maxlen=WINDOW)
-        self._t0        = None
+        self._times      = deque(maxlen=WINDOW)
+        self._temps      = deque(maxlen=WINDOW)
+        self._flows      = deque(maxlen=WINDOW)
+        self._flow_times = deque(maxlen=WINDOW)
+        self._flow_vals  = deque(maxlen=WINDOW)
+        self._t0         = None
         self._build_ui()
         self._setup_graph()
+        self._build_popup_graphs()
 
     # ── Build UI ──────────────────────────────────────────────────────────────
     def _build_ui(self):
@@ -80,6 +83,8 @@ class MonitorTab(QWidget):
         self.lbl_voltage,  self.val_voltage  = make_reading(tr("voltage"))
         self.lbl_current,  self.val_current  = make_reading(tr("current"))
         self.lbl_power,    self.val_power    = make_reading(tr("power"))
+        self.lbl_heating,  self.val_heating  = make_reading("Heating %")
+        self.lbl_cooling,  self.val_cooling  = make_reading("Cooling")
 
         for row, (lbl, val) in enumerate([
             (self.lbl_temp,     self.val_temp),
@@ -88,9 +93,17 @@ class MonitorTab(QWidget):
             (self.lbl_voltage,  self.val_voltage),
             (self.lbl_current,  self.val_current),
             (self.lbl_power,    self.val_power),
+            (self.lbl_heating,  self.val_heating),
+            (self.lbl_cooling,  self.val_cooling),
         ]):
             rg.addWidget(lbl, row, 0)
             rg.addWidget(val, row, 1)
+
+        # Graph popup button
+        self._btn_graphs = QPushButton("📈 Show Graphs")
+        self._btn_graphs.setObjectName('btn_fill')
+        self._btn_graphs.clicked.connect(self._on_show_graphs)
+        rg.addWidget(self._btn_graphs, len([0]*8), 0, 1, 2)
 
         left.addWidget(readings_box)
 
@@ -244,6 +257,21 @@ class MonitorTab(QWidget):
         self.val_current.setText(f"{sample.current:.3f} A"    if sample.current is not None else "---")
         self.val_power.setText(  f"{sample.power:.1f} W"      if sample.power   is not None else "---")
 
+        # Heating / cooling percentage (Y command — updates every 5th sample)
+        heating_pct = getattr(sample, 'heating_pct', None)
+        is_cooling  = getattr(sample, 'is_cooling',  None)
+        if heating_pct is not None:
+            self.val_heating.setText(f"{heating_pct} %")
+        if is_cooling is not None:
+            self.val_cooling.setText("Active" if is_cooling else "Off")
+
+        # Feed flow rate data to popup graph
+        if sample.flow_rate is not None:
+            self._flow_times.append(t)
+            self._flow_vals.append(sample.flow_rate)
+            self._popup_curve_flow.setData(
+                list(self._flow_times), list(self._flow_vals))
+
         # Alarm status
         if sample.alarms == ['No alarms']:
             self.val_alarm.setText(tr('no_alarms'))
@@ -264,6 +292,7 @@ class MonitorTab(QWidget):
             self._times.append(t)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
+            self._popup_curve_temp.setData(list(self._times), list(self._temps))
 
         if sample.power is not None:
             self._times_power.append(t)
@@ -318,6 +347,42 @@ class MonitorTab(QWidget):
         # Update setpoint line
         if sample.setpoint:
             self._setpoint_line.setValue(sample.setpoint)
+
+    # ── Popup graph dialog ────────────────────────────────────────────────────
+    def _build_popup_graphs(self):
+        """Build hidden popup dialog containing temp + flow graphs."""
+        self._popup = QDialog(self)
+        self._popup.setWindowTitle('Live Graphs')
+        self._popup.setMinimumSize(700, 500)
+        v = QVBoxLayout(self._popup)
+
+        # Temperature graph
+        self._popup_plot_temp = pg.PlotWidget()
+        self._popup_plot_temp.setLabel('left', 'Temperature', units='°C')
+        self._popup_plot_temp.setLabel('bottom', 'Time', units='s')
+        self._popup_plot_temp.showGrid(x=True, y=True, alpha=0.3)
+        self._popup_plot_temp.addLegend()
+        self._popup_curve_temp = self._popup_plot_temp.plot(
+            pen=pg.mkPen(ACCENT, width=2), name='TCU Inlet')
+        v.addWidget(self._popup_plot_temp)
+
+        # Flow rate graph
+        self._popup_plot_flow = pg.PlotWidget()
+        self._popup_plot_flow.setLabel('left', 'Flow rate', units='ℓ/min')
+        self._popup_plot_flow.setLabel('bottom', 'Time', units='s')
+        self._popup_plot_flow.showGrid(x=True, y=True, alpha=0.3)
+        self._popup_curve_flow = self._popup_plot_flow.plot(
+            pen=pg.mkPen('#2196F3', width=2), name='Flow rate')
+        v.addWidget(self._popup_plot_flow)
+
+    def _on_show_graphs(self):
+        """Sync popup graph with current data and show it."""
+        t = list(self._times)
+        self._popup_curve_temp.setData(t, list(self._temps))
+        self._popup_curve_flow.setData(
+            list(self._flow_times), list(self._flow_vals))
+        self._popup.show()
+        self._popup.raise_()
 
     def retranslate(self):
         """Update all labels and group box titles to current language."""
