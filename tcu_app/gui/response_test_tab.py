@@ -27,6 +27,7 @@ import pyqtgraph as pg
 
 from settings_manager import settings
 from translations import tr
+from gui.graph_utils import make_graph_panel
 from config import (
     HEATER_MAX_WATTS, LOG_DIR, REPORTS_DIR,
 )

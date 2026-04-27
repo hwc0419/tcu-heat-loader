@@ -19,6 +19,7 @@ import pyqtgraph as pg
 from settings_manager import settings
 from translations import tr
 from config import HEATER_MAX_WATTS
+from gui.graph_utils import make_graph_panel
 
 _GRAPH_MAX_POINTS = 600   # 10 min at 1 sample/sec
 
