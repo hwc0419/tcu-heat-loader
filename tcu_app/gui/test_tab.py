@@ -45,6 +45,8 @@ class TestTab(QWidget):
         self._temps      = deque(maxlen=_get_window())
         self._heat_loads = deque(maxlen=_get_window())
         self._heat_times = deque(maxlen=_get_window())
+        self._flow_times = deque(maxlen=_get_window())
+        self._flow_vals  = deque(maxlen=_get_window())
 
         self._build_ui()
         self._setup_graph()
