@@ -116,17 +116,21 @@ class TCU:
             is_cooling:  bool (True when y is negative = compressor active)
         Returns (None, None) on failure."""
         raw = self._send('Y')
+        print(f"TCU Y raw: {raw!r}")   # DEBUG — remove after confirming format
         try:
             # Format: +XXXXXX-XXXX$ or -XXXXXX-XXXX$
-            # Split on ' – ' or '-' after sign
-            parts = raw.replace('$', '').strip().split(' – ')
-            if len(parts) != 2:
-                return None, None
-            y_str    = parts[0].strip()
-            ynorm    = int(parts[1].strip())
-            is_cooling = y_str.startswith('-')
-            heating_pct = max(0, min(100, ynorm))
-            return heating_pct, is_cooling
+            # Split on ' – ' (em-dash with spaces) or ' - ' (hyphen with spaces)
+            cleaned = raw.replace('$', '').strip()
+            for sep in [' \u2013 ', ' - ', '-']:
+                if sep in cleaned:
+                    parts = cleaned.split(sep, 1)
+                    if len(parts) == 2:
+                        y_str       = parts[0].strip()
+                        ynorm       = int(parts[1].strip())
+                        is_cooling  = y_str.startswith('-')
+                        heating_pct = max(0, min(100, ynorm))
+                        return heating_pct, is_cooling
+            return None, None
         except (ValueError, IndexError):
             return None, None
 

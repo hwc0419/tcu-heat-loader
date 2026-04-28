@@ -353,8 +353,8 @@ class MainWindow(QMainWindow):
         # Always update test tab graph — even when no test is running
         self._test_tab.update(sample)
 
-        # Auto-off heater if BS != 400400 (TCU abnormal)
-        if sample.b1 is not None:
+        # Auto-off heater if BS != 400400 — only when heater is connected
+        if sample.b1 is not None and self._heater.is_connected():
             bs = (sample.b1 << 16) | ((sample.b2 or 0) << 8) | (sample.b3 or 0)
             if bs != 0x400400:
                 ok = self._heater.emergency_off()
