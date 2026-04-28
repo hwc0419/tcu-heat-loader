@@ -117,6 +117,7 @@ class TCU:
             is_cooling:  bool (True when first value is negative = cooling)
         Returns (None, None) on failure or when TCU not running."""
         raw = self._send('Y')
+        print(f"TCU Y raw: {raw!r}")  # DEBUG — remove after confirming format
         if not raw or raw.strip() in ('F', '?', ''):
             return None, None
         try:

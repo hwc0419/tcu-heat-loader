@@ -148,9 +148,8 @@ class DAQThread(threading.Thread):
             if s.b1 is not None:
                 log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
 
-            # Poll heating % every 5th sample — only when TCU is running (BS=400400)
-            bs = (s.b1 << 16) | ((s.b2 or 0) << 8) | (s.b3 or 0) if s.b1 else 0
-            if bs == 0x400400 and self._sample_count % 5 == 0:
+            # Poll heating % every 5th sample (DEBUG: polling regardless of BS state)
+            if self._sample_count % 5 == 0:
                 s.heating_pct, s.is_cooling = self._tcu.get_heating_pct()
                 if s.heating_pct is not None:
                     log_lines.append(f'>Y  <{s.heating_pct}%')
