@@ -97,8 +97,6 @@ class DAQThread(threading.Thread):
         self._stop_event       = threading.Event()
         self._ipc              = IPCWriter()
         self._rpi_active       = False
-        self._sample_count     = 0          # used to poll Y every 5th sample
-        _Y_POLL_EVERY          = 5          # poll heating % every N samples
 
     def stop(self):
         self._stop_event.set()
@@ -130,7 +128,6 @@ class DAQThread(threading.Thread):
     def _read(self) -> Sample:
         s = Sample(timestamp=time.time())
         log_lines = []
-        self._sample_count += 1
 
         # --- TCU RS232 ---
         if self._tcu and self._tcu.connected:
@@ -148,12 +145,11 @@ class DAQThread(threading.Thread):
             if s.b1 is not None:
                 log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
 
-            # Poll heating/cooling % every 5th sample
-            if self._sample_count % 5 == 0:
-                s.heating_pct, s.cooling_pct = self._tcu.get_heating_pct()
-                if s.heating_pct is not None:
-                    log_lines.append(
-                        f'>r YH <{s.heating_pct:.2f}% | r YK <{s.cooling_pct:.2f}%')
+            # Poll heating/cooling % every sample — matches old TCU app behaviour
+            s.heating_pct, s.cooling_pct = self._tcu.get_heating_pct()
+            if s.heating_pct is not None:
+                log_lines.append(
+                    f'>r YH <{s.heating_pct:.2f}% | r YK <{s.cooling_pct:.2f}%')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 
