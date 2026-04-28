@@ -110,27 +110,26 @@ class TCU:
             return None
 
     def get_heating_pct(self):
-        """Y → <VZ><y> – <ynorm>$ — correcting variable.
+        """Y → <sign><y>  <ynorm>$ — correcting variable.
+        Only valid when TCU is actively running (BS=400400).
         Returns (heating_pct, is_cooling) where:
-            heating_pct: int 0-100 (% heating power applied)
-            is_cooling:  bool (True when y is negative = compressor active)
-        Returns (None, None) on failure."""
+            heating_pct: int 0-100 (standardised correcting value)
+            is_cooling:  bool (True when first value is negative = cooling)
+        Returns (None, None) on failure or when TCU not running."""
         raw = self._send('Y')
-        print(f"TCU Y raw: {raw!r}")   # DEBUG — remove after confirming format
-        try:
-            # Format: +XXXXXX-XXXX$ or -XXXXXX-XXXX$
-            # Split on ' – ' (em-dash with spaces) or ' - ' (hyphen with spaces)
-            cleaned = raw.replace('$', '').strip()
-            for sep in [' \u2013 ', ' - ', '-']:
-                if sep in cleaned:
-                    parts = cleaned.split(sep, 1)
-                    if len(parts) == 2:
-                        y_str       = parts[0].strip()
-                        ynorm       = int(parts[1].strip())
-                        is_cooling  = y_str.startswith('-')
-                        heating_pct = max(0, min(100, ynorm))
-                        return heating_pct, is_cooling
+        if not raw or raw.strip() in ('F', '?', ''):
             return None, None
+        try:
+            cleaned = raw.replace('$', '').strip()
+            # Format: "+XXXXXX  YY" or "-XXXXXX  YY" — two whitespace-separated values
+            parts = cleaned.split()
+            if len(parts) < 2:
+                return None, None
+            y_str       = parts[0].strip()
+            ynorm       = int(parts[-1].strip())
+            is_cooling  = y_str.startswith('-')
+            heating_pct = max(0, min(100, ynorm))
+            return heating_pct, is_cooling
         except (ValueError, IndexError):
             return None, None
 
