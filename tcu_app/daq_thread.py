@@ -43,8 +43,8 @@ class Sample:
     # True if any condition is abnormal — used for log highlighting
     is_abnormal:    bool            = False
     # Heating/cooling percentage (Y command — polled every 5th sample)
-    heating_pct:    Optional[int]   = None   # 0-100%
-    is_cooling:     Optional[bool]  = None   # True = compressor active
+    heating_pct:    Optional[float] = None   # 0-100% from r YH
+    cooling_pct:    Optional[float] = None   # 0-100% from r YK
 
 
 def _sample_to_dict(s: Sample) -> dict:
@@ -64,7 +64,7 @@ def _sample_to_dict(s: Sample) -> dict:
         'is_abnormal':  s.is_abnormal,
         'decoded_log':  s.decoded_log,
         'heating_pct':  s.heating_pct,
-        'is_cooling':   s.is_cooling,
+        'cooling_pct':  s.cooling_pct,
         'rpi_active':   False,   # updated by main_window via set_rpi_active()
     }
 
@@ -148,11 +148,12 @@ class DAQThread(threading.Thread):
             if s.b1 is not None:
                 log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
 
-            # Poll heating % every 5th sample (DEBUG: polling regardless of BS state)
+            # Poll heating/cooling % every 5th sample
             if self._sample_count % 5 == 0:
-                s.heating_pct, s.is_cooling = self._tcu.get_heating_pct()
+                s.heating_pct, s.cooling_pct = self._tcu.get_heating_pct()
                 if s.heating_pct is not None:
-                    log_lines.append(f'>Y  <{s.heating_pct}%')
+                    log_lines.append(
+                        f'>r YH <{s.heating_pct:.2f}% | r YK <{s.cooling_pct:.2f}%')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 

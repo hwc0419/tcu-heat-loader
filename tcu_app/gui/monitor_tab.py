@@ -320,16 +320,13 @@ class MonitorTab(QWidget):
         self.val_current.setText(f"{sample.current:.3f} A"    if sample.current is not None else "---")
         self.val_power.setText(  f"{sample.power:.1f} W"      if sample.power   is not None else "---")
 
-        # Heating / cooling % (Y command — every 5th sample, only when TCU running)
+        # Heating / cooling % (r YH / r YK — every 5th sample, only when TCU running)
         heating_pct = getattr(sample, 'heating_pct', None)
-        is_cooling  = getattr(sample, 'is_cooling',  None)
-        if heating_pct is not None and is_cooling is not None:
-            if is_cooling:
-                self.val_heating.setText("0 %")
-                self.val_cooling.setText(f"{heating_pct} %")
-            else:
-                self.val_heating.setText(f"{heating_pct} %")
-                self.val_cooling.setText("0 %")
+        cooling_pct = getattr(sample, 'cooling_pct', None)
+        if heating_pct is not None:
+            self.val_heating.setText(f"{heating_pct:.1f} %")
+        if cooling_pct is not None:
+            self.val_cooling.setText(f"{cooling_pct:.1f} %")
 
         # Alarm status
         if sample.alarms == ['No alarms']:

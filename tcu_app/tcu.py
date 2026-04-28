@@ -110,29 +110,51 @@ class TCU:
             return None
 
     def get_heating_pct(self):
-        """Y → <sign><y>  <ynorm>$ — correcting variable.
-        Only valid when TCU is actively running (BS=400400).
-        Returns (heating_pct, is_cooling) where:
-            heating_pct: int 0-100 (standardised correcting value)
-            is_cooling:  bool (True when first value is negative = cooling)
-        Returns (None, None) on failure or when TCU not running."""
-        raw = self._send('Y')
-        print(f"TCU Y raw: {raw!r}")  # DEBUG — remove after confirming format
+        """
+        r YH → YH+XXX.XX$  — heating correcting variable (%)
+        r YK → YK+XXX.XX YY.YY$  — cooling correcting variable (%)
+        Only valid when TCU is actively running.
+        Returns (heating_pct, cooling_pct) where both are floats 0-100.
+        Returns (None, None) on failure.
+        """
+        heating_pct = self._read_yh()
+        cooling_pct = self._read_yk()
+        return heating_pct, cooling_pct
+
+    def _read_yh(self):
+        """Send 'r YH' and parse YH+XXX.XX$ → float heating %."""
+        raw = self._send('r YH')
         if not raw or raw.strip() in ('F', '?', ''):
-            return None, None
+            return None
         try:
+            # Format: YH+013.40$ or YH-000.00$
             cleaned = raw.replace('$', '').strip()
-            # Format: "+XXXXXX  YY" or "-XXXXXX  YY" — two whitespace-separated values
-            parts = cleaned.split()
-            if len(parts) < 2:
-                return None, None
-            y_str       = parts[0].strip()
-            ynorm       = int(parts[-1].strip())
-            is_cooling  = y_str.startswith('-')
-            heating_pct = max(0, min(100, ynorm))
-            return heating_pct, is_cooling
+            if cleaned.startswith('YH'):
+                val = float(cleaned[2:].strip())
+                return max(0.0, min(100.0, val))
+            return None
         except (ValueError, IndexError):
-            return None, None
+            return None
+
+    def _read_yk(self):
+        """Send 'r YK' and parse YK+XXX.XX YY.YY$ → float cooling %."""
+        raw = self._send('r YK')
+        if not raw or raw.strip() in ('F', '?', ''):
+            return None
+        try:
+            # Format: YK+012.08 15.55$ — take second value as cooling %
+            cleaned = raw.replace('$', '').strip()
+            if cleaned.startswith('YK'):
+                parts = cleaned[2:].strip().split()
+                if len(parts) >= 2:
+                    val = float(parts[1])
+                    return max(0.0, min(100.0, val))
+                elif len(parts) == 1:
+                    val = float(parts[0])
+                    return max(0.0, min(100.0, val))
+            return None
+        except (ValueError, IndexError):
+            return None
 
     def get_status_bytes(self):
         """BS → XXXXXX$ — three status bytes as integers (b1, b2, b3).
