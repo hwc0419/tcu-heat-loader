@@ -1,16 +1,11 @@
 # =============================================================================
-# osk.py — On-screen keyboard integration
-# =============================================================================
-# Drop-in replacements for QLineEdit, QSpinBox, QDoubleSpinBox that
-# automatically show/hide Onboard when focused on a touchscreen.
-# Usage: replace imports in any tab file:
-#   from gui.osk import OskLineEdit as QLineEdit
-#   from gui.osk import OskSpinBox as QSpinBox
-#   from gui.osk import OskDoubleSpinBox as QDoubleSpinBox
+# osk.py — On-screen keyboard + touch-friendly input widgets
 # =============================================================================
 
 import subprocess
-from PyQt5.QtWidgets import QLineEdit, QSpinBox, QDoubleSpinBox
+from PyQt5.QtWidgets import (
+    QLineEdit, QSpinBox, QDoubleSpinBox, QInputDialog
+)
 
 _proc = None
 
@@ -29,18 +24,51 @@ def _hide():
 
 
 class OskLineEdit(QLineEdit):
+    """QLineEdit that shows Onboard on tap."""
+
     def focusInEvent(self, event):
         _show()
         super().focusInEvent(event)
 
+    def mousePressEvent(self, event):
+        _show()
+        super().mousePressEvent(event)
+
 
 class OskSpinBox(QSpinBox):
+    """QSpinBox that opens a number dialog on tap — touchscreen friendly."""
+
+    def mousePressEvent(self, event):
+        val, ok = QInputDialog.getInt(
+            self, 'Enter value', '',
+            value=self.value(),
+            min=self.minimum(),
+            max=self.maximum(),
+            step=self.singleStep()
+        )
+        if ok:
+            self.setValue(val)
+
     def focusInEvent(self, event):
         _show()
         super().focusInEvent(event)
 
 
 class OskDoubleSpinBox(QDoubleSpinBox):
+    """QDoubleSpinBox that opens a number dialog on tap — touchscreen friendly."""
+
+    def mousePressEvent(self, event):
+        val, ok = QInputDialog.getDouble(
+            self, 'Enter value', '',
+            value=self.value(),
+            min=self.minimum(),
+            max=self.maximum(),
+            decimals=self.decimals()
+        )
+        if ok:
+            self.setValue(val)
+
     def focusInEvent(self, event):
         _show()
         super().focusInEvent(event)
+
