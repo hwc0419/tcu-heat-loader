@@ -9,13 +9,15 @@
 import hashlib
 
 from PyQt5.QtWidgets import (
-from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QComboBox,
     QDoubleSpinBox, QSpinBox, QLineEdit, QTabWidget,
     QSizePolicy, QDialog, QDialogButtonBox, QTableWidget,
     QTableWidgetItem, QHeaderView, QMessageBox
 )
+from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
+
+
 from PyQt5.QtCore import Qt, pyqtSignal
 
 from settings_manager import settings, DEFAULTS
