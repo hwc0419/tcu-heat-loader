@@ -9,6 +9,7 @@
 import hashlib
 
 from PyQt5.QtWidgets import (
+from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QComboBox,
     QDoubleSpinBox, QSpinBox, QLineEdit, QTabWidget,

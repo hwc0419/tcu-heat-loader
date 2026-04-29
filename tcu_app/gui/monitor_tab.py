@@ -5,6 +5,7 @@
 import time
 import threading
 from PyQt5.QtWidgets import (
+from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
     QDoubleSpinBox, QSizePolicy, QDialog

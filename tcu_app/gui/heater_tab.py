@@ -202,6 +202,7 @@ class HeaterTab(QWidget):
         """Show password dialog. Returns True if correct admin password entered."""
         import hashlib
         from PyQt5.QtWidgets import QInputDialog, QLineEdit
+from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
         pw, ok = QInputDialog.getText(
             self, 'Admin Authentication',
             f'Setpoint exceeds soft limit ({settings.get("heater_soft_limit_w")}W).\n'
