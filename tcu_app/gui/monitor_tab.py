@@ -180,8 +180,10 @@ class MonitorTab(QWidget):
         self.cmd_log = QTextEdit()
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
+        self.cmd_log.setMinimumWidth(int(280 * self._scale))
         self.cmd_log.setLineWrapMode(QTextEdit.NoWrap)
-        self.cmd_log.setFont(__import__('PyQt5.QtGui', fromlist=['QFont']).QFont('Courier New', 9))
+        self.cmd_log.setFont(QFont('Courier New', 8))
+        self.cmd_log.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         lg.addWidget(self.cmd_log)
         right.addWidget(log_box, stretch=1)
 
@@ -201,7 +203,7 @@ class MonitorTab(QWidget):
         self.lbl_conn.setAlignment(Qt.AlignCenter)
         right.addWidget(self.lbl_conn)
 
-        root.addLayout(right, stretch=1)
+        root.addLayout(right, stretch=2)
 
         # ── Wire buttons ──────────────────────────────────────────────────────
         self.btn_start.clicked.connect(self.sig_start)
