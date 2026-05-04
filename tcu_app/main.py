@@ -17,7 +17,8 @@ from gui.main_window import MainWindow
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName('TCU++')
-    app.setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, False)
+    app.setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, True)
+    app.setAttribute(Qt.AA_SynthesizeMouseForUnhandledTouchEvents, True)
 
     window = MainWindow()
     window.show()

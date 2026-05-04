@@ -12,6 +12,7 @@
 # =============================================================================
 
 import subprocess
+import shutil
 from PyQt5.QtWidgets import (
     QWidget, QHBoxLayout,
     QLineEdit, QSpinBox, QDoubleSpinBox,
@@ -21,15 +22,43 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
+
+class _NumpadLineEdit(QLineEdit):
+    """Internal read-only display for OskSpinBox/OskDoubleSpinBox.
+    Explicitly blocks Onboard — numpad handles all input."""
+
+    def event(self, event):
+        return QLineEdit.event(self, event)  # plain passthrough, no Onboard
+
+
 _proc           = None
 _MAX_DIGITS     = 12    # fixed upper bound on numpad input length
 
 
 def _show_onboard():
-    """Launch Onboard if not already running."""
+    """Show Onboard — works whether launched at boot or not."""
+    # Try dbus first (works if Onboard already running at boot)
+    try:
+        subprocess.Popen(
+            ['dbus-send', '--type=method_call',
+             '--dest=org.onboard.Onboard',
+             '/org/onboard/Onboard/Keyboard',
+             'org.onboard.Onboard.Keyboard.Show'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return
+    except Exception:
+        pass
+
+    # Fallback — launch Onboard directly if not running
     global _proc
     if _proc is None or _proc.poll() is not None:
-        _proc = subprocess.Popen(['onboard', '--size=1200x220'])
+        _proc = subprocess.Popen(
+            ['onboard', '--size=1200x220'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
 
 
 # =============================================================================
@@ -133,11 +162,22 @@ class NumpadDialog(QDialog):
 # =============================================================================
 
 class OskLineEdit(QLineEdit):
-    """QLineEdit that shows Onboard keyboard on click only."""
+    """QLineEdit that shows Onboard keyboard on click/tap."""
 
-    def mousePressEvent(self, event):
-        _show_onboard()
-        super().mousePressEvent(event)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Accept touch events directly — don't rely on mouse synthesis
+        self.setAttribute(Qt.WA_AcceptTouchEvents, True)
+
+    def event(self, event):
+        """Intercept all events — catches both mouse and touch taps."""
+        from PyQt5.QtCore import QEvent
+        if event.type() in (
+            QEvent.TouchBegin,
+            QEvent.MouseButtonPress,
+        ):
+            _show_onboard()
+        return super().event(event)
 
 
 # =============================================================================
@@ -166,13 +206,24 @@ class OskSpinBox(QWidget):
     def _build_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self._edit = QLineEdit()
+        self._edit = _NumpadLineEdit()
         self._edit.setReadOnly(True)
         self._edit.setAlignment(Qt.AlignLeft)
         self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._edit.mousePressEvent = lambda e: self._open_numpad()
+        self._edit.setAttribute(Qt.WA_AcceptTouchEvents, True)
+        self._edit.event = self._intercept_touch
         self._refresh_display()
         layout.addWidget(self._edit)
+
+
+    def _intercept_touch(self, event):
+        """Intercept touch/mouse events on display field → open numpad."""
+        from PyQt5.QtCore import QEvent
+        if event.type() in (QEvent.TouchBegin, QEvent.MouseButtonPress):
+            self._open_numpad()
+            return True
+        return _NumpadLineEdit.event(self._edit, event)
 
     def _refresh_display(self):
         self._edit.setText(f'{self._prefix}{self._value}{self._suffix}')
@@ -273,13 +324,24 @@ class OskDoubleSpinBox(QWidget):
     def _build_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self._edit = QLineEdit()
+        self._edit = _NumpadLineEdit()
         self._edit.setReadOnly(True)
         self._edit.setAlignment(Qt.AlignLeft)
         self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._edit.mousePressEvent = lambda e: self._open_numpad()
+        self._edit.setAttribute(Qt.WA_AcceptTouchEvents, True)
+        self._edit.event = self._intercept_touch
         self._refresh_display()
         layout.addWidget(self._edit)
+
+
+    def _intercept_touch(self, event):
+        """Intercept touch/mouse events on display field → open numpad."""
+        from PyQt5.QtCore import QEvent
+        if event.type() in (QEvent.TouchBegin, QEvent.MouseButtonPress):
+            self._open_numpad()
+            return True
+        return _NumpadLineEdit.event(self._edit, event)
 
     def _refresh_display(self):
         self._edit.setText(
