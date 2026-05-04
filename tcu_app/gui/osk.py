@@ -1,67 +1,95 @@
 # =============================================================================
 # osk.py — On-screen keyboard + touch-friendly input widgets
 # =============================================================================
+# OskLineEdit      → shows Onboard keyboard on tap
+# OskSpinBox       → read-only display + tap to open NumpadDialog (integer)
+# OskDoubleSpinBox → read-only display + tap to open NumpadDialog (float)
+#
+# OskSpinBox and OskDoubleSpinBox are drop-in replacements for QSpinBox and
+# QDoubleSpinBox. They expose the same API (value(), setValue(), setRange(),
+# setSuffix(), setDecimals() etc.) but replace all internal arrow button
+# logic with a full-screen numpad dialog on tap.
+# =============================================================================
 
 import subprocess
 from PyQt5.QtWidgets import (
+    QWidget, QHBoxLayout,
     QLineEdit, QSpinBox, QDoubleSpinBox,
-    QDialog, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QGridLayout, QSizePolicy
+    QDialog, QVBoxLayout, QHBoxLayout as _QHBox,
+    QPushButton, QGridLayout, QSizePolicy, QLabel
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QFont
 
-_proc = None
-_MAX_NUMPAD_DIGITS = 12   # upper bound on input length
+_proc           = None
+_MAX_DIGITS     = 12    # fixed upper bound on numpad input length
 
 
-def _show():
+def _show_onboard():
+    """Launch Onboard if not already running."""
     global _proc
     if _proc is None or _proc.poll() is not None:
         _proc = subprocess.Popen(['onboard', '--size=1200x220'])
 
 
+# =============================================================================
+# NumpadDialog
+# =============================================================================
+
 class NumpadDialog(QDialog):
-    """
-    Touch-friendly numpad for integer and float input.
-    Shows 0-9 digits, decimal point (for float), backspace and OK/Cancel.
-    """
+    """Full-screen touch numpad for integer and float input."""
 
     def __init__(self, title: str, current: str,
-                 allow_decimal: bool = False, parent=None):
+                 allow_decimal: bool = False,
+                 suffix: str = '', parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(True)
-        self.setMinimumWidth(320)
+        self.setMinimumWidth(340)
         self._allow_decimal = allow_decimal
-        self._build_ui(title, current)
+        self._suffix        = suffix
+        self._build_ui(current)
 
-    def _build_ui(self, title: str, current: str):
+    def _build_ui(self, current: str):
         root = QVBoxLayout(self)
-        root.setSpacing(8)
+        root.setSpacing(10)
+        root.setContentsMargins(16, 16, 16, 16)
 
+        # Display
         self._display = QLineEdit(current)
         self._display.setReadOnly(True)
         self._display.setAlignment(Qt.AlignRight)
         self._display.setStyleSheet(
-            'font-size: 28px; padding: 6px; border: 2px solid #ccc;')
+            'font-size: 32px; padding: 8px; border: 2px solid #aaa;'
+            'border-radius: 6px;')
         root.addWidget(self._display)
 
-        grid = QGridLayout()
-        grid.setSpacing(8)
+        if self._suffix:
+            lbl = QLabel(self._suffix)
+            lbl.setAlignment(Qt.AlignRight)
+            lbl.setStyleSheet('font-size: 14px; color: #888;')
+            root.addWidget(lbl)
 
-        buttons = [
+        # Numpad grid
+        grid = QGridLayout()
+        grid.setSpacing(10)
+
+        keys = [
             ('7', 0, 0), ('8', 0, 1), ('9', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('1', 2, 0), ('2', 2, 1), ('3', 2, 2),
             ('0', 3, 0), ('⌫', 3, 2),
         ]
         if self._allow_decimal:
-            buttons.append(('.', 3, 1))
+            keys.append(('.', 3, 1))
 
-        for label, row, col in buttons:
+        for label, row, col in keys:
             btn = QPushButton(label)
-            btn.setFixedHeight(64)
-            btn.setStyleSheet('font-size: 22px;')
+            btn.setFixedHeight(72)
+            btn.setStyleSheet(
+                'font-size: 24px; border-radius: 6px;'
+                'background: #2a2a2a; color: white;' if label == '⌫'
+                else 'font-size: 24px; border-radius: 6px;')
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn.clicked.connect(lambda _, l=label: self._on_key(l))
             grid.addWidget(btn, row, col)
@@ -69,110 +97,269 @@ class NumpadDialog(QDialog):
         root.addLayout(grid)
 
         # OK / Cancel
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton('OK')
-        ok_btn.setFixedHeight(56)
-        ok_btn.setStyleSheet('font-size: 20px; background:#065f46; color:white;')
-        ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton('Cancel')
-        cancel_btn.setFixedHeight(56)
-        cancel_btn.setStyleSheet('font-size: 20px;')
-        cancel_btn.clicked.connect(self.reject)
-        btn_row.addWidget(cancel_btn)
-        btn_row.addWidget(ok_btn)
+        btn_row = _QHBox()
+        btn_row.setSpacing(10)
+        cancel = QPushButton('Cancel')
+        cancel.setFixedHeight(60)
+        cancel.setStyleSheet('font-size: 20px; border-radius: 6px;')
+        cancel.clicked.connect(self.reject)
+        ok = QPushButton('OK')
+        ok.setFixedHeight(60)
+        ok.setStyleSheet(
+            'font-size: 20px; border-radius: 6px;'
+            'background: #065f46; color: white;')
+        ok.clicked.connect(self.accept)
+        btn_row.addWidget(cancel)
+        btn_row.addWidget(ok)
         root.addLayout(btn_row)
 
     def _on_key(self, key: str):
-        current = self._display.text()
+        cur = self._display.text()
         if key == '⌫':
-            self._display.setText(current[:-1] or '0')
-        elif key == '.' and '.' in current:
-            return   # only one decimal point allowed
-        elif len(current.replace('.', '').replace('-', '')) >= _MAX_NUMPAD_DIGITS:
-            return   # fixed upper bound on input length
+            self._display.setText(cur[:-1] or '0')
+        elif key == '.' and '.' in cur:
+            return
+        elif len(cur.replace('.', '').replace('-', '')) >= _MAX_DIGITS:
+            return
         else:
-            if current == '0' and key != '.':
-                self._display.setText(key)
-            else:
-                self._display.setText(current + key)
+            self._display.setText(key if cur == '0' and key != '.' else cur + key)
 
     def value(self) -> str:
         return self._display.text()
 
 
-def _get_int(parent, title: str, current: int,
-             mn: int, mx: int) -> tuple:
-    dlg = NumpadDialog(title, str(current),
-                       allow_decimal=False, parent=parent)
-    if dlg.exec_() == QDialog.Accepted:
-        try:
-            val = int(dlg.value())
-            val = max(mn, min(mx, val))
-            return val, True
-        except ValueError:
-            pass
-    return current, False
-
-
-def _get_double(parent, title: str, current: float,
-                mn: float, mx: float, decimals: int) -> tuple:
-    dlg = NumpadDialog(title, f'{current:.{decimals}f}',
-                       allow_decimal=True, parent=parent)
-    if dlg.exec_() == QDialog.Accepted:
-        try:
-            val = round(float(dlg.value()), decimals)
-            val = max(mn, min(mx, val))
-            return val, True
-        except ValueError:
-            pass
-    return current, False
-
+# =============================================================================
+# OskLineEdit
+# =============================================================================
 
 class OskLineEdit(QLineEdit):
     """QLineEdit that shows Onboard keyboard on tap."""
 
-    def focusInEvent(self, event):
-        _show()
-        super().focusInEvent(event)
-
     def mousePressEvent(self, event):
-        _show()
+        _show_onboard()
         super().mousePressEvent(event)
 
-
-class OskSpinBox(QSpinBox):
-    """QSpinBox that shows a numpad dialog on tap."""
-
-    def mousePressEvent(self, event):
-        val, ok = _get_int(
-            self, 'Enter value', self.value(),
-            self.minimum(), self.maximum()
-        )
-        if ok:
-            self.setValue(val)
-
-    def mouseReleaseEvent(self, event):
-        pass  # consumed by mousePressEvent
-
     def focusInEvent(self, event):
+        _show_onboard()
         super().focusInEvent(event)
 
 
-class OskDoubleSpinBox(QDoubleSpinBox):
-    """QDoubleSpinBox that shows a numpad dialog on tap."""
+# =============================================================================
+# OskSpinBox — replaces QSpinBox entirely, no arrow buttons
+# =============================================================================
 
-    def mousePressEvent(self, event):
-        val, ok = _get_double(
-            self, 'Enter value', self.value(),
-            self.minimum(), self.maximum(), self.decimals()
+class OskSpinBox(QWidget):
+    """
+    Drop-in QSpinBox replacement.
+    Renders as a read-only display field. Tap opens NumpadDialog.
+    No arrow buttons. Full QSpinBox API compatibility.
+    """
+
+    valueChanged = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._value   = 0
+        self._min     = 0
+        self._max     = 99
+        self._step    = 1
+        self._suffix  = ''
+        self._prefix  = ''
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._edit = QLineEdit()
+        self._edit.setReadOnly(True)
+        self._edit.setAlignment(Qt.AlignRight)
+        self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._edit.mousePressEvent = lambda e: self._open_numpad()
+        self._refresh_display()
+        layout.addWidget(self._edit)
+
+    def _refresh_display(self):
+        self._edit.setText(f'{self._prefix}{self._value}{self._suffix}')
+
+    def _open_numpad(self):
+        dlg = NumpadDialog(
+            'Enter value', str(self._value),
+            allow_decimal=False,
+            suffix=self._suffix,
+            parent=self
         )
-        if ok:
-            self.setValue(val)
+        if dlg.exec_() == QDialog.Accepted:
+            try:
+                val = int(dlg.value())
+                self.setValue(max(self._min, min(self._max, val)))
+            except ValueError:
+                pass
 
-    def mouseReleaseEvent(self, event):
-        pass  # consumed by mousePressEvent
+    # ── QSpinBox API compatibility ────────────────────────────────────────────
+    def value(self) -> int:
+        return self._value
 
-    def focusInEvent(self, event):
-        super().focusInEvent(event)
+    def setValue(self, v: int):
+        v = max(self._min, min(self._max, int(v)))
+        if v != self._value:
+            self._value = v
+            self._refresh_display()
+            self.valueChanged.emit(self._value)
+
+    def setRange(self, mn: int, mx: int):
+        self._min = int(mn)
+        self._max = int(mx)
+        self.setValue(self._value)
+
+    def setMinimum(self, mn: int):
+        self._min = int(mn)
+
+    def setMaximum(self, mx: int):
+        self._max = int(mx)
+
+    def minimum(self) -> int:
+        return self._min
+
+    def maximum(self) -> int:
+        return self._max
+
+    def setSingleStep(self, s: int):
+        self._step = int(s)
+
+    def singleStep(self) -> int:
+        return self._step
+
+    def setSuffix(self, s: str):
+        self._suffix = s
+        self._refresh_display()
+
+    def setPrefix(self, p: str):
+        self._prefix = p
+        self._refresh_display()
+
+    def setReadOnly(self, _):
+        pass  # always read-only — input via numpad only
+
+    def setStyleSheet(self, s: str):
+        self._edit.setStyleSheet(s)
+
+    def setFixedWidth(self, w: int):
+        self._edit.setFixedWidth(w)
+
+    def setFixedHeight(self, h: int):
+        self._edit.setFixedHeight(h)
 
 
+# =============================================================================
+# OskDoubleSpinBox — replaces QDoubleSpinBox entirely, no arrow buttons
+# =============================================================================
+
+class OskDoubleSpinBox(QWidget):
+    """
+    Drop-in QDoubleSpinBox replacement.
+    Renders as a read-only display field. Tap opens NumpadDialog.
+    No arrow buttons. Full QDoubleSpinBox API compatibility.
+    """
+
+    valueChanged = pyqtSignal(float)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._value    = 0.0
+        self._min      = 0.0
+        self._max      = 99.0
+        self._step     = 1.0
+        self._decimals = 2
+        self._suffix   = ''
+        self._prefix   = ''
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._edit = QLineEdit()
+        self._edit.setReadOnly(True)
+        self._edit.setAlignment(Qt.AlignRight)
+        self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._edit.mousePressEvent = lambda e: self._open_numpad()
+        self._refresh_display()
+        layout.addWidget(self._edit)
+
+    def _refresh_display(self):
+        self._edit.setText(
+            f'{self._prefix}{self._value:.{self._decimals}f}{self._suffix}')
+
+    def _open_numpad(self):
+        dlg = NumpadDialog(
+            'Enter value', f'{self._value:.{self._decimals}f}',
+            allow_decimal=True,
+            suffix=self._suffix,
+            parent=self
+        )
+        if dlg.exec_() == QDialog.Accepted:
+            try:
+                val = round(float(dlg.value()), self._decimals)
+                self.setValue(max(self._min, min(self._max, val)))
+            except ValueError:
+                pass
+
+    # ── QDoubleSpinBox API compatibility ──────────────────────────────────────
+    def value(self) -> float:
+        return self._value
+
+    def setValue(self, v: float):
+        v = round(max(self._min, min(self._max, float(v))), self._decimals)
+        if v != self._value:
+            self._value = v
+            self._refresh_display()
+            self.valueChanged.emit(self._value)
+
+    def setRange(self, mn: float, mx: float):
+        self._min = float(mn)
+        self._max = float(mx)
+        self.setValue(self._value)
+
+    def setMinimum(self, mn: float):
+        self._min = float(mn)
+
+    def setMaximum(self, mx: float):
+        self._max = float(mx)
+
+    def minimum(self) -> float:
+        return self._min
+
+    def maximum(self) -> float:
+        return self._max
+
+    def setSingleStep(self, s: float):
+        self._step = float(s)
+
+    def singleStep(self) -> float:
+        return self._step
+
+    def setDecimals(self, d: int):
+        self._decimals = int(d)
+        self._refresh_display()
+
+    def decimals(self) -> int:
+        return self._decimals
+
+    def setSuffix(self, s: str):
+        self._suffix = s
+        self._refresh_display()
+
+    def setPrefix(self, p: str):
+        self._prefix = p
+        self._refresh_display()
+
+    def setReadOnly(self, _):
+        pass  # always read-only — input via numpad only
+
+    def setStyleSheet(self, s: str):
+        self._edit.setStyleSheet(s)
+
+    def setFixedWidth(self, w: int):
+        self._edit.setFixedWidth(w)
+
+    def setFixedHeight(self, h: int):
+        self._edit.setFixedHeight(h)
