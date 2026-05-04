@@ -148,8 +148,9 @@ class DAQThread(threading.Thread):
             # Poll heating/cooling % every sample — matches old TCU app behaviour
             s.heating_pct, s.cooling_pct = self._tcu.get_heating_pct()
             if s.heating_pct is not None:
-                log_lines.append(
-                    f'>r YH <{s.heating_pct:.2f}% | r YK <{s.cooling_pct:.2f}%')
+                log_lines.append(f'>r YH  <YH+{s.heating_pct:.2f}$')
+            if s.cooling_pct is not None:
+                log_lines.append(f'>r YK  <YK+{s.cooling_pct:.2f}$')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 

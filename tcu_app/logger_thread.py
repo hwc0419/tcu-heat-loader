@@ -18,6 +18,7 @@ HEADERS = [
     'Setpoint (C)', 'Inlet Temp TCU (C)',
     'Flow (L/min)',
     'Voltage (V)', 'Current (A)', 'Power (W)',
+    'Heating (%)', 'Cooling (%)',
     'Alarms', 'Mode', 'Status'
 ]
 
@@ -98,6 +99,8 @@ class LoggerThread(threading.Thread):
             fmt(sample.voltage),
             fmt(sample.current),
             fmt(sample.power),
+            fmt(getattr(sample, 'heating_pct', None)),
+            fmt(getattr(sample, 'cooling_pct', None)),
             '; '.join(sample.alarms),
             self._mode,
             self._status,

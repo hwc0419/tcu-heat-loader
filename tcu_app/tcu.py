@@ -102,10 +102,12 @@ class TCU:
             return None
 
     def get_setpoint(self):
-        """SOLL → XX.XX$ — current temperature setpoint in °C. Returns float or None."""
+        """SOLL → XX.XX C$ — current temperature setpoint in °C. Returns float or None."""
         raw = self._send('SOLL')
+        print(f"TCU SOLL raw: {raw!r}")  # DEBUG — remove after confirming format
         try:
-            return float(raw.replace('$', '').strip())
+            cleaned = raw.replace('$', '').replace('C', '').strip()
+            return float(cleaned)
         except (ValueError, AttributeError):
             return None
 
