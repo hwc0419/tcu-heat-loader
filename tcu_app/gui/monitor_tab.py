@@ -7,10 +7,9 @@ import threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QDoubleSpinBox, QSizePolicy, QDialog
+    QDoubleSpinBox, QSizePolicy
 )
 from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
-
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -19,7 +18,6 @@ from collections import deque
 from datetime import datetime
 
 from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
-from gui.graph_utils import make_graph_panel
 from settings_manager import settings
 from translations import tr
 
@@ -45,18 +43,14 @@ class MonitorTab(QWidget):
     sig_set_setpoint = pyqtSignal(float)
 
     def __init__(self, scale: float = 1.0, parent=None):
-        self._scale      = scale
+        self._scale = scale
         super().__init__(parent)
-        self._times      = deque(maxlen=WINDOW)
-        self._temps      = deque(maxlen=WINDOW)
-        self._flows      = deque(maxlen=WINDOW)
-        self._flow_times = deque(maxlen=WINDOW)
-        self._flow_vals  = deque(maxlen=WINDOW)
-        self._t0         = None
-        self._show_temp  = True   # True = temp+power, False = flow rate
+        self._times     = deque(maxlen=WINDOW)
+        self._temps     = deque(maxlen=WINDOW)
+        self._flows     = deque(maxlen=WINDOW)
+        self._t0        = None
         self._build_ui()
         self._setup_graph()
-        self._build_popup_graphs()
 
     # ── Build UI ──────────────────────────────────────────────────────────────
     def _build_ui(self):
@@ -91,25 +85,27 @@ class MonitorTab(QWidget):
         self.lbl_heating,  self.val_heating  = make_reading("Heating %")
         self.lbl_cooling,  self.val_cooling  = make_reading("Cooling %")
 
-        rows = [
+        # Two-column layout: col1 = rows 0-3, col2 = rows 0-3 (offset by 4 cols)
+        col1 = [
             (self.lbl_temp,     self.val_temp),
             (self.lbl_setpoint, self.val_setpoint),
             (self.lbl_flow,     self.val_flow),
+            (self.lbl_heating,  self.val_heating),
+        ]
+        col2 = [
             (self.lbl_voltage,  self.val_voltage),
             (self.lbl_current,  self.val_current),
             (self.lbl_power,    self.val_power),
-            (self.lbl_heating,  self.val_heating),
             (self.lbl_cooling,  self.val_cooling),
         ]
-        for row, (lbl, val) in enumerate(rows):
+        for row, (lbl, val) in enumerate(col1):
             rg.addWidget(lbl, row, 0)
             rg.addWidget(val, row, 1)
-
-        # Show Graphs popup button — not logged (view action only)
-        self._btn_graphs = QPushButton("📈 Show Graphs")
-        self._btn_graphs.setObjectName('btn_fill')
-        self._btn_graphs.clicked.connect(self._on_show_graphs)
-        rg.addWidget(self._btn_graphs, len(rows), 0, 1, 2)
+        for row, (lbl, val) in enumerate(col2):
+            rg.addWidget(lbl, row, 2)
+            rg.addWidget(val, row, 3)
+        rg.setColumnStretch(1, 1)
+        rg.setColumnStretch(3, 1)
 
         left.addWidget(readings_box)
 
@@ -124,24 +120,9 @@ class MonitorTab(QWidget):
         left.addWidget(alarm_box)
 
         # Temperature graph
-        # Graph with toggle button in header
         self._grp_graph = QGroupBox(tr("temp_trend"))
         graph_box = self._grp_graph
         gg = QVBoxLayout(graph_box)
-
-        # Toggle header row
-        hdr = QHBoxLayout()
-        self._graph_lbl = QLabel("Temperature")
-        self._graph_lbl.setObjectName('graph_title')
-        self._toggle_btn = QPushButton("→ Flow Rate")
-        self._toggle_btn.setObjectName('btn_export')
-        self._toggle_btn.setFixedWidth(int(100 * self._scale))
-        self._toggle_btn.clicked.connect(self._on_toggle_graph)
-        hdr.addWidget(self._graph_lbl)
-        hdr.addStretch()
-        hdr.addWidget(self._toggle_btn)
-        gg.addLayout(hdr)
-
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
         self.plot_widget.setMinimumHeight(int(200 * self._scale))
@@ -199,6 +180,8 @@ class MonitorTab(QWidget):
         self.cmd_log = QTextEdit()
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
+        self.cmd_log.setLineWrapMode(QTextEdit.NoWrap)
+        self.cmd_log.setFont(__import__('PyQt5.QtGui', fromlist=['QFont']).QFont('Courier New', 9))
         lg.addWidget(self.cmd_log)
         right.addWidget(log_box, stretch=1)
 
@@ -240,29 +223,12 @@ class MonitorTab(QWidget):
                     color=TEXT_DIM, font={'family': 'Courier New', 'size': '10px'})
         pw.addLegend(offset=(10, 10))
 
-        # Temperature curve (left Y-axis)
         self._curve_tcu = pw.plot(
-            pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet (°C)')
-
-        # Power curve (right Y-axis via ViewBox)
-        self._power_vb = pg.ViewBox()
-        pw.scene().addItem(self._power_vb)
-        pw.getAxis('right').linkToView(self._power_vb)
-        pw.getAxis('right').setLabel('Power', units='W', color=AMBER)
-        pw.showAxis('right')
-        self._power_vb.setXLink(pw)
-        self._curve_power = pg.PlotCurveItem(
-            pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
-        self._power_vb.addItem(self._curve_power)
-
-        # Sync ViewBox on resize
-        pw.plotItem.vb.sigResized.connect(self._sync_power_vb)
-
-        # Flow rate curve (hidden initially)
-        self._curve_flow_inline = pw.plot(
-            pen=pg.mkPen('#2196F3', width=2), name='Flow (ℓ/min)')
-        self._curve_flow_inline.setVisible(False)
-
+            pen=pg.mkPen(color=ACCENT, width=2),
+            name='TCU Inlet')
+        self._curve_power = pw.plot(
+            pen=pg.mkPen(color=AMBER, width=2),
+            name='Power (W)')
         self._setpoint_line = pg.InfiniteLine(
             angle=0, pos=settings.get('temp_setpoint'),
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine),
@@ -271,34 +237,6 @@ class MonitorTab(QWidget):
 
         self._times_power = deque(maxlen=WINDOW)
         self._power_vals  = deque(maxlen=WINDOW)
-
-    def _sync_power_vb(self):
-        """Keep power ViewBox geometry in sync with main plot."""
-        self._power_vb.setGeometry(self.plot_widget.plotItem.vb.sceneBoundingRect())
-        self._power_vb.linkedViewChanged(self.plot_widget.plotItem.vb, self._power_vb.XAxis)
-
-    def _on_toggle_graph(self):
-        """Toggle inline graph between temp+power and flow rate."""
-        self._show_temp = not self._show_temp
-        pw = self.plot_widget
-        if self._show_temp:
-            self._curve_tcu.setVisible(True)
-            self._curve_power.setVisible(True)
-            self._setpoint_line.setVisible(True)
-            self._curve_flow_inline.setVisible(False)
-            pw.setLabel('left', 'Temperature', units='°C')
-            pw.showAxis('right')
-            self._graph_lbl.setText('Temperature')
-            self._toggle_btn.setText('→ Flow Rate')
-        else:
-            self._curve_tcu.setVisible(False)
-            self._curve_power.setVisible(False)
-            self._setpoint_line.setVisible(False)
-            self._curve_flow_inline.setVisible(True)
-            pw.setLabel('left', 'Flow rate', units='ℓ/min')
-            pw.hideAxis('right')
-            self._graph_lbl.setText('Flow Rate')
-            self._toggle_btn.setText('← Temperature')
 
     # ── Public: update from DAQ sample ────────────────────────────────────────
     def update(self, sample):
@@ -323,7 +261,6 @@ class MonitorTab(QWidget):
         self.val_current.setText(f"{sample.current:.3f} A"    if sample.current is not None else "---")
         self.val_power.setText(  f"{sample.power:.1f} W"      if sample.power   is not None else "---")
 
-        # Heating / cooling % (r YH / r YK — every 5th sample, only when TCU running)
         heating_pct = getattr(sample, 'heating_pct', None)
         cooling_pct = getattr(sample, 'cooling_pct', None)
         if heating_pct is not None:
@@ -351,20 +288,11 @@ class MonitorTab(QWidget):
             self._times.append(t)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
-            if hasattr(self, '_popup_curve_temp'):
-                self._popup_curve_temp.setData(list(self._times), list(self._temps))
 
         if sample.power is not None:
             self._times_power.append(t)
             self._power_vals.append(sample.power)
             self._curve_power.setData(list(self._times_power), list(self._power_vals))
-
-        if sample.flow_rate is not None:
-            self._flow_times.append(t)
-            self._flow_vals.append(sample.flow_rate)
-            self._curve_flow_inline.setData(list(self._flow_times), list(self._flow_vals))
-            if hasattr(self, '_popup_curve_flow'):
-                self._popup_curve_flow.setData(list(self._flow_times), list(self._flow_vals))
 
         # Command log
         if sample.raw_log or sample.decoded_log:
@@ -414,37 +342,6 @@ class MonitorTab(QWidget):
         # Update setpoint line
         if sample.setpoint:
             self._setpoint_line.setValue(sample.setpoint)
-
-    # ── Popup graphs ──────────────────────────────────────────────────────────
-    def _build_popup_graphs(self):
-        """Build popup dialog with temp + flow graphs."""
-        self._popup = QDialog(self)
-        self._popup.setWindowTitle('Live Graphs')
-        self._popup.setMinimumSize(700, 500)
-        v = QVBoxLayout(self._popup)
-
-        temp_panel, self._popup_plot_temp, _ = make_graph_panel(
-            'TCU Inlet Temperature', self._scale)
-        self._popup_plot_temp.setLabel('left',   'Temperature', units='°C')
-        self._popup_plot_temp.setLabel('bottom', 'Time',        units='s')
-        self._popup_plot_temp.showGrid(x=True, y=True, alpha=0.3)
-        self._popup_curve_temp = self._popup_plot_temp.plot(
-            pen=pg.mkPen(ACCENT, width=2), name='TCU Inlet')
-        v.addWidget(temp_panel)
-
-        flow_panel, self._popup_plot_flow, _ = make_graph_panel(
-            'Flow Rate', self._scale)
-        self._popup_plot_flow.setLabel('left',   'Flow rate', units='ℓ/min')
-        self._popup_plot_flow.setLabel('bottom', 'Time',      units='s')
-        self._popup_plot_flow.showGrid(x=True, y=True, alpha=0.3)
-        self._popup_curve_flow = self._popup_plot_flow.plot(
-            pen=pg.mkPen('#2196F3', width=2), name='Flow rate')
-        v.addWidget(flow_panel)
-
-    def _on_show_graphs(self):
-        """Show popup — not logged (view action only)."""
-        self._popup.show()
-        self._popup.raise_()
 
     def retranslate(self):
         """Update all labels and group box titles to current language."""
