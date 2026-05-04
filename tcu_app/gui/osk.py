@@ -133,15 +133,11 @@ class NumpadDialog(QDialog):
 # =============================================================================
 
 class OskLineEdit(QLineEdit):
-    """QLineEdit that shows Onboard keyboard on tap."""
+    """QLineEdit that shows Onboard keyboard on click only."""
 
     def mousePressEvent(self, event):
         _show_onboard()
         super().mousePressEvent(event)
-
-    def focusInEvent(self, event):
-        _show_onboard()
-        super().focusInEvent(event)
 
 
 # =============================================================================
@@ -172,7 +168,7 @@ class OskSpinBox(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         self._edit = QLineEdit()
         self._edit.setReadOnly(True)
-        self._edit.setAlignment(Qt.AlignRight)
+        self._edit.setAlignment(Qt.AlignLeft)
         self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._edit.mousePressEvent = lambda e: self._open_numpad()
         self._refresh_display()
@@ -279,7 +275,7 @@ class OskDoubleSpinBox(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         self._edit = QLineEdit()
         self._edit.setReadOnly(True)
-        self._edit.setAlignment(Qt.AlignRight)
+        self._edit.setAlignment(Qt.AlignLeft)
         self._edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._edit.mousePressEvent = lambda e: self._open_numpad()
         self._refresh_display()
