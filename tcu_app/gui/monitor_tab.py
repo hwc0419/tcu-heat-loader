@@ -379,6 +379,7 @@ class MonitorTab(QWidget):
             if sample.raw_log:
                 self.cmd_log.setTextColor(QColor(hdr_color))
                 _line = sample.raw_log.replace(chr(13), '').replace(chr(10), '  |  ')
+                print(f"CMD_LOG raw repr: {sample.raw_log!r}")
                 self.cmd_log.append(f"[{ts}]  {_line}")
             for line in sample.decoded_log:
                 color = RED if line.startswith('✕') else \
