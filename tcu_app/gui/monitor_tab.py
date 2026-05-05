@@ -181,7 +181,7 @@ class MonitorTab(QWidget):
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
         self.cmd_log.setLineWrapMode(QTextEdit.NoWrap)
-        self.cmd_log.setFont(QFont('Courier New', 8))
+        self.cmd_log.setFont(QFont('Liberation Mono', 9))
         self.cmd_log.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         lg.addWidget(self.cmd_log)
         right.addWidget(self._grp_log, stretch=1)
@@ -193,7 +193,7 @@ class MonitorTab(QWidget):
         self.alarm_log.setReadOnly(True)
         self.alarm_log.setMaximumHeight(int(100 * self._scale))
         self.alarm_log.setLineWrapMode(QTextEdit.NoWrap)
-        self.alarm_log.setFont(QFont('Courier New', 8))
+        self.alarm_log.setFont(QFont('Liberation Mono', 9))
         ah.addWidget(self.alarm_log)
         right.addWidget(self._grp_ah)
 
@@ -378,14 +378,14 @@ class MonitorTab(QWidget):
             hdr_color = RED if sample.is_abnormal else TEXT_DIM
             if sample.raw_log:
                 self.cmd_log.setTextColor(QColor(hdr_color))
-                self.cmd_log.append(
-                    f"[{ts}]  {sample.raw_log.replace(chr(10), '  |  ')}")
+                _line = sample.raw_log.replace(chr(13), '').replace(chr(10), '  |  ')
+                self.cmd_log.append(f"[{ts}]  {_line}")
             for line in sample.decoded_log:
                 color = RED if line.startswith('✕') else \
                         AMBER if line.startswith('⚠') else \
                         GREEN if '✓' in line else TEXT_DIM
                 self.cmd_log.setTextColor(QColor(color))
-                self.cmd_log.append(f"         {line}")
+                self.cmd_log.append(f"         {line.replace(chr(13),'').replace(chr(10),' ')}")
             self.cmd_log.setTextColor(QColor(BORDER))
             self.cmd_log.append('')
             doc = self.cmd_log.document()
