@@ -28,9 +28,9 @@ from translations     import tr
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
-from tcu_comms    import TCUComms
-from pzem004t     import PZEM004T
-from heater_comms import HeaterComms
+from tcu       import TCU
+from pzem004t  import PZEM004T
+from heater    import Heater
 from test_logic   import parse_alarms, check_pass_fail, FLOW_FAIL_GRACE_SAMPLES
 
 from config import (
@@ -66,9 +66,9 @@ class MainWindow(QMainWindow):
         self._log_queue = Queue()
 
         # ── Hardware ────────────────────────────────────────────────────────
-        self._tcu      = TCUComms()
+        self._tcu      = TCU()
         self._pzem     = PZEM004T()
-        self._heater   = HeaterComms()
+        self._heater   = Heater()
         self._connected = False
         # Attempt heater connection — non-fatal if hardware not present
         self._heater.connect()
