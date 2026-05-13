@@ -28,10 +28,10 @@ from translations     import tr
 from daq_thread    import DAQThread, Sample
 from logger_thread import LoggerThread
 
-from tcu    import TCU
+from tcu_comms    import TCUComms
 from pzem004t     import PZEM004T
-from heater import Heater
-from test_logic   import parse_alarms, check_pass_fail
+from heater_comms import HeaterComms
+from test_logic   import parse_alarms, check_pass_fail, FLOW_FAIL_GRACE_SAMPLES
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
@@ -66,9 +66,9 @@ class MainWindow(QMainWindow):
         self._log_queue = Queue()
 
         # ── Hardware ────────────────────────────────────────────────────────
-        self._tcu      = TCU()
+        self._tcu      = TCUComms()
         self._pzem     = PZEM004T()
-        self._heater   = Heater()
+        self._heater   = HeaterComms()
         self._connected = False
         # Attempt heater connection — non-fatal if hardware not present
         self._heater.connect()
@@ -79,9 +79,10 @@ class MainWindow(QMainWindow):
         self._logger_thread.start()
 
         # ── Test state ──────────────────────────────────────────────────────
-        self._test_active  = False
-        self._test_start_t = None
-        self._test_serial  = ''
+        self._test_active    = False
+        self._test_start_t   = None
+        self._test_serial    = ''
+        self._low_flow_count = 0
 
         # ── RPi priority / inactivity ────────────────────────────────────────
         self._rpi_active        = False
@@ -315,7 +316,7 @@ class MainWindow(QMainWindow):
     def _connect_tcu(self):
         self._tcu.connect()
         pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._connected = True
             self._monitor_tab.set_connected(True)
             self._status_bar.showMessage(
@@ -350,11 +351,9 @@ class MainWindow(QMainWindow):
         self._monitor_tab.update(sample)
         self._heater_tab.update_sample(sample)
         self._response_tab.update_sample(sample)
-        # Always update test tab graph — even when no test is running
-        self._test_tab.update(sample)
 
-        # Auto-off heater if BS != 400400 — only when heater is connected
-        if sample.b1 is not None and self._heater.is_connected():
+        # Auto-off heater if BS != 0x400400 (TCU abnormal)
+        if sample.b1 is not None:
             bs = (sample.b1 << 16) | ((sample.b2 or 0) << 8) | (sample.b3 or 0)
             if bs != 0x400400:
                 ok = self._heater.emergency_off()
@@ -364,49 +363,50 @@ class MainWindow(QMainWindow):
 
         if self._test_active:
             elapsed_min = (time.time() - self._test_start_t) / 60.0
-            passed, msg = check_pass_fail(
+            passed, msg, self._low_flow_count = check_pass_fail(
                 sample.inlet_temp, sample.flow_rate,
-                sample.alarms, elapsed_min
+                sample.alarms, elapsed_min, self._low_flow_count
             )
             self._logger_thread.set_status(msg)
             self._test_tab.update(sample, msg, passed)
-
             if passed is not None:
                 self._end_test(passed, msg)
+        else:
+            self._test_tab.update(sample)
 
     # ── TCU commands ──────────────────────────────────────────────────────────
     def _cmd_start(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU START', '')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._tcu.start()
             self._monitor_tab.log_command('START', '$')
 
     def _cmd_stop(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU STOP', '')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._tcu.stop()
             self._monitor_tab.log_command('STOP', '$')
 
     def _cmd_clear_alarm(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLEAR ALARM', '')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._tcu.release_alarm()
             self._monitor_tab.log_command('ER', '$')
 
     def _cmd_close_valve(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLOSE VALVE', '')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._tcu._send('CVE')
             self._monitor_tab.log_command('CVE', '$')
 
     def _cmd_set_setpoint(self, temp: float):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU SET SETPOINT', f'{temp:.2f}°C')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             self._tcu.set_setpoint(temp)
             self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$')
 
@@ -414,7 +414,7 @@ class MainWindow(QMainWindow):
         """VT — pretemperature control only (no fill)."""
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU PRECOND', '')
-        if self._tcu.is_connected():
+        if self._tcu.connected:
             threading.Thread(
                 target=self._tcu._send, args=('VT',), daemon=True).start()
             self._monitor_tab.log_command('VT', '(running...)')
@@ -423,7 +423,7 @@ class MainWindow(QMainWindow):
         """AFV — blocking fill. Runs in background thread."""
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU FILL', '')
-        if not self._tcu.is_connected():
+        if not self._tcu.connected:
             return
         self._monitor_tab.log_command('AFV', '(filling — please wait...)')
         self._status_bar.showMessage("AFV: Filling and pretemperature control in progress...")
@@ -444,9 +444,10 @@ class MainWindow(QMainWindow):
 
     # ── Test management ───────────────────────────────────────────────────────
     def _on_test_start(self, serial: str):
-        self._test_active  = True
-        self._test_start_t = time.time()
-        self._test_serial  = serial
+        self._test_active    = True
+        self._test_start_t   = time.time()
+        self._test_serial    = serial
+        self._low_flow_count = 0
         self._logger_thread.start_session(serial, mode='TEST')
         self._test_tab.set_logfile(self._logger_thread.filename)
         self._status_bar.showMessage(
@@ -484,6 +485,10 @@ class MainWindow(QMainWindow):
 
     def _on_language_changed(self, lang: str):
         """Hot reload all tab labels and UI strings when language changes."""
+        self._tabs.setTabText(0, tr('tab_monitor'))
+        self._tabs.setTabText(1, tr('tab_test'))
+        self._tabs.setTabText(2, tr('tab_settings'))
+        self._tabs.setTabText(3, tr('tab_docs'))
         self._monitor_tab.retranslate()
         self._test_tab.retranslate()
         self._settings_tab.retranslate()

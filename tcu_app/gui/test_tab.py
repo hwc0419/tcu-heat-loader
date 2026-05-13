@@ -6,8 +6,11 @@ import time
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QLineEdit, QProgressBar, QSizePolicy
+    QLineEdit, QProgressBar, QSizePolicy, QDialog
 )
+from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
+from gui.graph_utils import make_graph_panel
+
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 import pyqtgraph as pg
 from collections import deque
@@ -21,6 +24,7 @@ def _get_window():
     """Return graph window size in samples based on current test duration."""
     return settings.get('test_duration') * 60
 
+
 class TestTab(QWidget):
     """
     Heat load test panel — pass/fail test.
@@ -33,20 +37,26 @@ class TestTab(QWidget):
     def __init__(self, scale: float = 1.0, parent=None):
         self._scale = scale
         super().__init__(parent)
-        self._test_active  = False
-        self._start_time   = None
-        self._t0_graph     = None
-        self._result       = None
-        self._banner_state = 'ready'
-        self._banner_msg   = ''
+        self._test_active       = False
+        self._start_time        = None
+        self._t0_graph          = None
+        self._result            = None
+        self._banner_state      = 'ready'
+        self._banner_msg        = ''
 
         self._times      = deque(maxlen=_get_window())
         self._temps      = deque(maxlen=_get_window())
         self._heat_loads = deque(maxlen=_get_window())
         self._heat_times = deque(maxlen=_get_window())
+        self._flow_times = deque(maxlen=_get_window())
+        self._flow_vals  = deque(maxlen=_get_window())
+        self._pwr_times  = deque(maxlen=_get_window())
+        self._pwr_vals   = deque(maxlen=_get_window())
+        self._show_temp  = True
 
         self._build_ui()
         self._setup_graph()
+        self._build_popup()
 
         # Timer updates elapsed display every second
         self._timer = QTimer(self)
@@ -106,33 +116,67 @@ class TestTab(QWidget):
         self.lbl_current,   self.val_current   = reading(tr("current"))
         self.lbl_power,     self.val_power     = reading(tr("power"))
         self.lbl_alarm,     self.val_alarm     = reading(tr("alarms"))
+        self.lbl_heating,   self.val_heating   = reading("Heating %")
+        self.lbl_cooling,   self.val_cooling   = reading("Cooling %")
 
-        rows = [
+        # Two-column layout
+        # Col 1: elapsed, remaining, inlet temp, setpoint, flow
+        # Col 2: voltage, current, power, alarms, heating%, cooling%
+        col1 = [
             (self.lbl_elapsed,   self.val_elapsed),
             (self.lbl_remaining, self.val_remaining),
             (self.lbl_temp,      self.val_temp),
             (self.lbl_sp,        self.val_sp),
             (self.lbl_flow,      self.val_flow),
+        ]
+        col2 = [
             (self.lbl_voltage,   self.val_voltage),
             (self.lbl_current,   self.val_current),
             (self.lbl_power,     self.val_power),
             (self.lbl_alarm,     self.val_alarm),
+            (self.lbl_heating,   self.val_heating),
+            (self.lbl_cooling,   self.val_cooling),
         ]
-        for i, (l, v) in enumerate(rows):
+        for i, (l, v) in enumerate(col1):
             rg.addWidget(l, i, 0)
             rg.addWidget(v, i, 1)
+        for i, (l, v) in enumerate(col2):
+            rg.addWidget(l, i, 2)
+            rg.addWidget(v, i, 3)
+        rg.setColumnStretch(1, 1)
+        rg.setColumnStretch(3, 1)
 
         left.addWidget(readings_box)
 
-        # Graph
+        # Graph with toggle + popup + export buttons in header
         self._grp_graph = QGroupBox("TEMPERATURE & HEAT LOAD (test duration)")
-        graph_box = self._grp_graph
-        gg = QVBoxLayout(graph_box)
+        gg = QVBoxLayout(self._grp_graph)
+        hdr = QHBoxLayout()
+        self._graph_lbl  = QLabel("Temperature")
+        self._graph_lbl.setObjectName("graph_title")
+        self._toggle_btn = QPushButton("→ Flow Rate")
+        self._toggle_btn.setObjectName("btn_export")
+        self._toggle_btn.setFixedWidth(int(110 * self._scale))
+        self._toggle_btn.clicked.connect(self._on_toggle)
+        self._popup_btn  = QPushButton("📈 Popup")
+        self._popup_btn.setObjectName("btn_export")
+        self._popup_btn.setFixedWidth(int(80 * self._scale))
+        self._popup_btn.clicked.connect(self._on_show_popup)
+        self._export_btn = QPushButton("⬇ Export")
+        self._export_btn.setObjectName("btn_export")
+        self._export_btn.setFixedWidth(int(80 * self._scale))
+        self._export_btn.clicked.connect(self._on_export)
+        hdr.addWidget(self._graph_lbl)
+        hdr.addStretch()
+        hdr.addWidget(self._toggle_btn)
+        hdr.addWidget(self._popup_btn)
+        hdr.addWidget(self._export_btn)
+        gg.addLayout(hdr)
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
         self.plot_widget.setMinimumHeight(int(220 * self._scale))
         gg.addWidget(self.plot_widget)
-        left.addWidget(graph_box, stretch=1)
+        left.addWidget(self._grp_graph, stretch=1)
 
         root.addLayout(left, stretch=3)
 
@@ -213,27 +257,104 @@ class TestTab(QWidget):
     def _setup_graph(self):
         pw = self.plot_widget
         pw.showGrid(x=True, y=True, alpha=0.2)
-        pw.setLabel('left', 'Temperature (°C)', color=TEXT,
+        pw.setLabel('left', 'Temperature', units='°C', color=TEXT,
                     font={'family': 'Courier New', 'size': '11px'})
         pw.setLabel('bottom', 'Elapsed (min)', color=TEXT_DIM,
                     font={'family': 'Courier New', 'size': '10px'})
         pw.addLegend(offset=(10, 10))
 
+        # Temperature curve (left Y)
         self._curve_tcu = pw.plot(
-            pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet')
-        self._curve_power = pw.plot(
-            pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
+            pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet (°C)')
 
-        from settings_manager import settings as _s
-        TEMP_SETPOINT = _s.get('temp_setpoint'); TEMP_TOLERANCE = _s.get('temp_tolerance')
+        # Power curve (right Y via ViewBox)
+        self._power_vb = pg.ViewBox()
+        pw.scene().addItem(self._power_vb)
+        pw.getAxis('right').linkToView(self._power_vb)
+        pw.getAxis('right').setLabel('Power', units='W', color=AMBER)
+        pw.showAxis('right')
+        self._power_vb.setXLink(pw)
+        self._curve_power = pg.PlotCurveItem(
+            pen=pg.mkPen(color=AMBER, width=2), name='Power (W)')
+        self._power_vb.addItem(self._curve_power)
+        pw.plotItem.vb.sigResized.connect(self._sync_vb)
+
+        # Flow curve (hidden initially)
+        self._curve_flow_inline = pw.plot(
+            pen=pg.mkPen('#2196F3', width=2), name='Flow (ℓ/min)')
+        self._curve_flow_inline.setVisible(False)
+
+        sp  = settings.get('temp_setpoint')
+        tol = settings.get('temp_tolerance')
         self._sp_hi = pg.InfiniteLine(
-            angle=0, pos=TEMP_SETPOINT + TEMP_TOLERANCE,
+            angle=0, pos=sp + tol,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
         self._sp_lo = pg.InfiniteLine(
-            angle=0, pos=TEMP_SETPOINT - TEMP_TOLERANCE,
+            angle=0, pos=sp - tol,
             pen=pg.mkPen(color=RED, width=1, style=Qt.DotLine))
         pw.addItem(self._sp_hi)
         pw.addItem(self._sp_lo)
+
+    def _sync_vb(self):
+        self._power_vb.setGeometry(
+            self.plot_widget.plotItem.vb.sceneBoundingRect())
+        self._power_vb.linkedViewChanged(
+            self.plot_widget.plotItem.vb, self._power_vb.XAxis)
+
+    def _on_toggle(self):
+        self._show_temp = not self._show_temp
+        pw = self.plot_widget
+        if self._show_temp:
+            self._curve_tcu.setVisible(True)
+            self._curve_power.setVisible(True)
+            self._sp_hi.setVisible(True)
+            self._sp_lo.setVisible(True)
+            self._curve_flow_inline.setVisible(False)
+            pw.setLabel('left', 'Temperature', units='°C')
+            pw.showAxis('right')
+            self._graph_lbl.setText('Temperature')
+            self._toggle_btn.setText('→ Flow Rate')
+        else:
+            self._curve_tcu.setVisible(False)
+            self._curve_power.setVisible(False)
+            self._sp_hi.setVisible(False)
+            self._sp_lo.setVisible(False)
+            self._curve_flow_inline.setVisible(True)
+            pw.setLabel('left', 'Flow rate', units='ℓ/min')
+            pw.hideAxis('right')
+            self._graph_lbl.setText('Flow Rate')
+            self._toggle_btn.setText('← Temperature')
+
+    def _on_export(self):
+        from gui.graph_utils import export_graph
+        title = 'temperature' if self._show_temp else 'flow_rate'
+        export_graph(self.plot_widget, f'test_{title}')
+
+    def _build_popup(self):
+        self._popup = QDialog(self)
+        self._popup.setWindowTitle('Test Graphs')
+        self._popup.setMinimumSize(700, 500)
+        v = QVBoxLayout(self._popup)
+        temp_panel, self._popup_plot_temp, _ = make_graph_panel(
+            'TCU Inlet Temperature', self._scale)
+        self._popup_plot_temp.setLabel('left',   'Temperature', units='°C')
+        self._popup_plot_temp.setLabel('bottom', 'Elapsed',     units='min')
+        self._popup_plot_temp.showGrid(x=True, y=True, alpha=0.2)
+        self._popup_curve_temp = self._popup_plot_temp.plot(
+            pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet')
+        v.addWidget(temp_panel)
+        flow_panel, self._popup_plot_flow, _ = make_graph_panel(
+            'Flow Rate', self._scale)
+        self._popup_plot_flow.setLabel('left',   'Flow rate', units='ℓ/min')
+        self._popup_plot_flow.setLabel('bottom', 'Elapsed',   units='min')
+        self._popup_plot_flow.showGrid(x=True, y=True, alpha=0.2)
+        self._popup_curve_flow = self._popup_plot_flow.plot(
+            pen=pg.mkPen('#2196F3', width=2), name='Flow rate')
+        v.addWidget(flow_panel)
+
+    def _on_show_popup(self):
+        self._popup.show()
+        self._popup.raise_()
 
     # ── Button handlers ───────────────────────────────────────────────────────
     def _on_start(self):
@@ -241,14 +362,21 @@ class TestTab(QWidget):
         if not serial:
             self.banner.setText(tr("enter_serial"))
             return
-        self._test_active = True
-        self._start_time  = time.time()
-        self._t0_graph    = None
-        self._result      = None
-        self._times.clear(); self._temps.clear()
+        self._test_active    = True
+        self._start_time     = time.time()
+        self._t0_graph       = None
+        self._result         = None
+        self._times.clear();      self._temps.clear()
         self._heat_times.clear(); self._heat_loads.clear()
+        self._pwr_times.clear();  self._pwr_vals.clear()
+        self._flow_times.clear(); self._flow_vals.clear()
         self._curve_tcu.setData([], [])
         self._curve_power.setData([], [])
+        self._curve_flow_inline.setData([], [])
+        if hasattr(self, '_popup_curve_temp'):
+            self._popup_curve_temp.setData([], [])
+        if hasattr(self, '_popup_curve_flow'):
+            self._popup_curve_flow.setData([], [])
         self.btn_test_start.setEnabled(False)
         self.btn_test_stop.setEnabled(True)
         self.edit_serial.setEnabled(False)
@@ -265,14 +393,12 @@ class TestTab(QWidget):
 
     def retranslate(self):
         """Update all labels and group box titles to current language."""
-        # Group box titles
         self._grp_readings.setTitle(tr('live_readings'))
         self._grp_serial.setTitle(tr('tcu_serial'))
         self._grp_ctrl.setTitle(tr('test_controls'))
         self._grp_criteria.setTitle(tr('pass_criteria'))
         self._grp_result.setTitle(tr('test_result'))
         self._grp_log.setTitle(tr('log_file'))
-        # Reading labels
         self.lbl_elapsed.setText(tr('elapsed'))
         self.lbl_remaining.setText(tr('remaining'))
         self.lbl_temp.setText(tr('inlet_temp'))
@@ -282,12 +408,10 @@ class TestTab(QWidget):
         self.lbl_current.setText(tr('current'))
         self.lbl_power.setText(tr('power'))
         self.lbl_alarm.setText(tr('alarms'))
-        # Buttons
         self.btn_test_start.setText(tr('btn_test_start'))
         self.btn_test_stop.setText(tr('btn_test_stop'))
         self.edit_serial.setPlaceholderText(tr('serial_ph'))
         self._refresh_criteria()
-        # Re-render banner in current language
         self._update_banner(self._banner_state, self._banner_msg)
 
     def _refresh_criteria(self):
@@ -299,7 +423,7 @@ class TestTab(QWidget):
             f"✓  Inlet temp {sp}°C ± {tol}°C\n"
             f"    for full {dur} minutes\n\n"
             f"✓  Flow rate ≥ 1 ℓ/min\n"
-            f"    continuously\n\n"
+            f"    for 5+ consecutive seconds\n\n"
             f"✓  No TCU alarms\n"
             f"    (BS = 400400)\n\n"
             f"✓  Test duration {dur} min\n"
@@ -307,25 +431,14 @@ class TestTab(QWidget):
         )
 
     def refresh_settings(self):
-        """
-        Called by main_window when settings are applied.
-        Updates all widgets that depend on configurable test parameters.
-        """
+        """Called by main_window when settings are applied."""
         sp  = settings.get('temp_setpoint')
         tol = settings.get('temp_tolerance')
         dur = settings.get('test_duration')
-
-        # Update criteria label
         self._refresh_criteria()
-
-        # Update progress bar range
         self.progress.setRange(0, dur * 60)
-
-        # Update tolerance band lines on graph
         self._sp_hi.setValue(sp + tol)
         self._sp_lo.setValue(sp - tol)
-
-        # Update setpoint reference line if it exists
         if hasattr(self, '_setpoint_line'):
             self._setpoint_line.setValue(sp)
 
@@ -343,6 +456,7 @@ class TestTab(QWidget):
     # ── Public: called by main window ─────────────────────────────────────────
     def update(self, sample, status_msg: str = '', passed=None):
         """Update readings and graph from DAQ sample."""
+        # Gate all updates — no pre-test data leaks into graph
         if not self._test_active:
             return
 
@@ -355,11 +469,20 @@ class TestTab(QWidget):
             self._times.append(t_min)
             self._temps.append(sample.inlet_temp)
             self._curve_tcu.setData(list(self._times), list(self._temps))
+            if hasattr(self, '_popup_curve_temp'):
+                self._popup_curve_temp.setData(list(self._times), list(self._temps))
 
         if sample.power is not None:
-            self._heat_times.append(t_min)
-            self._heat_loads.append(sample.power)
-            self._curve_power.setData(list(self._heat_times), list(self._heat_loads))
+            self._pwr_times.append(t_min)
+            self._pwr_vals.append(sample.power)
+            self._curve_power.setData(list(self._pwr_times), list(self._pwr_vals))
+
+        if sample.flow_rate is not None:
+            self._flow_times.append(t_min)
+            self._flow_vals.append(sample.flow_rate)
+            self._curve_flow_inline.setData(list(self._flow_times), list(self._flow_vals))
+            if hasattr(self, '_popup_curve_flow'):
+                self._popup_curve_flow.setData(list(self._flow_times), list(self._flow_vals))
 
         def fmt_temp(v): return f"{v:.2f} °C" if v is not None else "---"
         def fmt_flow(v): return f"{v:.1f} ℓ/min" if v is not None else "---"
@@ -379,9 +502,17 @@ class TestTab(QWidget):
             self.val_alarm.setText("✗  " + '; '.join(sample.alarms))
             self.val_alarm.setObjectName("status_err")
         self.val_alarm.style().unpolish(self.val_alarm)
+
+        # Heating / cooling %
+        heating_pct = getattr(sample, 'heating_pct', None)
+        cooling_pct = getattr(sample, 'cooling_pct', None)
+        if heating_pct is not None:
+            self.val_heating.setText(f"{heating_pct:.1f} %")
+        if cooling_pct is not None:
+            self.val_cooling.setText(f"{cooling_pct:.1f} %")
         self.val_alarm.style().polish(self.val_alarm)
 
-        # Check pass/fail
+        # Check pass/fail conditions from test_logic
         if passed is True:
             self._end_test('PASS', status_msg)
         elif passed is False:
@@ -408,7 +539,7 @@ class TestTab(QWidget):
             self.lbl_result.setStyleSheet(f"color: {AMBER}; font-size: 36px;")
 
     def _update_banner(self, state: str, msg: str):
-        self._banner_state = state   # track for retranslate
+        self._banner_state = state
         self._banner_msg   = msg
         if state == 'running':
             self.banner.setText(tr("test_running"))

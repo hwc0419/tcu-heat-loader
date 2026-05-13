@@ -11,6 +11,10 @@
 
 from settings_manager import settings
 
+# Number of consecutive low-flow samples before triggering a FAIL.
+# DAQ runs at ~1 Hz so this is approximately 5 seconds.
+FLOW_FAIL_GRACE_SAMPLES = 5
+
 
 # =============================================================================
 # BS status byte parsing
@@ -63,27 +67,34 @@ def parse_alarms(b1, b2, b3):
 # Pass / fail evaluation
 # =============================================================================
 
-def check_pass_fail(inlet_temp, flow, alarms, elapsed_min):
+def check_pass_fail(inlet_temp, flow, alarms, elapsed_min, low_flow_count):
     """
     Evaluate current test state against pass/fail criteria.
 
+    Args:
+        inlet_temp      : float | None — current inlet temperature
+        flow            : float | None — current flow rate
+        alarms          : list[str]    — parsed alarm list
+        elapsed_min     : float        — elapsed test time in minutes
+        low_flow_count  : int          — consecutive low-flow sample count
+                          managed by caller; reset to 0 on test start
+
     Returns:
-        (True,  message) — test passed — 30 min completed
-        (False, message) — test failed — reason in message
-        (None,  message) — test still running
+        (True,  message, new_count) — test passed
+        (False, message, new_count) — test failed — reason in message
+        (None,  message, new_count) — test still running
 
     Pass conditions (ALL must hold for full test duration):
-        1. Inlet temp within TEMP_SETPOINT ± TEMP_TOLERANCE
-        2. Flow rate >= MIN_FLOW_RATE
+        1. Inlet temp within TEMP_SETPOINT +/- TEMP_TOLERANCE
+        2. Flow rate >= MIN_FLOW_RATE (grace: FLOW_FAIL_GRACE_SAMPLES
+           consecutive low readings before FAIL)
         3. No TCU alarms
         4. Test duration reached
-
-    Note: inlet sensor cross-check is advisory only — does not cause FAIL.
     """
     if inlet_temp is None:
-        return None, 'Cannot read inlet temperature'
+        return None, 'Cannot read inlet temperature', low_flow_count
     if flow is None:
-        return None, 'Cannot read flow rate'
+        return None, 'Cannot read flow rate', low_flow_count
 
     temp_setpoint  = settings.get('temp_setpoint')
     temp_tolerance = settings.get('temp_tolerance')
@@ -95,19 +106,28 @@ def check_pass_fail(inlet_temp, flow, alarms, elapsed_min):
         return False, (
             f'Temp {inlet_temp:.2f}°C outside '
             f'{temp_setpoint}±{temp_tolerance}°C'
-        )
+        ), low_flow_count
 
+    # Flow rate — grace period before failing
     if flow < min_flow:
-        return False, f'Flow rate too low: {flow} ℓ/min (min {min_flow})'
+        new_count = low_flow_count + 1
+        if new_count >= FLOW_FAIL_GRACE_SAMPLES:
+            return False, (
+                f'Flow rate too low for {FLOW_FAIL_GRACE_SAMPLES}s: '
+                f'{flow:.1f} l/min (min {min_flow})'
+            ), new_count
+        return None, f'Flow low — warning {new_count}/{FLOW_FAIL_GRACE_SAMPLES}', new_count
+
+    new_count = 0
 
     if alarms != ['No alarms']:
-        return False, f'TCU alarm: {alarms[0]}'
+        return False, f'TCU alarm: {alarms[0]}', new_count
 
     if elapsed_min >= test_duration:
-        return True, f'PASS — {test_duration} min completed successfully'
+        return True, f'PASS — {test_duration} min completed successfully', new_count
 
     remaining = test_duration - elapsed_min
-    return None, f'RUNNING — {remaining:.1f} min remaining'
+    return None, f'RUNNING — {remaining:.1f} min remaining', new_count
 
 
 # =============================================================================
@@ -127,8 +147,8 @@ def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
     alarm_str = '; '.join(alarms)
 
     temp_str = f'{inlet_temp:.2f}°C' if inlet_temp is not None else 'N/A'
-    flow_str = f'{flow:.2f} ℓ/min'  if flow      is not None else 'N/A'
-    sp_str   = f'{setpoint:.2f}°C'  if setpoint   is not None else 'N/A'
+    flow_str = f'{flow:.2f} l/min'   if flow       is not None else 'N/A'
+    sp_str   = f'{setpoint:.2f}°C'   if setpoint   is not None else 'N/A'
 
     return (
         f'BS={bs:#08x} | '
