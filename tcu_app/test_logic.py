@@ -10,10 +10,7 @@
 # =============================================================================
 
 from settings_manager import settings
-
-# Number of consecutive low-flow samples before triggering a FAIL.
-# DAQ runs at ~1 Hz so this is approximately 5 seconds.
-FLOW_FAIL_GRACE_SAMPLES = 5
+from config import FLOW_FAIL_GRACE_SAMPLES  # re-exported for main_window import
 
 
 # =============================================================================
