@@ -40,6 +40,7 @@ POLL_INTERVAL_SEC = settings.get('poll_interval')
 TEMP_SETPOINT     = settings.get('temp_setpoint')
 TEMP_TOLERANCE    = settings.get('temp_tolerance')
 MIN_FLOW_RATE     = settings.get('min_flow_rate')
+FLOW_FAIL_GRACE_SAMPLES = settings.get('flow_fail_grace')
 
 # Heater Modbus (user-configurable)
 HEATER_PORT        = settings.get('heater_port')

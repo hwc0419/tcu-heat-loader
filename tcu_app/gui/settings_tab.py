@@ -135,15 +135,21 @@ class SettingsTab(QWidget):
         self.poll_int_spin.setRange(1, 60)
         self.poll_int_spin.setSuffix(' sec')
 
-        self._lbl_temp_sp  = QLabel(tr('temp_sp_lbl'))
-        self._lbl_temp_tol = QLabel(tr('temp_tol_lbl'))
-        self._lbl_test_dur = QLabel(tr('test_dur_lbl'))
-        self._lbl_poll_int = QLabel(tr('poll_int_lbl'))
+        self.flow_grace_spin = QSpinBox()
+        self.flow_grace_spin.setRange(1, 60)
+        self.flow_grace_spin.setSuffix(' sec')
 
-        g.addWidget(self._lbl_temp_sp,  0, 0); g.addWidget(self.temp_sp_spin,  0, 1)
-        g.addWidget(self._lbl_temp_tol, 1, 0); g.addWidget(self.temp_tol_spin, 1, 1)
-        g.addWidget(self._lbl_test_dur, 2, 0); g.addWidget(self.test_dur_spin, 2, 1)
-        g.addWidget(self._lbl_poll_int, 3, 0); g.addWidget(self.poll_int_spin, 3, 1)
+        self._lbl_temp_sp   = QLabel(tr('temp_sp_lbl'))
+        self._lbl_temp_tol  = QLabel(tr('temp_tol_lbl'))
+        self._lbl_test_dur  = QLabel(tr('test_dur_lbl'))
+        self._lbl_poll_int  = QLabel(tr('poll_int_lbl'))
+        self._lbl_flow_grace = QLabel('Flow fail grace')
+
+        g.addWidget(self._lbl_temp_sp,   0, 0); g.addWidget(self.temp_sp_spin,   0, 1)
+        g.addWidget(self._lbl_temp_tol,  1, 0); g.addWidget(self.temp_tol_spin,  1, 1)
+        g.addWidget(self._lbl_test_dur,  2, 0); g.addWidget(self.test_dur_spin,  2, 1)
+        g.addWidget(self._lbl_poll_int,  3, 0); g.addWidget(self.poll_int_spin,  3, 1)
+        g.addWidget(self._lbl_flow_grace, 4, 0); g.addWidget(self.flow_grace_spin, 4, 1)
 
         v.addWidget(self._grp_test)
         v.addStretch()
@@ -314,6 +320,7 @@ class SettingsTab(QWidget):
         self.temp_tol_spin.setValue(settings.get('temp_tolerance'))
         self.test_dur_spin.setValue(settings.get('test_duration'))
         self.poll_int_spin.setValue(settings.get('poll_interval'))
+        self.flow_grace_spin.setValue(settings.get('flow_fail_grace'))
         # Heater
         self.heater_port_edit.setText(settings.get('heater_port'))
         self._set_combo(self.heater_baud_combo, str(settings.get('heater_baud')))
@@ -357,6 +364,7 @@ class SettingsTab(QWidget):
         settings.set('temp_tolerance', self.temp_tol_spin.value())
         settings.set('test_duration',  self.test_dur_spin.value())
         settings.set('poll_interval',  self.poll_int_spin.value())
+        settings.set('flow_fail_grace', self.flow_grace_spin.value())
 
         # Heater
         settings.set('heater_port',          self.heater_port_edit.text().strip())

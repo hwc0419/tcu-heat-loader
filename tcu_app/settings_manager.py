@@ -26,6 +26,7 @@ DEFAULTS = {
     'test_duration':    180,
     'poll_interval':    1,
     'min_flow_rate':    1,
+    'flow_fail_grace':  10,
 
     # UI preferences
     'theme':            'light',
