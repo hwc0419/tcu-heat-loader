@@ -7,7 +7,7 @@ import threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QDoubleSpinBox, QSizePolicy, QDialog
+    QDoubleSpinBox, QSizePolicy, QDialog, QPlainTextEdit
 )
 from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
 
@@ -177,10 +177,11 @@ class MonitorTab(QWidget):
         # Command log — monospace, no wrap, horizontal scroll
         self._grp_log = QGroupBox(tr("cmd_log"))
         lg = QVBoxLayout(self._grp_log)
-        self.cmd_log = QTextEdit()
+        self.cmd_log = QPlainTextEdit()
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
-        self.cmd_log.setLineWrapMode(QTextEdit.NoWrap)
+        self.cmd_log.setMinimumWidth(int(600 * self._scale))
+        self.cmd_log.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.cmd_log.setFont(QFont('Liberation Mono', 9))
         self.cmd_log.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         lg.addWidget(self.cmd_log)
@@ -189,10 +190,10 @@ class MonitorTab(QWidget):
         # Alarm history
         self._grp_ah = QGroupBox(tr("alarm_history"))
         ah = QVBoxLayout(self._grp_ah)
-        self.alarm_log = QTextEdit()
+        self.alarm_log = QPlainTextEdit()
         self.alarm_log.setReadOnly(True)
         self.alarm_log.setMaximumHeight(int(100 * self._scale))
-        self.alarm_log.setLineWrapMode(QTextEdit.NoWrap)
+        self.alarm_log.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.alarm_log.setFont(QFont('Liberation Mono', 9))
         ah.addWidget(self.alarm_log)
         right.addWidget(self._grp_ah)
@@ -347,7 +348,7 @@ class MonitorTab(QWidget):
             self.val_alarm.setObjectName("status_err")
             ts = datetime.fromtimestamp(sample.timestamp).strftime('%H:%M:%S')
             for a in sample.alarms:
-                self.alarm_log.append(f"[{ts}] {a}")
+                self.alarm_log.appendPlainText(f"[{ts}] {a}")
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
 
@@ -375,20 +376,12 @@ class MonitorTab(QWidget):
         # Command log
         if sample.raw_log or sample.decoded_log:
             ts = time.strftime('%H:%M:%S')
-            hdr_color = RED if sample.is_abnormal else TEXT_DIM
             if sample.raw_log:
-                self.cmd_log.setTextColor(QColor(hdr_color))
                 _line = sample.raw_log.replace(chr(13), '').replace(chr(10), '  |  ')
-                print(f"CMD_LOG raw repr: {sample.raw_log!r}")
-                self.cmd_log.append(f"[{ts}]  {_line}")
+                self.cmd_log.appendPlainText(f"[{ts}]  {_line}")
             for line in sample.decoded_log:
-                color = RED if line.startswith('✕') else \
-                        AMBER if line.startswith('⚠') else \
-                        GREEN if '✓' in line else TEXT_DIM
-                self.cmd_log.setTextColor(QColor(color))
-                self.cmd_log.append(f"         {line.replace(chr(13),'').replace(chr(10),' ')}")
-            self.cmd_log.setTextColor(QColor(BORDER))
-            self.cmd_log.append('')
+                self.cmd_log.appendPlainText(f"         {line.replace(chr(13),'').replace(chr(10),' ')}")
+            self.cmd_log.appendPlainText('')
             doc = self.cmd_log.document()
             MAX_BLOCKS = 500
             while doc.blockCount() > MAX_BLOCKS:
@@ -446,8 +439,6 @@ class MonitorTab(QWidget):
 
     def log_command(self, cmd: str, response: str = ''):
         ts = datetime.now().strftime('%H:%M:%S')
-        self.cmd_log.setTextColor(QColor(ACCENT))
-        self.cmd_log.append(f"[{ts}] ▶ {cmd}  →  {response}")
-        self.cmd_log.setTextColor(QColor(TEXT_DIM))
+        self.cmd_log.appendPlainText(f"[{ts}] ▶ {cmd}  →  {response}")
         self.cmd_log.verticalScrollBar().setValue(
             self.cmd_log.verticalScrollBar().maximum())

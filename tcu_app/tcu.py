@@ -96,6 +96,7 @@ class TCU:
     def get_flow_rate(self):
         """D → XX.X l/min$ — flow rate in ℓ/min. Returns float or None."""
         raw = self._send('D')
+        print(f"TCU D raw: {raw!r}")  # DEBUG — remove after confirming format
         try:
             return float(raw.split()[0].replace('$', ''))
         except (ValueError, IndexError):
