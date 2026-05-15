@@ -180,7 +180,6 @@ class MonitorTab(QWidget):
         self.cmd_log = QPlainTextEdit()
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
-        self.cmd_log.setMinimumWidth(int(600 * self._scale))
         self.cmd_log.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.cmd_log.setFont(QFont('Liberation Mono', 9))
         self.cmd_log.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
