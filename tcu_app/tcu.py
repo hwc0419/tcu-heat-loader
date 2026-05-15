@@ -96,7 +96,6 @@ class TCU:
     def get_flow_rate(self):
         """D → XX.X l/min$ — flow rate in ℓ/min. Returns float or None."""
         raw = self._send('D')
-        print(f"TCU D raw: {raw!r}")  # DEBUG — remove after confirming format
         try:
             return float(raw.split()[0].replace('$', ''))
         except (ValueError, IndexError):
@@ -105,7 +104,6 @@ class TCU:
     def get_setpoint(self):
         """SOLL → XX.XX C$ — current temperature setpoint in °C. Returns float or None."""
         raw = self._send('SOLL')
-        print(f"TCU SOLL raw: {raw!r}")  # DEBUG — remove after confirming format
         try:
             cleaned = raw.replace('$', '').replace('C', '').strip()
             return float(cleaned)
@@ -157,6 +155,58 @@ class TCU:
                     return max(0.0, min(100.0, val))
             return None
         except (ValueError, IndexError):
+            return None
+
+    def get_pid_y(self):
+        """
+        Y → <VZ><y> – <ynorm>$
+        Returns (y_raw, y_norm) where:
+            y_raw  = signed 6-digit raw PID correcting variable (float)
+            y_norm = normalised 0-100 heating interval value (float)
+        Returns (None, None) on failure.
+        Unlike r YH/r YK, y_raw is unsaturated — continues to increase
+        beyond 100% at high loads, giving signal in the saturation region.
+        """
+        raw = self._send('Y')
+        try:
+            cleaned = raw.replace('$', '').strip()
+            parts = cleaned.split('–')
+            if len(parts) == 2:
+                return float(parts[0].strip()), float(parts[1].strip())
+        except (ValueError, IndexError):
+            pass
+        return None, None
+
+    def get_xdn(self):
+        """
+        XDN → XXXXXX$ — XD_NEW = SET – ACTUAL_NEW in °C (4 decimal places)
+        Returns signed float (positive = below setpoint, negative = above).
+        Returns None on failure.
+        """
+        raw = self._send('XDN')
+        try:
+            return float(raw.replace('$', '').strip())
+        except (ValueError, AttributeError):
+            return None
+
+    def get_control_temp(self):
+        """
+        E2 → <B><VZ>XX.XXXX V$ — control sensor voltage (PT500 internal sensor)
+        Converts to temperature using T = (1.800/0.07) * (E2/DACref)
+        where DACref comes from REF command.
+        Returns raw voltage as float (caller converts if needed),
+        or None on failure.
+        Note: use M command for display temperature. E2 gives higher
+        resolution 4-decimal-place reading for logging purposes.
+        """
+        raw = self._send('E2')
+        try:
+            # Format: <B><VZ>XX.XXXX V$ — strip range indicator and sign
+            cleaned = raw.replace('$', '').replace('V', '').strip()
+            # Remove range byte (first char) and parse signed value
+            val_str = cleaned[1:].strip()  # skip range byte
+            return float(val_str)
+        except (ValueError, IndexError, AttributeError):
             return None
 
     def get_status_bytes(self):

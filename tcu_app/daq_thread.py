@@ -42,9 +42,14 @@ class Sample:
     decoded_log:    list            = field(default_factory=list)
     # True if any condition is abnormal — used for log highlighting
     is_abnormal:    bool            = False
-    # Heating/cooling percentage (Y command — polled every 5th sample)
+    # Heating/cooling percentage (Y command — polled every sample)
     heating_pct:    Optional[float] = None   # 0-100% from r YH
     cooling_pct:    Optional[float] = None   # 0-100% from r YK
+    # Extended PID diagnostics
+    pid_y_raw:      Optional[float] = None   # raw unsaturated PID output from Y command
+    pid_y_norm:     Optional[float] = None   # normalised 0-100 heating interval from Y command
+    xdn:            Optional[float] = None   # SET-ACTUAL deviation °C from XDN command
+    control_temp_v: Optional[float] = None   # E2 control sensor voltage (V)
 
 
 def _sample_to_dict(s: Sample) -> dict:
@@ -65,6 +70,10 @@ def _sample_to_dict(s: Sample) -> dict:
         'decoded_log':  s.decoded_log,
         'heating_pct':  s.heating_pct,
         'cooling_pct':  s.cooling_pct,
+        'pid_y_raw':    s.pid_y_raw,
+        'pid_y_norm':   s.pid_y_norm,
+        'xdn':          s.xdn,
+        'control_temp_v': s.control_temp_v,
         'rpi_active':   False,   # updated by main_window via set_rpi_active()
     }
 
@@ -145,12 +154,25 @@ class DAQThread(threading.Thread):
             if s.b1 is not None:
                 log_lines.append(f'>BS <{s.b1:02X}{s.b2:02X}{s.b3:02X}$')
 
-            # Poll heating/cooling % every sample — matches old TCU app behaviour
+            # Poll heating/cooling % every sample
             s.heating_pct, s.cooling_pct = self._tcu.get_heating_pct()
             if s.heating_pct is not None:
                 log_lines.append(f'>r YH  <YH+{s.heating_pct:.2f}$')
             if s.cooling_pct is not None:
                 log_lines.append(f'>r YK  <YK+{s.cooling_pct:.2f}$')
+
+            # Extended PID diagnostics
+            s.pid_y_raw, s.pid_y_norm = self._tcu.get_pid_y()
+            if s.pid_y_raw is not None:
+                log_lines.append(f'>Y  <{s.pid_y_raw:.4f} – {s.pid_y_norm:.0f}$')
+
+            s.xdn = self._tcu.get_xdn()
+            if s.xdn is not None:
+                log_lines.append(f'>XDN  <{s.xdn:.4f}$')
+
+            s.control_temp_v = self._tcu.get_control_temp()
+            if s.control_temp_v is not None:
+                log_lines.append(f'>E2  <{s.control_temp_v:.4f}V$')
 
         s.alarms = self._parse_alarms(s.b1, s.b2, s.b3)
 
