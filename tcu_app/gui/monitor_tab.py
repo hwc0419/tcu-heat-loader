@@ -76,7 +76,6 @@ class MonitorTab(QWidget):
         self.lbl_setpoint, self.val_setpoint = mk(tr("setpoint"))
         self.lbl_flow,     self.val_flow     = mk(tr("flow_rate"))
         self.lbl_heating,  self.val_heating  = mk("Heating %")
-        self.lbl_ctrl_temp, self.val_ctrl_temp = mk("Control Sensor (°C)")
         self.lbl_voltage,  self.val_voltage  = mk(tr("voltage"))
         self.lbl_current,  self.val_current  = mk(tr("current"))
         self.lbl_power,    self.val_power    = mk(tr("power"))
@@ -85,8 +84,7 @@ class MonitorTab(QWidget):
         col1 = [(self.lbl_temp,     self.val_temp),
                 (self.lbl_setpoint, self.val_setpoint),
                 (self.lbl_flow,     self.val_flow),
-                (self.lbl_heating,  self.val_heating),
-                (self.lbl_ctrl_temp,self.val_ctrl_temp)]
+                (self.lbl_heating,  self.val_heating)]
         col2 = [(self.lbl_voltage,  self.val_voltage),
                 (self.lbl_current,  self.val_current),
                 (self.lbl_power,    self.val_power),
@@ -337,11 +335,8 @@ class MonitorTab(QWidget):
 
         heating_pct = getattr(sample, 'heating_pct', None)
         cooling_pct = getattr(sample, 'cooling_pct', None)
-        ctrl_temp   = getattr(sample, 'control_sensor_temp', None)
         if heating_pct is not None: self.val_heating.setText(f"{heating_pct:.1f} %")
         if cooling_pct is not None: self.val_cooling.setText(f"{cooling_pct:.1f} %")
-        if ctrl_temp   is not None: self.val_ctrl_temp.setText(f"{ctrl_temp:.4f} °C")
-        else:                       self.val_ctrl_temp.setText("---")
 
         # Alarm
         if sample.alarms == ['No alarms']:
