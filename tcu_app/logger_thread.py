@@ -19,6 +19,8 @@ HEADERS = [
     'Flow (L/min)',
     'Voltage (V)', 'Current (A)', 'Power (W)',
     'Heating (%)', 'Cooling (%)',
+    'PID Y Raw', 'PID Y Norm', 'XDN (C)', 'E2 Control Voltage (V)',
+    'R Control Sensor (C)',
     'Alarms', 'Mode', 'Status'
 ]
 
@@ -101,6 +103,11 @@ class LoggerThread(threading.Thread):
             fmt(sample.power),
             fmt(getattr(sample, 'heating_pct', None)),
             fmt(getattr(sample, 'cooling_pct', None)),
+            fmt(getattr(sample, 'pid_y_raw', None)),
+            fmt(getattr(sample, 'pid_y_norm', None)),
+            fmt(getattr(sample, 'xdn', None)),
+            fmt(getattr(sample, 'control_temp_v', None)),
+            fmt(getattr(sample, 'control_sensor_temp', None)),
             '; '.join(sample.alarms),
             self._mode,
             self._status,
