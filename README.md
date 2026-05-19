@@ -1,6 +1,6 @@
 # TCU++ — Heat Load Simulator
 
-> SSMC Semiconductor Manufacturing · Howard (CE Student Intern) · 2026
+> SSMC Semiconductor Manufacturing · Chooi Hao Wen (CE Student Intern) · 2026
 
 A Raspberry Pi 4 based heat load simulator for post-repair qualification of Haake ASM Temperature Control Units (TCUs). Replaces a USD 19,800 vendor solution at under USD 600.
 
