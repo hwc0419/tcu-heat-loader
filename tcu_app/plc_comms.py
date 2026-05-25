@@ -13,7 +13,7 @@ from settings_manager import settings
 
 _MAX_RETRIES   = 3
 _RETRY_DELAY_S = 0.1
-_MEWTOCOL_BAUD = 9600
+_MEWTOCOL_BAUD = 19200
 _MEWTOCOL_UNIT = '01'          # PLC unit number — default 01
 _DT_REGISTER   = 100           # DT100 — W5 setpoint written by RPi
 _K_MAX         = 4000
