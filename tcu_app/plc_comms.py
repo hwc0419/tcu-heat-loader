@@ -21,7 +21,10 @@ _K_MIN         = 0
 
 
 def _checksum(body: str) -> str:
-    """Compute MEWTOCOL BCC checksum — XOR of all ASCII values, 2-digit hex."""
+    """
+    Compute MEWTOCOL BCC — XOR from % header through last text character.
+    body must include the % prefix.
+    """
     result = 0
     for c in body:
         result ^= ord(c)
@@ -31,20 +34,23 @@ def _checksum(body: str) -> str:
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD (Write Data Register) command for DT100.
-    Format: %<unit>#WD<addr_hex><value_hex><BCC>\r
-    DT100 address = 0064 hex, value = 4-digit hex.
+    Format: %<unit>#WD<start_addr><end_addr><value><BCC>\r
+    DT address is 4-digit DECIMAL: DT100 = '0100'.
+    Start and end address are the same for single-word write.
+    Value is 4-digit hex.
+    BCC = XOR of all characters from % to last text character.
     """
-    addr  = f'{_DT_REGISTER:04X}'
+    addr  = f'{_DT_REGISTER:04d}'   # decimal address: DT100 → '0100'
     value = f'{k_value:04X}'
-    body  = f'{_MEWTOCOL_UNIT}#WD{addr}{value}'
-    bcc   = _checksum(body)
-    return f'%{body}{bcc}\r'.encode('ascii')
+    text  = f'%{_MEWTOCOL_UNIT}#WD{addr}{addr}{value}'
+    bcc   = _checksum(text)
+    return f'{text}{bcc}\r'.encode('ascii')
 
 
 def _parse_response(resp: bytes) -> bool:
     """
-    Parse MEWTOCOL write response.
-    Success: %<unit>$WD<BCC>\r
+    Parse MEWTOCOL WD write response.
+    Success: %<unit>$WD<BCC>\r  e.g. b'%01$WD6B\r'
     Error:   %<unit>!<code><BCC>\r
     """
     if not resp:
@@ -53,8 +59,9 @@ def _parse_response(resp: bytes) -> bool:
     if '$WD' in text:
         return True
     if '!' in text:
-        print(f'PLC: MEWTOCOL error response: {text}')
+        print(f'PLC: MEWTOCOL error response:{text}')
         return False
+    print(f'PLC: unexpected response: {repr(text)}')
     return False
 
 
