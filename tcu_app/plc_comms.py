@@ -13,7 +13,7 @@ from settings_manager import settings
 
 _MAX_RETRIES   = 3
 _RETRY_DELAY_S = 0.1
-_MEWTOCOL_BAUD = 9600
+_MEWTOCOL_BAUD = 19200
 _MEWTOCOL_UNIT = '01'          # PLC unit number — default 01
 _DT_REGISTER   = 100           # DT100 — W5 setpoint written by RPi
 _K_MAX         = 4000
@@ -21,20 +21,28 @@ _K_MIN         = 0
 
 
 def _checksum(body: str) -> str:
-    """Compute MEWTOCOL BCC checksum — sum of ASCII values mod 256, hex."""
-    total = sum(ord(c) for c in body) % 256
-    return f'{total:02X}'
+    """
+    Compute MEWTOCOL BCC for FP0.
+    XOR of characters from unit number to last text char (excluding % prefix).
+    body should NOT include the % prefix.
+    """
+    result = 0
+    for c in body:
+        result ^= ord(c)
+    return f'{result:02X}'
 
 
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD (Write Data Register) command for DT100.
-    Format: %<unit>#WD<addr_hex><value_hex><BCC>\r
-    DT100 address = 0064 hex, value = 4-digit hex.
+    Format: %<unit>#WD<start_addr><end_addr><value><BCC>\r
+    DT address is 4-digit decimal: DT100 = '0100'.
+    Start and end address are the same for single-word write.
+    Value is 4-digit hex. BCC excludes % prefix.
     """
-    addr  = f'{_DT_REGISTER:04X}'
+    addr  = f'{_DT_REGISTER:04d}'   # decimal: DT100 → '0100'
     value = f'{k_value:04X}'
-    body  = f'{_MEWTOCOL_UNIT}#WD{addr}{value}'
+    body  = f'{_MEWTOCOL_UNIT}#WD{addr}{addr}{value}'
     bcc   = _checksum(body)
     return f'%{body}{bcc}\r'.encode('ascii')
 
@@ -86,7 +94,7 @@ class PlcComms:
                 bytesize = 8,
                 parity   = serial.PARITY_ODD,
                 stopbits = 1,
-                timeout  = 2.0
+                timeout  = 1.0
             )
             self._connected = True
             print(f'PLC: connected on {port}')
@@ -142,36 +150,28 @@ class PlcComms:
 
     def read_dt(self, addr: int):
         """
-        Read one DT register for diagnostics.
-        Returns int value or None on failure.
+        Read one DT register. Returns int value or None on failure.
+        Used for diagnostics and verifying DT100 setpoint.
         """
         if not self.is_connected():
             return None
-        text = f'%{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}'
-        bcc  = _checksum(text)
-        cmd  = f'{text}{bcc}\r'.encode('ascii')
+        body = f'{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}'
+        bcc  = _checksum(body)
+        cmd  = f'%{body}{bcc}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
         try:
             with self._lock:
                 self._serial.reset_input_buffer()
                 self._serial.write(cmd)
-                resp = self._serial.read_until(b'\r')
-            resp_str = resp.decode('ascii', errors='ignore').strip()
-            print(f'PLC: read_dt({addr}) raw response: {repr(resp_str)}')
-            if '$RD' in resp_str:
-                data_start = resp_str.index('$RD') + 3
-                hex_val = resp_str[data_start:data_start+4]
-                return int(hex_val, 16)
-            # Retry with wildcard BCC
-            cmd_wc = f'{text[:-0]}**\r'.encode('ascii') if False else \
-                     f'%{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}**\r'.encode('ascii')
-            print(f'PLC: retrying with wildcard BCC: {repr(cmd_wc)}')
-            with self._lock:
-                self._serial.reset_input_buffer()
-                self._serial.write(cmd_wc)
-                resp2 = self._serial.read_until(b'\r')
-            resp_str2 = resp2.decode('ascii', errors='ignore').strip()
-            print(f'PLC: wildcard response: {repr(resp_str2)}')
+                time.sleep(0.1)
+                raw = self._serial.read(32)
+            print(f'PLC: read_dt({addr}) raw: {repr(raw)}')
+            text = raw.decode('ascii', errors='ignore').strip()
+            if '$RD' in text:
+                idx = text.index('$RD') + 3
+                return int(text[idx:idx+4], 16)
+            if '!' in text:
+                print(f'PLC: read_dt error response: {text}')
             return None
         except Exception as e:
             print(f'PLC: read_dt failed — {e}')
