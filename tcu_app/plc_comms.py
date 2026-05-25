@@ -13,7 +13,7 @@ from settings_manager import settings
 
 _MAX_RETRIES   = 3
 _RETRY_DELAY_S = 0.1
-_MEWTOCOL_BAUD = 19200
+_MEWTOCOL_BAUD = 9600
 _MEWTOCOL_UNIT = '01'          # PLC unit number — default 01
 _DT_REGISTER   = 100           # DT100 — W5 setpoint written by RPi
 _K_MAX         = 4000
@@ -21,36 +21,28 @@ _K_MIN         = 0
 
 
 def _checksum(body: str) -> str:
-    """
-    Compute MEWTOCOL BCC — XOR from % header through last text character.
-    body must include the % prefix.
-    """
-    result = 0
-    for c in body:
-        result ^= ord(c)
-    return f'{result:02X}'
+    """Compute MEWTOCOL BCC checksum — sum of ASCII values mod 256, hex."""
+    total = sum(ord(c) for c in body) % 256
+    return f'{total:02X}'
 
 
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD (Write Data Register) command for DT100.
-    Format: %<unit>#WD<start_addr><end_addr><value><BCC>\r
-    DT address is 4-digit DECIMAL: DT100 = '0100'.
-    Start and end address are the same for single-word write.
-    Value is 4-digit hex.
-    BCC = XOR of all characters from % to last text character.
+    Format: %<unit>#WD<addr_hex><value_hex><BCC>\r
+    DT100 address = 0064 hex, value = 4-digit hex.
     """
-    addr  = f'{_DT_REGISTER:04d}'   # decimal address: DT100 → '0100'
+    addr  = f'{_DT_REGISTER:04X}'
     value = f'{k_value:04X}'
-    text  = f'%{_MEWTOCOL_UNIT}#WD{addr}{addr}{value}'
-    bcc   = _checksum(text)
-    return f'{text}{bcc}\r'.encode('ascii')
+    body  = f'{_MEWTOCOL_UNIT}#WD{addr}{value}'
+    bcc   = _checksum(body)
+    return f'%{body}{bcc}\r'.encode('ascii')
 
 
 def _parse_response(resp: bytes) -> bool:
     """
-    Parse MEWTOCOL WD write response.
-    Success: %<unit>$WD<BCC>\r  e.g. b'%01$WD6B\r'
+    Parse MEWTOCOL write response.
+    Success: %<unit>$WD<BCC>\r
     Error:   %<unit>!<code><BCC>\r
     """
     if not resp:
@@ -59,9 +51,8 @@ def _parse_response(resp: bytes) -> bool:
     if '$WD' in text:
         return True
     if '!' in text:
-        print(f'PLC: MEWTOCOL error response:{text}')
+        print(f'PLC: MEWTOCOL error response: {text}')
         return False
-    print(f'PLC: unexpected response: {repr(text)}')
     return False
 
 
@@ -148,3 +139,30 @@ class PlcComms:
     def emergency_off(self) -> bool:
         """Write K0 to PLC immediately — W5 output goes to zero."""
         return self.set_k(0)
+
+    def read_dt(self, addr: int):
+        """
+        Read one DT register for diagnostics.
+        Returns int value or None on failure.
+        """
+        if not self.is_connected():
+            return None
+        text = f'%{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}'
+        bcc  = _checksum(text)
+        cmd  = f'{text}{bcc}\r'.encode('ascii')
+        try:
+            with self._lock:
+                self._serial.reset_input_buffer()
+                self._serial.write(cmd)
+                resp = self._serial.read_until(b'\r')
+            resp_str = resp.decode('ascii', errors='ignore').strip()
+            print(f'PLC: read_dt({addr}) raw response: {repr(resp_str)}')
+            if '$RD' in resp_str:
+                # Response: %01$RD<4hex chars><BCC>\r
+                data_start = resp_str.index('$RD') + 3
+                hex_val = resp_str[data_start:data_start+4]
+                return int(hex_val, 16)
+            return None
+        except Exception as e:
+            print(f'PLC: read_dt failed — {e}')
+            return None
