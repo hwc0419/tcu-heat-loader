@@ -21,9 +21,11 @@ _K_MIN         = 0
 
 
 def _checksum(body: str) -> str:
-    """Compute MEWTOCOL BCC checksum — sum of ASCII values mod 256, hex."""
-    total = sum(ord(c) for c in body) % 256
-    return f'{total:02X}'
+    """Compute MEWTOCOL BCC checksum — XOR of all ASCII values, 2-digit hex."""
+    result = 0
+    for c in body:
+        result ^= ord(c)
+    return f'{result:02X}'
 
 
 def _build_write_cmd(k_value: int) -> bytes:
