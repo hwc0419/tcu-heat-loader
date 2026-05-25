@@ -25,12 +25,19 @@ TCU_TIMEOUT  = 2
 # ── PZEM-004T (fixed protocol constants) ──────────────────────────────────────
 PZEM_SLAVE = 0xF8
 
-# ── Heater (fixed — hardware limit, never user-configurable) ──────────────────
-HEATER_MAX_WATTS = 20000
+# ── PLC (fixed protocol constants) ────────────────────────────────────────────
+PLC_BAUD     = 9600
+PLC_BYTESIZE = 8
+PLC_PARITY   = 'O'    # Odd parity — MEWTOCOL requirement
+PLC_STOPBITS = 1
+PLC_TIMEOUT  = 1.0
+PLC_DT_SETPOINT = 100  # DT100 — RPi writes K value here
 
-# ── Live values from settings_manager ────────────────────────────────────────
-# These are read at import — for hot reload, call settings.get() directly.
+# ── Heater (fixed — W5 30A hardware limit, never user-configurable) ───────────
+HEATER_MAX_WATTS = 6900   # 30A × 230V = 6900W (W5SP4V030-24J rated limit)
 
+# Live values from settings_manager
+PLC_PORT          = settings.get('plc_port')
 TCU_PORT          = settings.get('tcu_port')
 TCU_BAUD          = settings.get('tcu_baud')
 PZEM_PORT         = settings.get('pzem_port')
@@ -41,15 +48,23 @@ TEMP_SETPOINT     = settings.get('temp_setpoint')
 TEMP_TOLERANCE    = settings.get('temp_tolerance')
 MIN_FLOW_RATE     = settings.get('min_flow_rate')
 FLOW_FAIL_GRACE_SAMPLES = settings.get('flow_fail_grace')
+HEATER_SOFT_LIMIT_W    = settings.get('heater_soft_limit_w')
 
-# Heater Modbus (user-configurable)
-HEATER_PORT        = settings.get('heater_port')
-HEATER_BAUD        = settings.get('heater_baud')
-HEATER_SLAVE_ID    = settings.get('heater_slave_id')
-HEATER_REG_SETPOINT = settings.get('heater_reg_setpoint')
-HEATER_REG_ACTUAL   = settings.get('heater_reg_actual')
-HEATER_WATTS_TOLERANCE = settings.get('heater_watts_tolerance')
-HEATER_DISPLAY_MODE    = settings.get('heater_display_mode')
+# Step response test
+HEATER_STEP_START_W       = settings.get('heater_step_start_w')
+HEATER_STEP_END_W         = settings.get('heater_step_end_w')
+HEATER_STEP_SIZE_W        = settings.get('heater_step_size_w')
+HEATER_DWELL_TIME_MIN     = settings.get('heater_dwell_time_min')
+STEP_TEST_DURATION_MIN    = settings.get('step_test_duration_min')
+
+# Steady state detection
+STEADY_STATE_WINDOW_SEC  = settings.get('steady_state_window_sec')
+STEADY_STATE_TOLERANCE   = settings.get('steady_state_tolerance')
+
+# Thermal response detection
+THERMAL_RESPONSE_THRESHOLD   = settings.get('thermal_response_threshold')
+THERMAL_RESPONSE_MIN_SAMPLES = settings.get('thermal_response_min_samples')
+THERMAL_RESPONSE_SIGMA       = settings.get('thermal_response_sigma')
 
 # Step response test (user-configurable)
 HEATER_STEP_START_W       = settings.get('heater_step_start_w')

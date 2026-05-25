@@ -1,134 +1,151 @@
 # =============================================================================
-# heater.py — Heater Modbus RTU Communication
+# heater.py — Heater Control via PLC MEWTOCOL
 # =============================================================================
-# Controls the vendor thyristor heater controller via Modbus RTU over
-# UART3 + MAX485 (RPi) or USB RS485 adapter (Windows testing).
-# All register addresses are placeholder until vendor confirms register map.
+# Converts watts setpoint to K constant via empirical sweep lookup table,
+# then writes K value to PLC DT100 via MEWTOCOL (plc_comms.py).
+# PLC ST program passes DT100 directly to WY4 → W5 SCR power regulator.
+# Sweep data: 71 points, K500–K4000, step K50 (20/05/2026).
 # =============================================================================
 
-import minimalmodbus
-import threading
-import time
-from settings_manager import settings
+import bisect
+from plc_comms import PlcComms
 from config import HEATER_MAX_WATTS
 
-_MAX_RETRIES   = 3
-_RETRY_DELAY_S = 0.1
+# Empirical K→watts lookup table from W5 sweep (20/05/2026).
+# Format: (K_value, watts). Monotonically increasing in both columns.
+# K values below 500 produce ~0W (BIAS threshold) — contactor handles true 0W.
+_SWEEP_TABLE = [
+    (500, 58.3),   (550, 71.3),   (600, 86.3),   (650, 102.7),
+    (700, 121.2),  (750, 140.8),  (800, 161.3),  (850, 184.9),
+    (900, 209.8),  (950, 237.2),  (1000, 267.2), (1050, 295.8),
+    (1100, 329.4), (1150, 365.2), (1200, 400.0), (1250, 441.0),
+    (1300, 478.9), (1350, 520.5), (1400, 564.2), (1450, 610.4),
+    (1500, 661.5), (1550, 707.6), (1600, 756.8), (1650, 810.2),
+    (1700, 861.2), (1750, 917.6), (1800, 966.0), (1850, 1017.5),
+    (1900, 1068.4),(1950, 1120.5),(2000, 1172.1),(2050, 1213.1),
+    (2100, 1263.4),(2150, 1309.3),(2200, 1356.0),(2250, 1401.5),
+    (2300, 1442.1),(2350, 1485.4),(2400, 1527.2),(2450, 1564.4),
+    (2500, 1601.4),(2550, 1637.2),(2600, 1672.0),(2650, 1700.4),
+    (2700, 1731.9),(2750, 1762.2),(2800, 1785.8),(2850, 1812.7),
+    (2900, 1828.8),(2950, 1845.8),(3000, 1857.4),(3050, 1879.9),
+    (3100, 1895.5),(3150, 1908.0),(3200, 1918.2),(3250, 1925.9),
+    (3300, 1935.4),(3350, 1941.7),(3400, 1947.1),(3450, 1949.4),
+    (3500, 1951.7),(3550, 1954.9),(3600, 1954.0),(3650, 1957.2),
+    (3700, 1959.5),(3750, 1958.6),(3800, 1958.6),(3850, 1958.6),
+    (3900, 1958.6),(3950, 1958.6),(4000, 1958.6),
+]
+
+_K_LIST    = [row[0] for row in _SWEEP_TABLE]
+_WATTS_LIST = [row[1] for row in _SWEEP_TABLE]
+_WATTS_MIN  = _WATTS_LIST[0]   # 58.3W — minimum controllable output
+_WATTS_MAX  = _WATTS_LIST[-1]  # 1958.6W — saturation point
+
+
+def watts_to_k(watts: float) -> int:
+    """
+    Convert target watts to nearest K constant via linear interpolation
+    of empirical sweep table. Returns 0 if watts < minimum threshold.
+    Clamps to K4000 if watts >= saturation point.
+    """
+    if not isinstance(watts, (int, float)):
+        return 0
+    if watts <= 0:
+        return 0
+    if watts <= _WATTS_MIN:
+        return _K_LIST[0]
+    if watts >= _WATTS_MAX:
+        return _K_LIST[-1]
+    idx = bisect.bisect_left(_WATTS_LIST, watts)
+    w_lo, w_hi = _WATTS_LIST[idx - 1], _WATTS_LIST[idx]
+    k_lo, k_hi = _K_LIST[idx - 1],     _K_LIST[idx]
+    frac = (watts - w_lo) / (w_hi - w_lo)
+    return round(k_lo + frac * (k_hi - k_lo))
+
+
+def k_to_watts(k: int) -> float:
+    """
+    Convert K constant to expected watts via linear interpolation.
+    Returns 0.0 if k < K500 (below BIAS threshold).
+    """
+    if not isinstance(k, int):
+        return 0.0
+    if k <= 0:
+        return 0.0
+    if k <= _K_LIST[0]:
+        return _WATTS_LIST[0]
+    if k >= _K_LIST[-1]:
+        return _WATTS_LIST[-1]
+    idx = bisect.bisect_left(_K_LIST, k)
+    k_lo, k_hi = _K_LIST[idx - 1], _K_LIST[idx]
+    w_lo, w_hi = _WATTS_LIST[idx - 1], _WATTS_LIST[idx]
+    frac = (k - k_lo) / (k_hi - k_lo)
+    return w_lo + frac * (w_hi - w_lo)
 
 
 class Heater:
     """
-    Modbus RTU interface to thyristor heater controller.
+    Heater control via PLC MEWTOCOL.
+    Converts watts to K constant via sweep lookup table,
+    writes K to PLC DT100 via plc_comms.PlcComms.
 
     Usage:
         h = Heater()
         h.connect()
-        h.set_watts(5000)
-        w = h.read_actual_watts()
+        h.set_watts(500)
+        h.set_watts(0)     # off — PLC contactor stays on, W5 output = 0
         h.disconnect()
     """
 
     def __init__(self):
-        self._inst      = None
-        self._lock      = threading.Lock()
-        self._connected = False
+        self._plc       = PlcComms()
+        self._current_k = 0
 
     def connect(self) -> bool:
-        """Open Modbus connection. Returns True on success."""
-        port     = settings.get('heater_port')
-        baud     = settings.get('heater_baud')
-        slave_id = settings.get('heater_slave_id')
-        if not port:
-            print("Heater: heater_port not configured")
-            return False
-        try:
-            inst = minimalmodbus.Instrument(port, slave_id)
-            inst.serial.baudrate = baud
-            inst.serial.timeout  = 1.0
-            inst.mode            = minimalmodbus.MODE_RTU
-            self._inst      = inst
-            self._connected = True
-            print(f"Heater: connected on {port} baud={baud} slave={slave_id}")
-            return True
-        except Exception as e:
-            print(f"Heater: connect failed — {e}")
-            self._connected = False
-            return False
+        """Open PLC serial connection. Returns True on success."""
+        return self._plc.connect()
 
     def disconnect(self):
-        """Close Modbus serial port."""
-        with self._lock:
-            if self._inst and self._inst.serial.is_open:
-                try:
-                    self._inst.serial.close()
-                except Exception:
-                    pass
-            self._inst      = None
-            self._connected = False
+        """Close PLC serial connection."""
+        self._plc.disconnect()
 
     def is_connected(self) -> bool:
-        """Return True if port is open."""
-        return self._connected and self._inst is not None
+        return self._plc.is_connected()
 
     def set_watts(self, watts: int) -> bool:
         """
-        Send power setpoint in watts via Modbus.
+        Set heater power in watts. Converts to K via sweep table.
         Returns True on success. Rejects if watts > HEATER_MAX_WATTS.
         """
         if not isinstance(watts, int):
-            print(f"Heater.set_watts: expected int, got {type(watts)}")
+            print(f'Heater.set_watts: expected int, got {type(watts)}')
             return False
         if watts < 0 or watts > HEATER_MAX_WATTS:
-            print(f"Heater.set_watts: {watts}W out of range [0, {HEATER_MAX_WATTS}]")
+            print(f'Heater.set_watts: {watts}W out of range [0, {HEATER_MAX_WATTS}]')
             return False
-        reg = settings.get('heater_reg_setpoint')
-        return self._write_register(reg, watts)
-
-    def read_actual_watts(self):
-        """Read actual delivered power from controller.
-        Returns int watts or None on failure."""
-        reg = settings.get('heater_reg_actual')
-        return self._read_register(reg)
+        k = watts_to_k(watts)
+        ok = self._plc.set_k(k)
+        if ok:
+            self._current_k = k
+        return ok
 
     def emergency_off(self) -> bool:
-        """Set heater to 0W immediately. Returns True on success."""
-        reg = settings.get('heater_reg_setpoint')
-        return self._write_register(reg, 0)
+        """Write K0 to PLC immediately."""
+        ok = self._plc.emergency_off()
+        if ok:
+            self._current_k = 0
+        return ok
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    @property
+    def current_k(self) -> int:
+        """Last K value written to PLC."""
+        return self._current_k
 
-    def _write_register(self, reg: int, value: int) -> bool:
-        """Write integer value to Modbus register with retries."""
-        if not self.is_connected():
-            print("Heater: not connected")
-            return False
-        if not isinstance(reg, int) or not isinstance(value, int):
-            print(f"Heater._write_register: invalid args reg={reg} value={value}")
-            return False
-        for attempt in range(_MAX_RETRIES):
-            try:
-                with self._lock:
-                    self._inst.write_register(reg, value, functioncode=6)
-                return True
-            except Exception as e:
-                print(f"Heater: write reg {reg:#04x} attempt {attempt+1} failed — {e}")
-                time.sleep(_RETRY_DELAY_S)
-        return False
+    @property
+    def watts_min(self) -> float:
+        """Minimum controllable output from sweep data."""
+        return _WATTS_MIN
 
-    def _read_register(self, reg: int):
-        """Read integer value from Modbus register with retries.
-        Returns int or None on failure."""
-        if not self.is_connected():
-            return None
-        if not isinstance(reg, int):
-            print(f"Heater._read_register: invalid reg={reg}")
-            return None
-        for attempt in range(_MAX_RETRIES):
-            try:
-                with self._lock:
-                    value = self._inst.read_register(reg, functioncode=3)
-                return int(value)
-            except Exception as e:
-                print(f"Heater: read reg {reg:#04x} attempt {attempt+1} failed — {e}")
-                time.sleep(_RETRY_DELAY_S)
-        return None
+    @property
+    def watts_max(self) -> float:
+        """Maximum output at saturation from sweep data."""
+        return _WATTS_MAX

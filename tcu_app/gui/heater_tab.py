@@ -39,9 +39,8 @@ class HeaterTab(QWidget):
     def __init__(self, scale: float = 1.0, parent=None):
         super().__init__(parent)
         self._scale        = scale
-        self._locked       = True    # default enabled for desktop use
+        self._locked       = True
         self._role         = 'technician'
-        self._current_pct  = 0
         self._graph_times  = deque(maxlen=_GRAPH_MAX_POINTS)
         self._water_temps  = deque(maxlen=_GRAPH_MAX_POINTS)
         self._element_temps= deque(maxlen=_GRAPH_MAX_POINTS)
@@ -70,33 +69,23 @@ class HeaterTab(QWidget):
         g = QGridLayout(self._grp_sp)
         g.setSpacing(8)
 
-        self._lbl_pct   = QLabel('0 %')
-        self._lbl_pct.setAlignment(Qt.AlignCenter)
         self._lbl_watts = QLabel('0 W')
         self._lbl_watts.setAlignment(Qt.AlignCenter)
 
-        self._slider = QSlider(Qt.Horizontal)
-        self._slider.setRange(0, 100)
-        self._slider.setSingleStep(1)
-        self._slider.setValue(0)
-        self._slider.sliderReleased.connect(self._on_slider_released)
-        self._slider.valueChanged.connect(self._on_slider_moved)
-
         self._spin = QSpinBox()
-        self._spin.setRange(0, 100)
-        self._spin.setSuffix(' %')
+        self._spin.setRange(0, HEATER_MAX_WATTS)
+        self._spin.setSuffix(' W')
+        self._spin.setSingleStep(50)
         self._spin.valueChanged.connect(self._on_spin_changed)
 
         self._btn_off = QPushButton(tr('btn_heater_off'))
         self._btn_off.setObjectName('btn_stop')
         self._btn_off.clicked.connect(self._on_heater_off)
 
-        g.addWidget(self._lbl_pct,    0, 0, 1, 2)
-        g.addWidget(self._lbl_watts,  1, 0, 1, 2)
-        g.addWidget(self._slider,     2, 0, 1, 2)
-        g.addWidget(QLabel('%'),      3, 0)
-        g.addWidget(self._spin,       3, 1)
-        g.addWidget(self._btn_off,    4, 0, 1, 2)
+        g.addWidget(self._lbl_watts, 0, 0, 1, 2)
+        g.addWidget(QLabel('W'),     1, 0)
+        g.addWidget(self._spin,      1, 1)
+        g.addWidget(self._btn_off,   2, 0, 1, 2)
 
         layout.addWidget(self._grp_sp)
         return layout
@@ -148,48 +137,26 @@ class HeaterTab(QWidget):
         v.addWidget(self._log)
         return self._grp_log
 
-    # ── Slot: slider moved (preview only) ────────────────────────────────────
-    def _on_slider_moved(self, pct: int):
-        if not isinstance(pct, int):
-            return
-        self._current_pct = pct
-        self._spin.blockSignals(True)
-        self._spin.setValue(pct)
-        self._spin.blockSignals(False)
-        self._update_setpoint_labels(pct)
-
-    # ── Slot: slider released (send Modbus command) ───────────────────────────
-    def _on_slider_released(self):
-        pct = self._slider.value()
-        if not isinstance(pct, int):
-            return
-        self._send_setpoint(pct)
-
     # ── Slot: spinbox changed ─────────────────────────────────────────────────
-    def _on_spin_changed(self, pct: int):
-        if not isinstance(pct, int):
+    def _on_spin_changed(self, watts: int):
+        if not isinstance(watts, int):
             return
-        self._slider.blockSignals(True)
-        self._slider.setValue(pct)
-        self._slider.blockSignals(False)
-        self._current_pct = pct
-        self._update_setpoint_labels(pct)
-        self._send_setpoint(pct)
+        self._lbl_watts.setText(f'{watts} W')
+        self._send_setpoint(watts)
 
     def _on_heater_off(self):
+        self._spin.blockSignals(True)
+        self._spin.setValue(0)
+        self._spin.blockSignals(False)
         self._send_setpoint(0)
 
-    def _send_setpoint(self, pct: int):
-        """Convert percentage to watts and emit signal.
-        Prompts admin password if watts exceeds soft limit.
-        Rejects if watts > HEATER_MAX_WATTS."""
-        if not isinstance(pct, int):
+    def _send_setpoint(self, watts: int):
+        """Validate watts, prompt admin if above soft limit, emit signal."""
+        if not isinstance(watts, int):
             return
-        watts = int(pct * HEATER_MAX_WATTS / 100)
         if watts > HEATER_MAX_WATTS:
             QMessageBox.warning(self, 'Setpoint Error',
-                f'Setpoint {watts}W exceeds maximum {HEATER_MAX_WATTS}W.\n'
-                'Please try a lower value.')
+                f'Setpoint {watts}W exceeds maximum {HEATER_MAX_WATTS}W.')
             return
         soft_limit = settings.get('heater_soft_limit_w')
         if watts > soft_limit:
@@ -198,7 +165,7 @@ class HeaterTab(QWidget):
                     f'Admin authentication failed.\n'
                     f'Setpoint above {soft_limit}W requires admin password.')
                 return
-        self._log_modbus(f'→ SET {watts}W ({pct}%)')
+        self._log_modbus(f'→ SET {watts}W')
         self.sig_set_watts.emit(watts)
 
     def _prompt_admin_password(self) -> bool:
@@ -248,14 +215,7 @@ class HeaterTab(QWidget):
         """Called when heater setpoint changes — update graph line labels."""
         if not isinstance(watts, int):
             return
-        mode = settings.get('heater_display_mode')
-        pct  = int(watts * 100 / HEATER_MAX_WATTS)
-        if mode == 'percent':
-            label = f'{pct}%'
-        elif mode == 'watts':
-            label = f'{watts}W'
-        else:
-            label = f'{pct}% / {watts}W'
+        label = f'{watts}W'
         self._curve_water.opts['name']   = f'Water @ {label}'
         self._curve_element.opts['name'] = f'Element @ {label}'
         self._plot.plotItem.legend.clear()
@@ -263,7 +223,7 @@ class HeaterTab(QWidget):
             self._plot.plotItem.legend.addItem(item, item.opts['name'])
 
     def log_modbus_response(self, msg: str):
-        """Append a Modbus response message to the log."""
+        """Append a PLC response message to the log."""
         if not isinstance(msg, str):
             return
         self._log_modbus(f'← {msg}')
@@ -280,23 +240,8 @@ class HeaterTab(QWidget):
         self._log_modbus('⚠ EMERGENCY STOP — heater set to 0W')
 
     # ── Private helpers ───────────────────────────────────────────────────────
-    def _update_setpoint_labels(self, pct: int):
-        watts = int(pct * HEATER_MAX_WATTS / 100)
-        mode  = settings.get('heater_display_mode')
-        if mode == 'percent':
-            self._lbl_pct.setText(f'{pct} %')
-            self._lbl_watts.setVisible(False)
-        elif mode == 'watts':
-            self._lbl_pct.setVisible(False)
-            self._lbl_watts.setText(f'{watts} W')
-        else:
-            self._lbl_pct.setVisible(True)
-            self._lbl_watts.setVisible(True)
-            self._lbl_pct.setText(f'{pct} %')
-            self._lbl_watts.setText(f'{watts} W')
-
     def _set_controls_enabled(self, enabled: bool):
-        for w in (self._slider, self._spin, self._btn_off):
+        for w in (self._spin, self._btn_off):
             w.setEnabled(enabled)
 
     def _log_modbus(self, msg: str):
