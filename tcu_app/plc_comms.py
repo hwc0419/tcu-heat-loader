@@ -86,7 +86,7 @@ class PlcComms:
                 bytesize = 8,
                 parity   = serial.PARITY_ODD,
                 stopbits = 1,
-                timeout  = 1.0
+                timeout  = 2.0
             )
             self._connected = True
             print(f'PLC: connected on {port}')
@@ -150,6 +150,7 @@ class PlcComms:
         text = f'%{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}'
         bcc  = _checksum(text)
         cmd  = f'{text}{bcc}\r'.encode('ascii')
+        print(f'PLC: sending: {repr(cmd)}')
         try:
             with self._lock:
                 self._serial.reset_input_buffer()
@@ -158,10 +159,19 @@ class PlcComms:
             resp_str = resp.decode('ascii', errors='ignore').strip()
             print(f'PLC: read_dt({addr}) raw response: {repr(resp_str)}')
             if '$RD' in resp_str:
-                # Response: %01$RD<4hex chars><BCC>\r
                 data_start = resp_str.index('$RD') + 3
                 hex_val = resp_str[data_start:data_start+4]
                 return int(hex_val, 16)
+            # Retry with wildcard BCC
+            cmd_wc = f'{text[:-0]}**\r'.encode('ascii') if False else \
+                     f'%{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}**\r'.encode('ascii')
+            print(f'PLC: retrying with wildcard BCC: {repr(cmd_wc)}')
+            with self._lock:
+                self._serial.reset_input_buffer()
+                self._serial.write(cmd_wc)
+                resp2 = self._serial.read_until(b'\r')
+            resp_str2 = resp2.decode('ascii', errors='ignore').strip()
+            print(f'PLC: wildcard response: {repr(resp_str2)}')
             return None
         except Exception as e:
             print(f'PLC: read_dt failed — {e}')
