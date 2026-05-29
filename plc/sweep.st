@@ -40,7 +40,7 @@ IF bSweepActive AND NOT bSweepComplete THEN
     (* Process step completion *)
     IF bStepDone THEN
         bStepDone := FALSE;
-
+        
         IF iStepCount >= 70 THEN
             (* Sweep complete *)
             (* bSweepComplete  := TRUE; *)
@@ -48,6 +48,8 @@ IF bSweepActive AND NOT bSweepComplete THEN
             gContactor      := FALSE;
             gW5Enable       := FALSE;
             gW5Setpoint     := 0;
+            iCurrentK := 500;
+            iStepCount := 0;
 
         ELSE
             (* Advance to next step *)
@@ -66,4 +68,5 @@ ELSIF bSweepComplete THEN
     gW5Setpoint := 0;
 
 END_IF;
+
 
