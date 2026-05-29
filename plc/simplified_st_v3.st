@@ -16,10 +16,8 @@
 (* Class         Identifier          FP Addr  IEC Addr   Type        *)
 (* VAR_EXTERNAL  rtdConvComplete1    X3F      %IX3.15    BOOL        *)
 (* VAR_EXTERNAL  rtdConvComplete2    X3E      %IX3.14    BOOL        *)
-(* VAR_EXTERNAL  rtdChannelSelect    X3D      %IX3.13    BOOL        *)
 (* VAR_EXTERNAL  safetyTrip         X5       %IX0.5     BOOL        *)
 (* VAR_EXTERNAL  rtdRawData         WX2      %IW2       INT         *)
-(* VAR_EXTERNAL  rtdMaskedData      DT4      %MW4       WORD        *)
 (* VAR_EXTERNAL  outletTempRaw      DT3      %MW3       INT         *)
 (* VAR_EXTERNAL  rpiSetpoint        DT100    %MW100     INT         *)
 (* VAR_EXTERNAL  w5Setpoint         WY4      %QW4       INT         *)
@@ -31,11 +29,6 @@
 (* --- PT100 CH0 reading → outletTempRaw (DT3) --- *)
 IF NOT rtdConvComplete1 AND NOT rtdConvComplete2 THEN
     outletTempRaw := rtdRawData;
-    IF NOT rtdChannelSelect THEN
-        rtdMaskedData := rtdMaskedData AND 16#FFFF;
-    ELSE
-        rtdMaskedData := rtdMaskedData OR 16#0000;
-    END_IF;
 END_IF;
 
 (* --- X5 safety: zero setpoint and kill all outputs immediately --- *)
