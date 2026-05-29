@@ -43,8 +43,8 @@ IF bSweepActive AND NOT bSweepComplete THEN
 
         IF iStepCount >= 70 THEN
             (* Sweep complete *)
-            bSweepComplete  := TRUE;
-            bSweepActive    := FALSE;
+            (* bSweepComplete  := TRUE; *)
+            (* bSweepActive    := FALSE; *)
             gContactor      := FALSE;
             gW5Enable       := FALSE;
             gW5Setpoint     := 0;
