@@ -26,12 +26,17 @@ TCU_TIMEOUT  = 2
 PZEM_SLAVE = 0xF8
 
 # ── PLC (fixed protocol constants) ────────────────────────────────────────────
-PLC_BAUD     = 9600
-PLC_BYTESIZE = 8
-PLC_PARITY   = 'O'    # Odd parity — MEWTOCOL requirement
-PLC_STOPBITS = 1
-PLC_TIMEOUT  = 1.0
-PLC_DT_SETPOINT = 100  # DT100 — RPi writes K value here
+PLC_BAUD        = 9600
+PLC_BYTESIZE    = 8
+PLC_PARITY      = 'O'   # Odd parity — MEWTOCOL requirement
+PLC_STOPBITS    = 1
+PLC_TIMEOUT     = 1.0
+PLC_DT_SETPOINT = 100   # DT100 — RPi writes K value here
+PLC_UNIT        = '01'  # MEWTOCOL unit number — FP0 default
+PLC_K_MIN       = 0
+PLC_K_MAX       = 4000
+PLC_MAX_RETRIES = 3
+PLC_RETRY_DELAY = 0.1   # seconds between retries
 
 # ── Heater (fixed — W5 30A hardware limit, never user-configurable) ───────────
 HEATER_MAX_WATTS = 6900   # 30A × 230V = 6900W (W5SP4V030-24J rated limit)
@@ -66,18 +71,4 @@ THERMAL_RESPONSE_THRESHOLD   = settings.get('thermal_response_threshold')
 THERMAL_RESPONSE_MIN_SAMPLES = settings.get('thermal_response_min_samples')
 THERMAL_RESPONSE_SIGMA       = settings.get('thermal_response_sigma')
 
-# Step response test (user-configurable)
-HEATER_STEP_START_W       = settings.get('heater_step_start_w')
-HEATER_STEP_END_W         = settings.get('heater_step_end_w')
-HEATER_STEP_SIZE_W        = settings.get('heater_step_size_w')
-HEATER_DWELL_TIME_MIN     = settings.get('heater_dwell_time_min')
-STEP_TEST_DURATION_MIN    = settings.get('step_test_duration_min')
 
-# Steady state detection (user-configurable)
-STEADY_STATE_WINDOW_SEC  = settings.get('steady_state_window_sec')
-STEADY_STATE_TOLERANCE   = settings.get('steady_state_tolerance')
-
-# Thermal response detection (user-configurable)
-THERMAL_RESPONSE_THRESHOLD   = settings.get('thermal_response_threshold')
-THERMAL_RESPONSE_MIN_SAMPLES = settings.get('thermal_response_min_samples')
-THERMAL_RESPONSE_SIGMA       = settings.get('thermal_response_sigma')

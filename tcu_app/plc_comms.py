@@ -1,23 +1,21 @@
 # =============================================================================
 # plc_comms.py — FP0-C14CRS MEWTOCOL Communication
 # =============================================================================
-# Sends K value (0-4000) to PLC DT100 via MEWTOCOL over AFC8503 cable.
+# Sends K value (0-4000) to PLC DT100 via MEWTOCOL over GPIO UART.
+# RPi GPIO 14/15 → MAX3232 level shifter → FP0 COM port (S/R/G terminals).
 # PLC ST program reads DT100 and writes it directly to WY4 (W5 setpoint).
-# Serial: /dev/plc, 9600 baud, 8O1 (odd parity — MEWTOCOL requirement).
+# Serial: /dev/ttyAMA0, 9600 baud, 8O1 (odd parity — MEWTOCOL requirement).
 # =============================================================================
 
 import serial
 import threading
 import time
+from config import (
+    PLC_BAUD, PLC_BYTESIZE, PLC_PARITY, PLC_STOPBITS, PLC_TIMEOUT,
+    PLC_UNIT, PLC_DT_SETPOINT, PLC_K_MIN, PLC_K_MAX,
+    PLC_MAX_RETRIES, PLC_RETRY_DELAY,
+)
 from settings_manager import settings
-
-_MAX_RETRIES   = 3
-_RETRY_DELAY_S = 0.1
-_MEWTOCOL_BAUD = 19200
-_MEWTOCOL_UNIT = '01'          # PLC unit number — default 01
-_DT_REGISTER   = 100           # DT100 — W5 setpoint written by RPi
-_K_MAX         = 4000
-_K_MIN         = 0
 
 
 def _checksum(body: str) -> str:
@@ -40,9 +38,9 @@ def _build_write_cmd(k_value: int) -> bytes:
     Start and end address are the same for single-word write.
     Value is 4-digit hex. BCC excludes % prefix.
     """
-    addr  = f'{_DT_REGISTER:04d}'   # decimal: DT100 → '0100'
+    addr  = f'{PLC_DT_SETPOINT:04d}'   # decimal: DT100 → '0100'
     value = f'{k_value:04X}'
-    body  = f'{_MEWTOCOL_UNIT}#WD{addr}{addr}{value}'
+    body  = f'{PLC_UNIT}#WD{addr}{addr}{value}'
     bcc   = _checksum(body)
     return f'%{body}{bcc}\r'.encode('ascii')
 
@@ -90,11 +88,11 @@ class PlcComms:
         try:
             self._serial = serial.Serial(
                 port     = port,
-                baudrate = _MEWTOCOL_BAUD,
-                bytesize = 8,
-                parity   = serial.PARITY_ODD,
-                stopbits = 1,
-                timeout  = 1.0
+                baudrate = PLC_BAUD,
+                bytesize = PLC_BYTESIZE,
+                parity   = PLC_PARITY,
+                stopbits = PLC_STOPBITS,
+                timeout  = PLC_TIMEOUT,
             )
             self._connected = True
             print(f'PLC: connected on {port}')
@@ -126,11 +124,11 @@ class PlcComms:
         if not isinstance(k_value, int):
             print(f'PLC.set_k: expected int, got {type(k_value)}')
             return False
-        if not _K_MIN <= k_value <= _K_MAX:
-            print(f'PLC.set_k: {k_value} out of range [{_K_MIN}, {_K_MAX}]')
+        if not PLC_K_MIN <= k_value <= PLC_K_MAX:
+            print(f'PLC.set_k: {k_value} out of range [{PLC_K_MIN}, {PLC_K_MAX}]')
             return False
         cmd = _build_write_cmd(k_value)
-        for attempt in range(_MAX_RETRIES):
+        for attempt in range(PLC_MAX_RETRIES):
             try:
                 with self._lock:
                     self._serial.reset_input_buffer()
@@ -141,7 +139,7 @@ class PlcComms:
                 print(f'PLC: set_k attempt {attempt + 1} bad response: {resp}')
             except Exception as e:
                 print(f'PLC: set_k attempt {attempt + 1} failed — {e}')
-            time.sleep(_RETRY_DELAY_S)
+            time.sleep(PLC_RETRY_DELAY)
         return False
 
     def emergency_off(self) -> bool:
@@ -155,7 +153,7 @@ class PlcComms:
         """
         if not self.is_connected():
             return None
-        body = f'{_MEWTOCOL_UNIT}#RD{addr:04d}{addr:04d}'
+        body = f'{PLC_UNIT}#RD{addr:04d}{addr:04d}'
         bcc  = _checksum(body)
         cmd  = f'%{body}{bcc}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')

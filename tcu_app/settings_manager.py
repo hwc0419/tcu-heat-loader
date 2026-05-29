@@ -32,8 +32,8 @@ DEFAULTS = {
     'theme':            'light',
     'language':         'en',           # 'en' or 'zh' only
 
-    # PLC serial port (AFC8503 cable, /dev/plc symlink)
-    'plc_port':             'COM7'      if WINDOWS else '/dev/plc',
+    # PLC serial port (GPIO UART via MAX3232 → FP0 COM port)
+    'plc_port':             'COM7'          if WINDOWS else '/dev/ttyAMA0',
 
     # Access control (desktop only)
     'rpi_inactivity_timeout_min': 5,
