@@ -25,10 +25,12 @@ TCU_TIMEOUT  = 2
 # ── PZEM-004T (fixed protocol constants) ──────────────────────────────────────
 PZEM_SLAVE = 0xF8
 
+import serial as _serial
+
 # ── PLC (fixed protocol constants) ────────────────────────────────────────────
 PLC_BAUD        = 9600
 PLC_BYTESIZE    = 8
-PLC_PARITY      = 'O'   # Odd parity — MEWTOCOL requirement
+PLC_PARITY      = _serial.PARITY_ODD
 PLC_STOPBITS    = 1
 PLC_TIMEOUT     = 1.0
 PLC_DT_SETPOINT = 100   # DT100 — RPi writes K value here

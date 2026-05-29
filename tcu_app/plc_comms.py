@@ -121,6 +121,9 @@ class PlcComms:
         Write K value (0-4000) to PLC DT100.
         Returns True on success.
         """
+        if not self.is_connected():
+            print('PLC.set_k: not connected')
+            return False
         if not isinstance(k_value, int):
             print(f'PLC.set_k: expected int, got {type(k_value)}')
             return False
