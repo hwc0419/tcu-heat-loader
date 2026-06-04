@@ -41,21 +41,11 @@ DEFAULTS = {
     # ^ SHA-256 of 'admin123' — change via settings Access sub-tab
     'heater_soft_limit_w': 1959,    # admin password required above this (W5 saturation)
 
-    # Step response test
-    'heater_step_start_w':      2000,
-    'heater_step_end_w':        10000,
-    'heater_step_size_w':       1000,
-    'heater_dwell_time_min':    10,
-    'step_test_duration_min':   30,
-
-    # Steady state detection
-    'steady_state_window_sec':  60,
-    'steady_state_tolerance':   0.1,
-
-    # Thermal response detection
-    'thermal_response_threshold':   0.1,
-    'thermal_response_min_samples': 3,
-    'thermal_response_sigma':       3,
+    # Stepped heat load test
+    'stepped_max_watts':        2000,
+    'stepped_step_size_w':      100,
+    'stepped_step_duration_s':  300,
+    'stepped_rmse_threshold_w': 20.0,
 }
 
 

@@ -210,72 +210,54 @@ class SettingsTab(QWidget):
         v.addStretch()
         return w
 
-    # ── Response test sub-tab ─────────────────────────────────────────────────
+    # ── Stepped heat load test sub-tab ────────────────────────────────────────
     def _build_response_tab(self):
         w = QWidget()
         v = QVBoxLayout(w)
-        self._grp_resp = QGroupBox(tr('settings_response'))
+        self._grp_resp = QGroupBox('Stepped Heat Load Test')
         g = QGridLayout(self._grp_resp)
         g.setSpacing(10)
         g.setColumnStretch(1, 1)
 
-        self.step_start_spin = QSpinBox()
-        self.step_start_spin.setRange(0, HEATER_MAX_WATTS)
-        self.step_start_spin.setSuffix(' W')
-        self.step_end_spin = QSpinBox()
-        self.step_end_spin.setRange(0, HEATER_MAX_WATTS)
-        self.step_end_spin.setSuffix(' W')
-        self.step_size_spin = QSpinBox()
-        self.step_size_spin.setRange(100, HEATER_MAX_WATTS)
-        self.step_size_spin.setSuffix(' W')
-        self.dwell_spin = QSpinBox()
-        self.dwell_spin.setRange(1, 60)
-        self.dwell_spin.setSuffix(' min')
-        self.step_dur_spin = QSpinBox()
-        self.step_dur_spin.setRange(1, 120)
-        self.step_dur_spin.setSuffix(' min')
-        self.ss_window_spin = QSpinBox()
-        self.ss_window_spin.setRange(10, 300)
-        self.ss_window_spin.setSuffix(' sec')
-        self.ss_tol_spin = QDoubleSpinBox()
-        self.ss_tol_spin.setRange(0.01, 1.0)
-        self.ss_tol_spin.setDecimals(2)
-        self.ss_tol_spin.setSuffix(' °C')
-        self.thermal_thresh_spin = QDoubleSpinBox()
-        self.thermal_thresh_spin.setRange(0.01, 1.0)
-        self.thermal_thresh_spin.setDecimals(2)
-        self.thermal_thresh_spin.setSuffix(' °C')
-        self.thermal_samples_spin = QSpinBox()
-        self.thermal_samples_spin.setRange(1, 20)
-        self.thermal_sigma_spin = QSpinBox()
-        self.thermal_sigma_spin.setRange(1, 10)
+        self.stepped_max_w_spin = QSpinBox()
+        self.stepped_max_w_spin.setRange(100, 30000)
+        self.stepped_max_w_spin.setSuffix(' W')
 
-        self._lbl_step_start  = QLabel(tr('step_start_lbl'))
-        self._lbl_step_end    = QLabel(tr('step_end_lbl'))
-        self._lbl_step_size   = QLabel(tr('step_size_lbl'))
-        self._lbl_dwell       = QLabel(tr('dwell_time_lbl'))
-        self._lbl_step_dur    = QLabel(tr('step_dur_lbl'))
-        self._lbl_ss_window   = QLabel(tr('ss_window_lbl'))
-        self._lbl_ss_tol      = QLabel(tr('ss_tolerance_lbl'))
-        self._lbl_thresh      = QLabel(tr('thermal_threshold_lbl'))
-        self._lbl_samples     = QLabel(tr('thermal_samples_lbl'))
-        self._lbl_sigma       = QLabel(tr('thermal_sigma_lbl'))
+        self.stepped_step_size_spin = QSpinBox()
+        self.stepped_step_size_spin.setRange(50, 1000)
+        self.stepped_step_size_spin.setSuffix(' W')
+
+        self.stepped_step_dur_spin = QSpinBox()
+        self.stepped_step_dur_spin.setRange(60, 1800)
+        self.stepped_step_dur_spin.setSuffix(' s')
+
+        self.stepped_rmse_spin = QDoubleSpinBox()
+        self.stepped_rmse_spin.setRange(1.0, 500.0)
+        self.stepped_rmse_spin.setDecimals(1)
+        self.stepped_rmse_spin.setSuffix(' W')
+
+        self._lbl_max_w    = QLabel('Max heater watts')
+        self._lbl_step_sz  = QLabel('Step size')
+        self._lbl_step_dur = QLabel('Step duration')
+        self._lbl_rmse     = QLabel('Linearity RMSE threshold')
+
+        note = QLabel(
+            'Phase 1 (2kW):  max=2000W  RMSE=20W\n'
+            'Phase 2 (8kW):  max=8000W  RMSE=80W\n'
+            'Phase 3 (12kW): max=12000W RMSE=120W'
+        )
+        note.setObjectName('label_dim')
 
         rows = [
-            (self._lbl_step_start, self.step_start_spin),
-            (self._lbl_step_end,   self.step_end_spin),
-            (self._lbl_step_size,  self.step_size_spin),
-            (self._lbl_dwell,      self.dwell_spin),
-            (self._lbl_step_dur,   self.step_dur_spin),
-            (self._lbl_ss_window,  self.ss_window_spin),
-            (self._lbl_ss_tol,     self.ss_tol_spin),
-            (self._lbl_thresh,     self.thermal_thresh_spin),
-            (self._lbl_samples,    self.thermal_samples_spin),
-            (self._lbl_sigma,      self.thermal_sigma_spin),
+            (self._lbl_max_w,    self.stepped_max_w_spin),
+            (self._lbl_step_sz,  self.stepped_step_size_spin),
+            (self._lbl_step_dur, self.stepped_step_dur_spin),
+            (self._lbl_rmse,     self.stepped_rmse_spin),
         ]
         for i, (lbl, widget) in enumerate(rows):
             g.addWidget(lbl, i, 0)
             g.addWidget(widget, i, 1)
+        g.addWidget(note, len(rows), 0, 1, 2)
 
         v.addWidget(self._grp_resp)
         v.addStretch()
@@ -329,17 +311,11 @@ class SettingsTab(QWidget):
         self.heater_reg_act_spin.setValue(settings.get('heater_reg_actual'))
         self.heater_tol_spin.setValue(settings.get('heater_watts_tolerance'))
         self._set_combo_data(self.heater_display_combo, settings.get('heater_display_mode'))
-        # Response test
-        self.step_start_spin.setValue(settings.get('heater_step_start_w'))
-        self.step_end_spin.setValue(settings.get('heater_step_end_w'))
-        self.step_size_spin.setValue(settings.get('heater_step_size_w'))
-        self.dwell_spin.setValue(settings.get('heater_dwell_time_min'))
-        self.step_dur_spin.setValue(settings.get('step_test_duration_min'))
-        self.ss_window_spin.setValue(settings.get('steady_state_window_sec'))
-        self.ss_tol_spin.setValue(settings.get('steady_state_tolerance'))
-        self.thermal_thresh_spin.setValue(settings.get('thermal_response_threshold'))
-        self.thermal_samples_spin.setValue(settings.get('thermal_response_min_samples'))
-        self.thermal_sigma_spin.setValue(settings.get('thermal_response_sigma'))
+        # Stepped heat load test
+        self.stepped_max_w_spin.setValue(settings.get('stepped_max_watts'))
+        self.stepped_step_size_spin.setValue(settings.get('stepped_step_size_w'))
+        self.stepped_step_dur_spin.setValue(settings.get('stepped_step_duration_s'))
+        self.stepped_rmse_spin.setValue(settings.get('stepped_rmse_threshold_w'))
         # Display
         self._set_combo_data(self.theme_combo, settings.get('theme'))
         self._set_combo_data(self.lang_combo,  settings.get('language'))
@@ -375,17 +351,11 @@ class SettingsTab(QWidget):
         settings.set('heater_watts_tolerance', self.heater_tol_spin.value())
         settings.set('heater_display_mode',  self.heater_display_combo.currentData())
 
-        # Response test
-        settings.set('heater_step_start_w',       self.step_start_spin.value())
-        settings.set('heater_step_end_w',         self.step_end_spin.value())
-        settings.set('heater_step_size_w',        self.step_size_spin.value())
-        settings.set('heater_dwell_time_min',      self.dwell_spin.value())
-        settings.set('step_test_duration_min',     self.step_dur_spin.value())
-        settings.set('steady_state_window_sec',    self.ss_window_spin.value())
-        settings.set('steady_state_tolerance',     self.ss_tol_spin.value())
-        settings.set('thermal_response_threshold', self.thermal_thresh_spin.value())
-        settings.set('thermal_response_min_samples', self.thermal_samples_spin.value())
-        settings.set('thermal_response_sigma',     self.thermal_sigma_spin.value())
+        # Stepped heat load test
+        settings.set('stepped_max_watts',        self.stepped_max_w_spin.value())
+        settings.set('stepped_step_size_w',      self.stepped_step_size_spin.value())
+        settings.set('stepped_step_duration_s',  self.stepped_step_dur_spin.value())
+        settings.set('stepped_rmse_threshold_w', self.stepped_rmse_spin.value())
 
         # Display
         new_theme = self.theme_combo.currentData()
@@ -446,17 +416,8 @@ class SettingsTab(QWidget):
         self._lbl_htol.setText(tr('heater_tol_lbl'))
         self._lbl_hdisp.setText(tr('heater_display_lbl'))
         self._lbl_heater_max.setText(f'{tr("heater_max_lbl")}: {HEATER_MAX_WATTS} W')
-        # Response test labels
-        self._lbl_step_start.setText(tr('step_start_lbl'))
-        self._lbl_step_end.setText(tr('step_end_lbl'))
-        self._lbl_step_size.setText(tr('step_size_lbl'))
-        self._lbl_dwell.setText(tr('dwell_time_lbl'))
-        self._lbl_step_dur.setText(tr('step_dur_lbl'))
-        self._lbl_ss_window.setText(tr('ss_window_lbl'))
-        self._lbl_ss_tol.setText(tr('ss_tolerance_lbl'))
-        self._lbl_thresh.setText(tr('thermal_threshold_lbl'))
-        self._lbl_samples.setText(tr('thermal_samples_lbl'))
-        self._lbl_sigma.setText(tr('thermal_sigma_lbl'))
+        # Stepped heat load test
+        self._grp_resp.setTitle('Stepped Heat Load Test')
         # Display labels
         self._lbl_theme.setText(tr('theme_lbl'))
         self._lbl_language.setText(tr('language_lbl'))

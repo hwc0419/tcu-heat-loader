@@ -57,20 +57,13 @@ MIN_FLOW_RATE     = settings.get('min_flow_rate')
 FLOW_FAIL_GRACE_SAMPLES = settings.get('flow_fail_grace')
 HEATER_SOFT_LIMIT_W    = settings.get('heater_soft_limit_w')
 
-# Step response test
-HEATER_STEP_START_W       = settings.get('heater_step_start_w')
-HEATER_STEP_END_W         = settings.get('heater_step_end_w')
-HEATER_STEP_SIZE_W        = settings.get('heater_step_size_w')
-HEATER_DWELL_TIME_MIN     = settings.get('heater_dwell_time_min')
-STEP_TEST_DURATION_MIN    = settings.get('step_test_duration_min')
-
-# Steady state detection
-STEADY_STATE_WINDOW_SEC  = settings.get('steady_state_window_sec')
-STEADY_STATE_TOLERANCE   = settings.get('steady_state_tolerance')
-
-# Thermal response detection
-THERMAL_RESPONSE_THRESHOLD   = settings.get('thermal_response_threshold')
-THERMAL_RESPONSE_MIN_SAMPLES = settings.get('thermal_response_min_samples')
-THERMAL_RESPONSE_SIGMA       = settings.get('thermal_response_sigma')
+# ── Stepped heat load test (fixed — not user-configurable) ───────────────────
+STEPPED_TEST_NUM_STEPS       = 80       # 0W, 100W, 200W … 8000W
+STEPPED_TEST_STEP_WATTS      = 100      # W per step
+STEPPED_TEST_STEP_DURATION_S = 300      # 5 minutes per step
+STEPPED_TEST_AVG_WINDOW_S    = 180      # last 3 minutes used for averaging
+STEPPED_TEST_SETPOINT_TOL    = 0.1      # °C — exclude samples outside setpoint ± this
+STEPPED_TEST_TARGET_WATTS    = 28604    # W — extrapolation target (29°C at 50 L/min)
+STEPPED_TEST_MAX_DURATION_S  = 32400   # 9 hours hard limit
 
 
