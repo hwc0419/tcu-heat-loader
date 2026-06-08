@@ -17,7 +17,7 @@ DEFAULTS = {
     # Serial ports
     'tcu_port':         'COM5'              if WINDOWS else '/dev/ttyUSB0',
     'tcu_baud':         2400,
-    'pzem_port':        'COM6'              if WINDOWS else '/dev/ttyAMA0',
+    'pzem_port':        'COM6'              if WINDOWS else '/dev/pzem',
     'pzem_baud':        9600,
 
     # Post-repair test parameters
