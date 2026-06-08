@@ -18,31 +18,30 @@ from config import (
 from settings_manager import settings
 
 
-def _checksum(body: str) -> str:
+def _checksum(frame: str) -> str:
     """
-    Compute MEWTOCOL BCC for FP0.
-    XOR of characters from unit number to last text char (excluding % prefix).
-    body should NOT include the % prefix.
+    Compute MEWTOCOL BCC — XOR of ALL characters including % prefix.
+    Per MEWTOCOL manual section 1.1: BCC covers from % to last data char.
+    Returns 2-character uppercase hex string.
     """
     result = 0
-    for c in body:
+    for c in frame:
         result ^= ord(c)
     return f'{result:02X}'
 
 
 def _build_write_cmd(k_value: int) -> bytes:
     """
-    Build MEWTOCOL WD (Write Data Register) command for DT100.
-    Format: %<unit>#WD<start_addr><end_addr><value><BCC>\r
-    DT address is 4-digit decimal: DT100 = '0100'.
-    Start and end address are the same for single-word write.
-    Value is 4-digit hex. BCC excludes % prefix.
+    Build MEWTOCOL WD command for DT register write.
+    Format: %<unit>#WD<start(5dec)><end(5dec)><value(4hex)><BCC(2hex)>CR
+    Per manual: DT address is 5-digit decimal (DT100 → '00100').
+    Data is 4-digit hex. BCC XOR includes % prefix.
     """
-    addr  = f'{PLC_DT_SETPOINT:04d}'   # decimal: DT100 → '0100'
+    addr  = f'{PLC_DT_SETPOINT:05d}'   # 5-digit decimal: DT100 → '00100'
     value = f'{k_value:04X}'
-    body  = f'{PLC_UNIT}#WD{addr}{addr}{value}'
-    bcc   = _checksum(body)
-    return f'%{body}{bcc}\r'.encode('ascii')
+    frame = f'%{PLC_UNIT}#WD{addr}{addr}{value}'
+    bcc   = _checksum(frame)
+    return f'{frame}{bcc}\r'.encode('ascii')
 
 
 def _parse_response(resp: bytes) -> bool:
@@ -156,9 +155,10 @@ class PlcComms:
         """
         if not self.is_connected():
             return None
-        body = f'{PLC_UNIT}#RD{addr:04d}{addr:04d}'
-        bcc  = _checksum(body)
-        cmd  = f'%{body}{bcc}\r'.encode('ascii')
+        body = f'{PLC_UNIT}#RD{addr:05d}{addr:05d}'
+        frame = f'%{body}'
+        bcc  = _checksum(frame)
+        cmd  = f'{frame}{bcc}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
         try:
             with self._lock:
