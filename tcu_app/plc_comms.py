@@ -5,6 +5,11 @@
 # RPi GPIO 14/15 → MAX3232 level shifter → FP0 COM port (S/R/G terminals).
 # PLC ST program reads DT100 and writes it directly to WY4 (W5 setpoint).
 # Serial: /dev/ttyAMA0, 9600 baud, 8O1 (odd parity — MEWTOCOL requirement).
+#
+# Confirmed working command format (verified on FP0-C14CRS):
+#   RD: %01#RDD0010000100**\r  → %01$RD0000<BCC>\r
+#   WD: %01#WDD001000010003E8**\r → %01$WD<BCC>\r
+# ** wildcard BCC — PLC accepts and echoes real BCC in response.
 # =============================================================================
 
 import serial
@@ -18,30 +23,19 @@ from config import (
 from settings_manager import settings
 
 
-def _checksum(frame: str) -> str:
-    """
-    Compute MEWTOCOL BCC — XOR of ALL characters including % prefix.
-    Per MEWTOCOL manual section 1.1: BCC covers from % to last data char.
-    Returns 2-character uppercase hex string.
-    """
-    result = 0
-    for c in frame:
-        result ^= ord(c)
-    return f'{result:02X}'
-
-
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD command for DT register write.
-    Format: %<unit>#WD<start(5dec)><end(5dec)><value(4hex)><BCC(2hex)>CR
-    Per manual: DT address is 5-digit decimal (DT100 → '00100').
-    Data is 4-digit hex. BCC XOR includes % prefix.
+    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)>**CR
+    DT address is 5-digit decimal (DT100 → '00100').
+    Data code for DT = 'D'. ** wildcard bypasses BCC check.
     """
-    addr  = f'{PLC_DT_SETPOINT:05d}'   # 5-digit decimal: DT100 → '00100'
+    addr  = f'{PLC_DT_SETPOINT:05d}'
     value = f'{k_value:04X}'
-    frame = f'%{PLC_UNIT}#WDD{addr}{addr}{value}'
-    bcc   = _checksum(frame)
-    return f'{frame}{bcc}\r'.encode('ascii')
+    body  = f'{PLC_UNIT}#WDD{addr}{addr}{value}'
+    cmd   = f'%{body}**\r'.encode('ascii')
+    print(f'PLC: write cmd: {repr(cmd)}')
+    return cmd
 
 
 def _parse_response(resp: bytes) -> bool:
@@ -57,7 +51,6 @@ def _parse_response(resp: bytes) -> bool:
         return True
     if '!' in text:
         print(f'PLC: MEWTOCOL error response: {text}')
-        return False
     return False
 
 
@@ -156,9 +149,7 @@ class PlcComms:
         if not self.is_connected():
             return None
         body = f'{PLC_UNIT}#RDD{addr:05d}{addr:05d}'
-        frame = f'%{body}'
-        bcc  = _checksum(frame)
-        cmd  = f'{frame}{bcc}\r'.encode('ascii')
+        cmd  = f'%{body}**\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
         try:
             with self._lock:
