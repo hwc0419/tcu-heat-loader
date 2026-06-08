@@ -39,7 +39,7 @@ def _build_write_cmd(k_value: int) -> bytes:
     """
     addr  = f'{PLC_DT_SETPOINT:05d}'   # 5-digit decimal: DT100 → '00100'
     value = f'{k_value:04X}'
-    frame = f'%{PLC_UNIT}#WD{addr}{addr}{value}'
+    frame = f'%{PLC_UNIT}#WDD{addr}{addr}{value}'
     bcc   = _checksum(frame)
     return f'{frame}{bcc}\r'.encode('ascii')
 
@@ -155,7 +155,7 @@ class PlcComms:
         """
         if not self.is_connected():
             return None
-        body = f'{PLC_UNIT}#RD{addr:05d}{addr:05d}'
+        body = f'{PLC_UNIT}#RDD{addr:05d}{addr:05d}'
         frame = f'%{body}'
         bcc  = _checksum(frame)
         cmd  = f'{frame}{bcc}\r'.encode('ascii')
