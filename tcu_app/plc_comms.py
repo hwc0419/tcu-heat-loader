@@ -5,11 +5,6 @@
 # RPi GPIO 14/15 → MAX3232 level shifter → FP0 COM port (S/R/G terminals).
 # PLC ST program reads DT100 and writes it directly to WY4 (W5 setpoint).
 # Serial: /dev/ttyAMA0, 9600 baud, 8O1 (odd parity — MEWTOCOL requirement).
-#
-# Confirmed working command format (verified on FP0-C14CRS):
-#   RD: %01#RDD0010000100**\r  → %01$RD0000<BCC>\r
-#   WD: %01#WDD001000010003E8**\r → %01$WD<BCC>\r
-# ** wildcard BCC — PLC accepts and echoes real BCC in response.
 # =============================================================================
 
 import serial
@@ -23,19 +18,30 @@ from config import (
 from settings_manager import settings
 
 
+def _checksum(body: str) -> str:
+    """
+    Compute MEWTOCOL BCC — XOR of chars EXCLUDING % prefix.
+    body should NOT include the % prefix.
+    Returns 2-character uppercase hex string.
+    """
+    result = 0
+    for c in body:
+        result ^= ord(c)
+    return f'{result:02X}'
+
+
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD command for DT register write.
-    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)>**CR
+    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)><BCC>CR
     DT address is 5-digit decimal (DT100 → '00100').
-    Data code for DT = 'D'. ** wildcard bypasses BCC check.
+    Data code for DT = 'D'.
+    Using ** wildcard BCC — PLC accepts this and includes real BCC in response.
     """
     addr  = f'{PLC_DT_SETPOINT:05d}'
     value = f'{k_value:04X}'
     body  = f'{PLC_UNIT}#WDD{addr}{addr}{value}'
-    cmd   = f'%{body}**\r'.encode('ascii')
-    print(f'PLC: write cmd: {repr(cmd)}')
-    return cmd
+    return f'%{body}**\r'.encode('ascii')
 
 
 def _parse_response(resp: bytes) -> bool:
@@ -51,6 +57,7 @@ def _parse_response(resp: bytes) -> bool:
         return True
     if '!' in text:
         print(f'PLC: MEWTOCOL error response: {text}')
+        return False
     return False
 
 

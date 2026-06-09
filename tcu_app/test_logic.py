@@ -199,8 +199,35 @@ def parse_alarms(b1, b2, b3):
 
 
 # =============================================================================
-# BS status decode — human-readable log string
+# Legacy pass/fail check — called per sample by main_window during test
+# Now the stepped test handles its own pass/fail in test_tab.py.
+# This function monitors for abnormal TCU conditions only.
 # =============================================================================
+
+def check_pass_fail(inlet_temp, flow_rate, alarms, elapsed_min, low_flow_count):
+    """
+    Per-sample safety check during stepped heat load test.
+    Returns (passed, msg, low_flow_count):
+      passed = None  → test still running
+      passed = False → abort due to TCU fault
+    Flow and temperature pass/fail are handled by fit_and_extrapolate at end.
+    """
+    from config import FLOW_FAIL_GRACE_SAMPLES
+    from settings_manager import settings
+
+    min_flow = settings.get('min_flow_rate')
+
+    if alarms and alarms != ['No alarms']:
+        return False, f'TCU alarm: {alarms[0]}', low_flow_count
+
+    if flow_rate is not None and flow_rate < min_flow:
+        low_flow_count += 1
+        if low_flow_count >= FLOW_FAIL_GRACE_SAMPLES:
+            return False, f'Flow too low: {flow_rate:.1f} L/min', low_flow_count
+    else:
+        low_flow_count = 0
+
+    return None, 'Running', low_flow_count
 
 def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
     """Return a human-readable status string from BS bytes and live readings."""
