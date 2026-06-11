@@ -23,6 +23,8 @@ DEFAULTS = {
     # Post-repair test parameters
     'temp_setpoint':    22.0,
     'temp_tolerance':   0.5,
+    'flow_setpoint':    50.0,
+    'flow_tolerance':   0.5,
     'test_duration':    180,
     'poll_interval':    1,
     'min_flow_rate':    1,

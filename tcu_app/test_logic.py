@@ -204,30 +204,48 @@ def parse_alarms(b1, b2, b3):
 # This function monitors for abnormal TCU conditions only.
 # =============================================================================
 
-def check_pass_fail(inlet_temp, flow_rate, alarms, elapsed_min, low_flow_count):
+def check_pass_fail(inlet_temp, flow_rate, b1, b2, b3, elapsed_min):
     """
-    Per-sample safety check during stepped heat load test.
-    Returns (passed, msg, low_flow_count):
-      passed = None  → test still running
-      passed = False → abort due to TCU fault
-    Flow and temperature pass/fail are handled by fit_and_extrapolate at end.
+    Per-sample safety check — called every second throughout the test.
+
+    Pass conditions (all must hold every second):
+      1. inlet_temp = 22 ± 0.5°C       (TEMP_SETPOINT ± TEMP_TOLERANCE)
+      2. flow_rate  = 50 ± 0.5 L/min   (FLOW_SETPOINT ± FLOW_TOLERANCE)
+      3. BS         = 0x400400          (normal TCU running state)
+
+    Returns (passed, msg):
+      None,  'Running' → all conditions met, test continues
+      False, <reason>  → condition violated, abort immediately
     """
-    from config import FLOW_FAIL_GRACE_SAMPLES
-    from settings_manager import settings
+    from config import (
+        TEMP_SETPOINT, TEMP_TOLERANCE,
+        FLOW_SETPOINT, FLOW_TOLERANCE,
+        BS_NORMAL,
+    )
 
-    min_flow = settings.get('min_flow_rate')
+    if b1 is not None:
+        bs = (b1 << 16) | ((b2 or 0) << 8) | (b3 or 0)
+        if bs != BS_NORMAL:
+            return False, (
+                f'TCU status abnormal: BS=0x{bs:06X} '
+                f'(expected 0x{BS_NORMAL:06X})'
+            )
 
-    if alarms and alarms != ['No alarms']:
-        return False, f'TCU alarm: {alarms[0]}', low_flow_count
+    if inlet_temp is not None:
+        if abs(inlet_temp - TEMP_SETPOINT) > TEMP_TOLERANCE:
+            return False, (
+                f'Inlet temp out of range: {inlet_temp:.2f}\u00b0C '
+                f'(expected {TEMP_SETPOINT}\u00b1{TEMP_TOLERANCE}\u00b0C)'
+            )
 
-    if flow_rate is not None and flow_rate < min_flow:
-        low_flow_count += 1
-        if low_flow_count >= FLOW_FAIL_GRACE_SAMPLES:
-            return False, f'Flow too low: {flow_rate:.1f} L/min', low_flow_count
-    else:
-        low_flow_count = 0
+    if flow_rate is not None:
+        if abs(flow_rate - FLOW_SETPOINT) > FLOW_TOLERANCE:
+            return False, (
+                f'Flow rate out of range: {flow_rate:.1f} L/min '
+                f'(expected {FLOW_SETPOINT}\u00b1{FLOW_TOLERANCE} L/min)'
+            )
 
-    return None, 'Running', low_flow_count
+    return None, 'Running'
 
 def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
     """Return a human-readable status string from BS bytes and live readings."""

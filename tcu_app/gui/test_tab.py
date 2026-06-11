@@ -26,6 +26,7 @@ from settings_manager import settings
 from translations import tr
 from test_logic import (
     build_step_table, compute_step_avg, fit_and_extrapolate, parse_alarms,
+    check_pass_fail,
 )
 from config import (
     STEPPED_TEST_NUM_STEPS, STEPPED_TEST_STEP_DURATION_S,
@@ -448,10 +449,14 @@ class TestTab(QWidget):
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
 
-        # Safety: abnormal state → stop test
-        if sample.is_abnormal and self._current_step > 0:
+        # Safety: check all pass conditions every second — abort immediately if violated
+        passed, reason = check_pass_fail(
+            sample.inlet_temp, sample.flow_rate,
+            sample.b1, sample.b2, sample.b3, 0
+        )
+        if passed is False:
             self.sig_set_k.emit(0)
-            self._end_test('FAIL', f'TCU abnormal: {sample.alarms[0]}')
+            self._end_test('FAIL', reason)
 
     def set_logfile(self, path: str):
         self.lbl_logfile.setText(path)

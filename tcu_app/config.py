@@ -53,8 +53,11 @@ TEST_DURATION_MIN = settings.get('test_duration')
 POLL_INTERVAL_SEC = settings.get('poll_interval')
 TEMP_SETPOINT     = settings.get('temp_setpoint')
 TEMP_TOLERANCE    = settings.get('temp_tolerance')
+FLOW_SETPOINT     = settings.get('flow_setpoint')
+FLOW_TOLERANCE    = settings.get('flow_tolerance')
 MIN_FLOW_RATE     = settings.get('min_flow_rate')
 FLOW_FAIL_GRACE_SAMPLES = settings.get('flow_fail_grace')
+BS_NORMAL         = 0x400400   # Normal running state: b1=0x40, b2=0x04, b3=0x00
 HEATER_SOFT_LIMIT_W    = settings.get('heater_soft_limit_w')
 
 # ── Stepped heat load test (fixed — not user-configurable) ───────────────────

@@ -31,7 +31,7 @@ from logger_thread import LoggerThread
 from tcu       import TCU
 from pzem004t  import PZEM004T
 from heater    import Heater
-from test_logic   import parse_alarms, check_pass_fail, FLOW_FAIL_GRACE_SAMPLES
+from test_logic   import parse_alarms, check_pass_fail
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
@@ -363,9 +363,9 @@ class MainWindow(QMainWindow):
 
         if self._test_active:
             elapsed_min = (time.time() - self._test_start_t) / 60.0
-            passed, msg, self._low_flow_count = check_pass_fail(
+            passed, msg = check_pass_fail(
                 sample.inlet_temp, sample.flow_rate,
-                sample.alarms, elapsed_min, self._low_flow_count
+                sample.b1, sample.b2, sample.b3, elapsed_min
             )
             self._logger_thread.set_status(msg)
             self._test_tab.update(sample, msg, passed)
