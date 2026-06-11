@@ -90,8 +90,8 @@ STRINGS = {
     'poll_int_lbl':         {'en': 'Poll Interval (sec)',           'zh': '轮询间隔 (秒)'},
 
     # ── Settings tab — heater fields ──────────────────────────────────────────
-    'heater_port_lbl':      {'en': 'Heater Port',           'zh': '加热器端口'},
-    'heater_baud_lbl':      {'en': 'Heater Baud Rate',      'zh': '加热器波特率'},
+    'heater_port_lbl':      {'en': 'PLC Port',           'zh': '加热器端口'},
+    'heater_baud_lbl':      {'en': 'PLC Baud Rate',      'zh': '加热器波特率'},
     'heater_slave_lbl':     {'en': 'Slave ID',              'zh': '从机ID'},
     'heater_reg_sp_lbl':    {'en': 'Setpoint Register',     'zh': '设定点寄存器'},
     'heater_reg_act_lbl':   {'en': 'Actual Power Register', 'zh': '实际功率寄存器'},
