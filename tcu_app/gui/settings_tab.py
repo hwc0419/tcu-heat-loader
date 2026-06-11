@@ -127,6 +127,18 @@ class SettingsTab(QWidget):
         self.temp_tol_spin.setDecimals(1)
         self.temp_tol_spin.setSuffix(' °C')
 
+        self.flow_sp_spin = QDoubleSpinBox()
+        self.flow_sp_spin.setRange(1.0, 60.0)
+        self.flow_sp_spin.setSingleStep(1.0)
+        self.flow_sp_spin.setDecimals(1)
+        self.flow_sp_spin.setSuffix(' L/min')
+
+        self.flow_tol_spin = QDoubleSpinBox()
+        self.flow_tol_spin.setRange(0.1, 5.0)
+        self.flow_tol_spin.setSingleStep(0.1)
+        self.flow_tol_spin.setDecimals(1)
+        self.flow_tol_spin.setSuffix(' L/min')
+
         self.test_dur_spin = QSpinBox()
         self.test_dur_spin.setRange(1, 480)
         self.test_dur_spin.setSuffix(' min')
@@ -135,21 +147,19 @@ class SettingsTab(QWidget):
         self.poll_int_spin.setRange(1, 60)
         self.poll_int_spin.setSuffix(' sec')
 
-        self.flow_grace_spin = QSpinBox()
-        self.flow_grace_spin.setRange(1, 60)
-        self.flow_grace_spin.setSuffix(' sec')
-
         self._lbl_temp_sp   = QLabel(tr('temp_sp_lbl'))
         self._lbl_temp_tol  = QLabel(tr('temp_tol_lbl'))
+        self._lbl_flow_sp   = QLabel('Flow setpoint')
+        self._lbl_flow_tol  = QLabel('Flow tolerance')
         self._lbl_test_dur  = QLabel(tr('test_dur_lbl'))
         self._lbl_poll_int  = QLabel(tr('poll_int_lbl'))
-        self._lbl_flow_grace = QLabel('Flow fail grace')
 
-        g.addWidget(self._lbl_temp_sp,   0, 0); g.addWidget(self.temp_sp_spin,   0, 1)
-        g.addWidget(self._lbl_temp_tol,  1, 0); g.addWidget(self.temp_tol_spin,  1, 1)
-        g.addWidget(self._lbl_test_dur,  2, 0); g.addWidget(self.test_dur_spin,  2, 1)
-        g.addWidget(self._lbl_poll_int,  3, 0); g.addWidget(self.poll_int_spin,  3, 1)
-        g.addWidget(self._lbl_flow_grace, 4, 0); g.addWidget(self.flow_grace_spin, 4, 1)
+        g.addWidget(self._lbl_temp_sp,  0, 0); g.addWidget(self.temp_sp_spin,  0, 1)
+        g.addWidget(self._lbl_temp_tol, 1, 0); g.addWidget(self.temp_tol_spin, 1, 1)
+        g.addWidget(self._lbl_flow_sp,  2, 0); g.addWidget(self.flow_sp_spin,  2, 1)
+        g.addWidget(self._lbl_flow_tol, 3, 0); g.addWidget(self.flow_tol_spin, 3, 1)
+        g.addWidget(self._lbl_test_dur, 4, 0); g.addWidget(self.test_dur_spin, 4, 1)
+        g.addWidget(self._lbl_poll_int, 5, 0); g.addWidget(self.poll_int_spin, 5, 1)
 
         v.addWidget(self._grp_test)
         v.addStretch()
@@ -167,44 +177,20 @@ class SettingsTab(QWidget):
         self.heater_port_edit  = QLineEdit()
         self.heater_baud_combo = QComboBox()
         self.heater_baud_combo.addItems(['4800', '9600', '19200', '38400'])
-        self.heater_slave_spin = QSpinBox()
-        self.heater_slave_spin.setRange(1, 247)
-        self.heater_reg_sp_spin = QSpinBox()
-        self.heater_reg_sp_spin.setRange(0, 0xFFFF)
-        self.heater_reg_act_spin = QSpinBox()
-        self.heater_reg_act_spin.setRange(0, 0xFFFF)
-        self.heater_tol_spin = QSpinBox()
-        self.heater_tol_spin.setRange(0, 2000)
-        self.heater_tol_spin.setSuffix(' W')
-        self.heater_display_combo = QComboBox()
-        self.heater_display_combo.addItem(tr('display_percent'), 'percent')
-        self.heater_display_combo.addItem(tr('display_watts'),   'watts')
-        self.heater_display_combo.addItem(tr('display_both'),    'both')
 
-        self._lbl_heater_max = QLabel(f'{tr("heater_max_lbl")}: {HEATER_MAX_WATTS} W')
+        self._lbl_heater_max = QLabel(
+            f'Heater controlled via PLC MEWTOCOL\n'
+            f'Max output: {HEATER_MAX_WATTS} W (W5 saturation)\n'
+            f'K range: 0\u20134000 via FP0-A21 0\u201320mA'
+        )
         self._lbl_heater_max.setObjectName('label_dim')
 
-        self._lbl_hport   = QLabel(tr('heater_port_lbl'))
-        self._lbl_hbaud   = QLabel(tr('heater_baud_lbl'))
-        self._lbl_hslave  = QLabel(tr('heater_slave_lbl'))
-        self._lbl_hreg_sp = QLabel(tr('heater_reg_sp_lbl'))
-        self._lbl_hreg_act= QLabel(tr('heater_reg_act_lbl'))
-        self._lbl_htol    = QLabel(tr('heater_tol_lbl'))
-        self._lbl_hdisp   = QLabel(tr('heater_display_lbl'))
+        self._lbl_hport = QLabel(tr('heater_port_lbl'))
+        self._lbl_hbaud = QLabel(tr('heater_baud_lbl'))
 
-        rows = [
-            (self._lbl_hport,    self.heater_port_edit),
-            (self._lbl_hbaud,    self.heater_baud_combo),
-            (self._lbl_hslave,   self.heater_slave_spin),
-            (self._lbl_hreg_sp,  self.heater_reg_sp_spin),
-            (self._lbl_hreg_act, self.heater_reg_act_spin),
-            (self._lbl_htol,     self.heater_tol_spin),
-            (self._lbl_hdisp,    self.heater_display_combo),
-        ]
-        for i, (lbl, widget) in enumerate(rows):
-            g.addWidget(lbl, i, 0)
-            g.addWidget(widget, i, 1)
-        g.addWidget(self._lbl_heater_max, len(rows), 0, 1, 2)
+        g.addWidget(self._lbl_hport, 0, 0); g.addWidget(self.heater_port_edit,  0, 1)
+        g.addWidget(self._lbl_hbaud, 1, 0); g.addWidget(self.heater_baud_combo, 1, 1)
+        g.addWidget(self._lbl_heater_max, 2, 0, 1, 2)
 
         v.addWidget(self._grp_heater)
         v.addStretch()
@@ -300,17 +286,13 @@ class SettingsTab(QWidget):
         # Post-repair test
         self.temp_sp_spin.setValue(settings.get('temp_setpoint'))
         self.temp_tol_spin.setValue(settings.get('temp_tolerance'))
+        self.flow_sp_spin.setValue(settings.get('flow_setpoint'))
+        self.flow_tol_spin.setValue(settings.get('flow_tolerance'))
         self.test_dur_spin.setValue(settings.get('test_duration'))
         self.poll_int_spin.setValue(settings.get('poll_interval'))
-        self.flow_grace_spin.setValue(settings.get('flow_fail_grace'))
         # Heater
         self.heater_port_edit.setText(settings.get('heater_port'))
         self._set_combo(self.heater_baud_combo, str(settings.get('heater_baud')))
-        self.heater_slave_spin.setValue(settings.get('heater_slave_id'))
-        self.heater_reg_sp_spin.setValue(settings.get('heater_reg_setpoint'))
-        self.heater_reg_act_spin.setValue(settings.get('heater_reg_actual'))
-        self.heater_tol_spin.setValue(settings.get('heater_watts_tolerance'))
-        self._set_combo_data(self.heater_display_combo, settings.get('heater_display_mode'))
         # Stepped heat load test
         self.stepped_max_w_spin.setValue(settings.get('stepped_max_watts'))
         self.stepped_step_size_spin.setValue(settings.get('stepped_step_size_w'))
@@ -338,18 +320,14 @@ class SettingsTab(QWidget):
         # Post-repair test
         settings.set('temp_setpoint',  self.temp_sp_spin.value())
         settings.set('temp_tolerance', self.temp_tol_spin.value())
+        settings.set('flow_setpoint',  self.flow_sp_spin.value())
+        settings.set('flow_tolerance', self.flow_tol_spin.value())
         settings.set('test_duration',  self.test_dur_spin.value())
         settings.set('poll_interval',  self.poll_int_spin.value())
-        settings.set('flow_fail_grace', self.flow_grace_spin.value())
 
-        # Heater
-        settings.set('heater_port',          self.heater_port_edit.text().strip())
-        settings.set('heater_baud',          int(self.heater_baud_combo.currentText()))
-        settings.set('heater_slave_id',      self.heater_slave_spin.value())
-        settings.set('heater_reg_setpoint',  self.heater_reg_sp_spin.value())
-        settings.set('heater_reg_actual',    self.heater_reg_act_spin.value())
-        settings.set('heater_watts_tolerance', self.heater_tol_spin.value())
-        settings.set('heater_display_mode',  self.heater_display_combo.currentData())
+        # Heater (PLC)
+        settings.set('heater_port', self.heater_port_edit.text().strip())
+        settings.set('heater_baud', int(self.heater_baud_combo.currentText()))
 
         # Stepped heat load test
         settings.set('stepped_max_watts',        self.stepped_max_w_spin.value())
@@ -407,15 +385,9 @@ class SettingsTab(QWidget):
         self._lbl_temp_tol.setText(tr('temp_tol_lbl'))
         self._lbl_test_dur.setText(tr('test_dur_lbl'))
         self._lbl_poll_int.setText(tr('poll_int_lbl'))
-        # Heater labels
+        # Heater (PLC) labels
         self._lbl_hport.setText(tr('heater_port_lbl'))
         self._lbl_hbaud.setText(tr('heater_baud_lbl'))
-        self._lbl_hslave.setText(tr('heater_slave_lbl'))
-        self._lbl_hreg_sp.setText(tr('heater_reg_sp_lbl'))
-        self._lbl_hreg_act.setText(tr('heater_reg_act_lbl'))
-        self._lbl_htol.setText(tr('heater_tol_lbl'))
-        self._lbl_hdisp.setText(tr('heater_display_lbl'))
-        self._lbl_heater_max.setText(f'{tr("heater_max_lbl")}: {HEATER_MAX_WATTS} W')
         # Stepped heat load test
         self._grp_resp.setTitle('Stepped Heat Load Test')
         # Display labels
@@ -433,15 +405,6 @@ class SettingsTab(QWidget):
         self.theme_combo.addItem(tr('theme_dark'),  'dark')
         self._set_combo_data(self.theme_combo, current_theme)
         self.theme_combo.blockSignals(False)
-
-        current_disp = self.heater_display_combo.currentData()
-        self.heater_display_combo.blockSignals(True)
-        self.heater_display_combo.clear()
-        self.heater_display_combo.addItem(tr('display_percent'), 'percent')
-        self.heater_display_combo.addItem(tr('display_watts'),   'watts')
-        self.heater_display_combo.addItem(tr('display_both'),    'both')
-        self._set_combo_data(self.heater_display_combo, current_disp)
-        self.heater_display_combo.blockSignals(False)
 
     # ── Access sub-tab ────────────────────────────────────────────────────────
     def _build_advanced_tab(self):
