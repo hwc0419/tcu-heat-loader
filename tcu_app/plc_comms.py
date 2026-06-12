@@ -18,14 +18,14 @@ from config import (
 from settings_manager import settings
 
 
-def _checksum(body: str) -> str:
+def _bcc(frame: str) -> str:
     """
-    Compute MEWTOCOL BCC — XOR of chars EXCLUDING % prefix.
-    body should NOT include the % prefix.
+    MEWTOCOL BCC — XOR of ALL characters including % prefix.
+    Per document: XOR from % to last text char inclusive.
     Returns 2-character uppercase hex string.
     """
     result = 0
-    for c in body:
+    for c in frame:
         result ^= ord(c)
     return f'{result:02X}'
 
@@ -33,15 +33,15 @@ def _checksum(body: str) -> str:
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD command for DT register write.
-    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)><BCC>CR
-    DT address is 5-digit decimal (DT100 → '00100').
-    Data code for DT = 'D'.
-    Using ** wildcard BCC — PLC accepts this and includes real BCC in response.
+    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)><BCC(2hex)>CR
+    BCC = XOR of all chars from % inclusive.
     """
     addr  = f'{PLC_DT_SETPOINT:05d}'
     value = f'{k_value:04X}'
-    body  = f'{PLC_UNIT}#WDD{addr}{addr}{value}'
-    return f'%{body}**\r'.encode('ascii')
+    frame = f'%{PLC_UNIT}#WDD{addr}{addr}{value}'
+    cmd   = f'{frame}{_bcc(frame)}\r'.encode('ascii')
+    print(f'PLC: write cmd: {repr(cmd)}')
+    return cmd
 
 
 def _parse_response(resp: bytes) -> bool:
@@ -136,6 +136,8 @@ class PlcComms:
                     self._serial.reset_input_buffer()
                     self._serial.write(cmd)
                     resp = self._serial.read_until(b'\r')
+                    self._serial.reset_input_buffer()
+                time.sleep(0.05)   # inter-command gap — PLC needs time between commands
                 if _parse_response(resp):
                     return True
                 print(f'PLC: set_k attempt {attempt + 1} bad response: {resp}')
@@ -155,15 +157,16 @@ class PlcComms:
         """
         if not self.is_connected():
             return None
-        body = f'{PLC_UNIT}#RDD{addr:05d}{addr:05d}'
-        cmd  = f'%{body}**\r'.encode('ascii')
+        frame = f'%{PLC_UNIT}#RDD{addr:05d}{addr:05d}'
+        cmd   = f'{frame}{_bcc(frame)}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
         try:
             with self._lock:
                 self._serial.reset_input_buffer()
                 self._serial.write(cmd)
-                time.sleep(0.1)
-                raw = self._serial.read(32)
+                raw = self._serial.read_until(b'\r')
+                self._serial.reset_input_buffer()
+            time.sleep(0.05)   # inter-command gap
             print(f'PLC: read_dt({addr}) raw: {repr(raw)}')
             text = raw.decode('ascii', errors='ignore').strip()
             if '$RD' in text:
