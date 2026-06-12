@@ -114,9 +114,15 @@ class PlcComms:
             try:
                 with self._lock:
                     self._serial.reset_input_buffer()
+                    self._serial.reset_output_buffer()
+
                     self._serial.write(cmd)
+                    self._serial.flush()
                     resp = self._serial.read_until(b'\r')
-                    self._serial.reset_input_buffer()
+                    # Consume any immediate stray trailing linefeeds (\n) that follow \r before freeing the lock
+                    time.sleep(0.01)
+                    if self._serial.in_waiting > 0:
+                        self._serial.read(self._serial.in_waiting)
                 
                 if _parse_response(resp):
                     success = True
@@ -146,9 +152,15 @@ class PlcComms:
         try:
             with self._lock:
                 self._serial.reset_input_buffer()
+                self._serial.reset_output_buffer()
+
                 self._serial.write(cmd)
+                self._serial.flush()
+
                 raw = self._serial.read_until(b'\r')
-                self._serial.reset_input_buffer()
+                time.sleep(0.01)
+                if self._serial.in_waiting > 0:
+                    self._serial.read(self._serial.in_waiting)
                 
             time.sleep(0.05) # Inter-command hardware gap
             print(f'PLC: read_dt({addr}) raw: {repr(raw)}')
