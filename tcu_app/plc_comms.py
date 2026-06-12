@@ -1,12 +1,6 @@
 # =============================================================================
 # plc_comms.py — FP0-C14CRS MEWTOCOL Communication
 # =============================================================================
-# Sends K value (0-4000) to PLC DT100 via MEWTOCOL over GPIO UART.
-# RPi GPIO 14/15 → MAX3232 level shifter → FP0 COM port (S/R/G terminals).
-# PLC ST program reads DT100 and writes it directly to WY4 (W5 setpoint).
-# Serial: /dev/ttyAMA0, 9600 baud, 8O1 (odd parity — MEWTOCOL requirement).
-# =============================================================================
-
 import serial
 import threading
 import time
@@ -22,7 +16,6 @@ def _bcc(frame: str) -> str:
     """
     MEWTOCOL BCC — XOR of ALL characters including % prefix.
     Per document: XOR from % to last text char inclusive.
-    Returns 2-character uppercase hex string.
     """
     result = 0
     for c in frame:
@@ -33,23 +26,23 @@ def _bcc(frame: str) -> str:
 def _build_write_cmd(k_value: int) -> bytes:
     """
     Build MEWTOCOL WD command for DT register write.
-    Format: %<unit>#WDD<start(5dec)><end(5dec)><value(4hex)><BCC(2hex)>CR
-    BCC = XOR of all chars from % inclusive.
     """
-    addr  = f'{PLC_DT_SETPOINT:05d}'
-    value = f'{k_value:04X}'
-    frame = f'%{PLC_UNIT}#WDD{addr}{addr}{value}'
-    cmd   = f'{frame}{_bcc(frame)}\r'.encode('ascii')
+    addr = f'{PLC_DT_SETPOINT:05d}'
+    
+    # FIX 1: Convert to 16-bit Little-Endian (Low Byte first, then High Byte)
+    val_16bit = k_value & 0xFFFF
+    low_byte = val_16bit & 0xFF
+    high_byte = (val_16bit >> 8) & 0xFF
+    le_value = f'{low_byte:02X}{high_byte:02X}' # 1000 transforms from 03E8 into E803
+    
+    frame = f'%{PLC_UNIT}#WDD{addr}{addr}{le_value}'
+    cmd = f'{frame}{_bcc(frame)}\r'.encode('ascii')
     print(f'PLC: write cmd: {repr(cmd)}')
     return cmd
 
 
 def _parse_response(resp: bytes) -> bool:
-    """
-    Parse MEWTOCOL write response.
-    Success: %<unit>$WD<BCC>\r
-    Error:   %<unit>!<code><BCC>\r
-    """
+    """Parse MEWTOCOL write response."""
     if not resp:
         return False
     text = resp.decode('ascii', errors='ignore').strip()
@@ -62,36 +55,24 @@ def _parse_response(resp: bytes) -> bool:
 
 
 class PlcComms:
-    """
-    MEWTOCOL interface to Panasonic FP0-C14CRS PLC.
-
-    Usage:
-        plc = PlcComms()
-        plc.connect()
-        plc.set_k(1325)    # 500W
-        plc.set_k(0)       # heater off
-        plc.disconnect()
-    """
-
     def __init__(self):
-        self._serial    = None
-        self._lock      = threading.Lock()
+        self._serial = None
+        self._lock = threading.Lock()
         self._connected = False
 
     def connect(self) -> bool:
-        """Open serial connection to PLC. Returns True on success."""
         port = settings.get('plc_port')
         if not port:
             print('PLC: plc_port not configured')
             return False
         try:
             self._serial = serial.Serial(
-                port     = port,
+                port = port,
                 baudrate = PLC_BAUD,
                 bytesize = PLC_BYTESIZE,
-                parity   = PLC_PARITY,
+                parity = PLC_PARITY,
                 stopbits = PLC_STOPBITS,
-                timeout  = PLC_TIMEOUT,
+                timeout = PLC_TIMEOUT,
             )
             self._connected = True
             print(f'PLC: connected on {port}')
@@ -102,24 +83,20 @@ class PlcComms:
             return False
 
     def disconnect(self):
-        """Close serial port."""
         with self._lock:
             if self._serial and self._serial.is_open:
                 try:
                     self._serial.close()
                 except Exception:
                     pass
-            self._serial    = None
+            self._serial = None
             self._connected = False
 
     def is_connected(self) -> bool:
         return self._connected and self._serial is not None
 
     def set_k(self, k_value: int) -> bool:
-        """
-        Write K value (0-4000) to PLC DT100.
-        Returns True on success.
-        """
+        """Write K value (0-4000) to PLC DT100."""
         if not self.is_connected():
             print('PLC.set_k: not connected')
             return False
@@ -129,7 +106,10 @@ class PlcComms:
         if not PLC_K_MIN <= k_value <= PLC_K_MAX:
             print(f'PLC.set_k: {k_value} out of range [{PLC_K_MIN}, {PLC_K_MAX}]')
             return False
+            
         cmd = _build_write_cmd(k_value)
+        success = False
+        
         for attempt in range(PLC_MAX_RETRIES):
             try:
                 with self._lock:
@@ -137,44 +117,62 @@ class PlcComms:
                     self._serial.write(cmd)
                     resp = self._serial.read_until(b'\r')
                     self._serial.reset_input_buffer()
-                time.sleep(0.05)   # inter-command gap — PLC needs time between commands
+                
                 if _parse_response(resp):
-                    return True
+                    success = True
+                    break # Break out of loop immediately on success
+                    
                 print(f'PLC: set_k attempt {attempt + 1} bad response: {resp}')
             except Exception as e:
                 print(f'PLC: set_k attempt {attempt + 1} failed — {e}')
             time.sleep(PLC_RETRY_DELAY)
-        return False
+            
+        # FIX 2: Enforce the inter-command cool-down delay HERE 
+        # so it executes for consecutive external loop queries.
+        time.sleep(0.05) 
+        return success
 
     def emergency_off(self) -> bool:
-        """Write K0 to PLC immediately — W5 output goes to zero."""
         return self.set_k(0)
 
     def read_dt(self, addr: int):
-        """
-        Read one DT register. Returns int value or None on failure.
-        Used for diagnostics and verifying DT100 setpoint.
-        """
+        """Read one DT register. Returns properly byte-swapped integer or None."""
         if not self.is_connected():
             return None
         frame = f'%{PLC_UNIT}#RDD{addr:05d}{addr:05d}'
-        cmd   = f'{frame}{_bcc(frame)}\r'.encode('ascii')
+        cmd = f'{frame}{_bcc(frame)}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
+        
         try:
             with self._lock:
                 self._serial.reset_input_buffer()
                 self._serial.write(cmd)
                 raw = self._serial.read_until(b'\r')
                 self._serial.reset_input_buffer()
-            time.sleep(0.05)   # inter-command gap
+                
+            time.sleep(0.05) # Inter-command hardware gap
             print(f'PLC: read_dt({addr}) raw: {repr(raw)}')
             text = raw.decode('ascii', errors='ignore').strip()
+            
             if '$RD' in text:
                 idx = text.index('$RD') + 3
-                return int(text[idx:idx+4], 16)
+                raw_hex = text[idx:idx+4] # Example: yields 'E803'
+                
+                # FIX 3: Re-swap Little-Endian hex bytes back to proper Big-Endian int
+                low_byte = int(raw_hex[0:2], 16)
+                high_byte = int(raw_hex[2:4], 16)
+                actual_value = (high_byte << 8) | low_byte
+                
+                # Handle signed 16-bit negative values if needed
+                if actual_value & 0x8000:
+                    actual_value -= 0x10000
+                    
+                return actual_value
+                
             if '!' in text:
                 print(f'PLC: read_dt error response: {text}')
             return None
         except Exception as e:
             print(f'PLC: read_dt failed — {e}')
             return None
+
