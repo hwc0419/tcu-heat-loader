@@ -44,29 +44,57 @@ _K_TABLE = [
     (3700, 1959.492),(3750, 1958.643),(3800, 1958.643), (3850, 1958.643),
     (3900, 1958.643),(3950, 1958.643),(4000, 1958.643),
 ]
-_K_VALS   = [row[0] for row in _K_TABLE]
-_W_VALS   = [row[1] for row in _K_TABLE]
+# =============================================================================
+# W5 empirical model (3-parameter phase-angle fit, RMSE = 4.86W)
+# Fitted to the 71-point sweep table above. Used for:
+#   - k_to_watts(k)   : actual delivered watts for a given K (model, not table)
+#   - watts_to_k(w)   : inverse — find K that delivers target watts
+# Model:
+#   I_in  = K / 4000 * 20                      (mA, FP0-A21 0-20mA output)
+#   alpha = max(0, (I_MAX - I_in)/I_SPAN * 180 - BIAS_DEG)   (firing angle, deg)
+#   P     = min(P_SAT, P_SAT * (1 - alpha/pi + sin(2*alpha)/(2*pi)))
+# =============================================================================
+_W5_BIAS_DEG = 23.236402
+_W5_I_MAX_MA = 21.329047
+_W5_I_SPAN_MA = 19.456878
+_W5_P_SAT_W  = 1959.492
 
-# =============================================================================
-# K constant interpolation
-# =============================================================================
+
+def k_to_watts(k: int) -> float:
+    """
+    Predict actual delivered watts for K constant using the empirical
+    3-parameter W5 model (RMSE = 4.86W across 71-point sweep).
+    Returns 0.0 for k <= 0.
+    """
+    if not isinstance(k, (int, float)) or k <= 0:
+        return 0.0
+    k = min(max(k, 0), 4000)
+    i_in  = k / 4000.0 * 20.0
+    alpha_deg = max(0.0, (_W5_I_MAX_MA - i_in) / _W5_I_SPAN_MA * 180.0 - _W5_BIAS_DEG)
+    alpha = np.deg2rad(alpha_deg)
+    watts = _W5_P_SAT_W * (1.0 - alpha / np.pi + np.sin(2 * alpha) / (2 * np.pi))
+    return float(min(_W5_P_SAT_W, max(0.0, watts)))
+
 
 def watts_to_k(target_watts: float) -> int:
     """
-    Interpolate K constant from 71-point sweep table.
-    Returns K as int (0-4000). Returns 0 for target <= 0.
-    Returns K_MAX (4000) for target above table maximum.
-    Fixed loop bound: at most len(_K_TABLE) = 71 iterations.
+    Find K constant (0-4000) that delivers target_watts, via binary search
+    against k_to_watts (monotonically increasing model).
+    Returns 0 for target <= 0. Clamps to K4000 if target >= saturation.
+    Fixed loop bound: 32 iterations (2^32 > 4000, more than sufficient).
     """
     if target_watts <= 0:
         return 0
-    if target_watts >= _W_VALS[-1]:
-        return _K_VALS[-1]
-    for i in range(len(_K_TABLE) - 1):   # bound: 70 iterations
-        if _W_VALS[i] <= target_watts <= _W_VALS[i + 1]:
-            frac = (target_watts - _W_VALS[i]) / (_W_VALS[i + 1] - _W_VALS[i])
-            return int(round(_K_VALS[i] + frac * (_K_VALS[i + 1] - _K_VALS[i])))
-    return _K_VALS[-1]
+    if target_watts >= _W5_P_SAT_W:
+        return 4000
+    lo, hi = 0, 4000
+    for _ in range(32):   # bound: 32 bisection steps
+        mid = (lo + hi) // 2
+        if k_to_watts(mid) < target_watts:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
 
 
 def build_step_table() -> list:
@@ -128,25 +156,35 @@ def compute_step_avg(samples: list, setpoint: float) -> float | None:
 def fit_and_extrapolate(results: list) -> dict:
     """
     Fit linear model cooling_pct = m * watts + b from completed step results.
-    results: list of (watts, avg_cooling_pct) — NaN entries excluded.
+
+    results: list of (k_constant, avg_cooling_pct) — entries with
+             avg_cooling_pct=None are excluded.
+
+    The watts axis uses k_to_watts(k) — the empirical W5 model
+    (RMSE = 4.86W) — rather than nominal target watts, since the W5's
+    phase-angle response is nonlinear and nominal targets can differ
+    from delivered watts by >1% at low/high K.
 
     Returns dict:
         slope        : float
         intercept    : float
         r_squared    : float
+        rmse         : float
         extrap_pct   : float  — predicted cooling % at TARGET_WATTS
         passed       : bool   — True if extrap_pct < 100
         n_points     : int    — number of valid points used
     """
-    valid = [(w, c) for w, c in results if c is not None]
+    valid = [(k_to_watts(k), c) for k, c in results if c is not None]
     if len(valid) < 2:
         return {
             'slope': None, 'intercept': None, 'r_squared': None,
-            'extrap_pct': None, 'passed': None, 'n_points': len(valid),
+            'rmse': None, 'extrap_pct': None, 'passed': None,
+            'n_points': len(valid),
         }
     watts_arr   = np.array([v[0] for v in valid], dtype=float)
     cooling_arr = np.array([v[1] for v in valid], dtype=float)
     m, b        = np.polyfit(watts_arr, cooling_arr, 1)
+    y_pred      = m * watts_arr + b
     rmse        = float(np.sqrt(np.mean((cooling_arr - y_pred) ** 2)))
     ss_res      = float(np.sum((cooling_arr - y_pred) ** 2))
     ss_tot      = float(np.sum((cooling_arr - np.mean(cooling_arr)) ** 2))

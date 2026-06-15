@@ -26,7 +26,7 @@ from settings_manager import settings
 from translations import tr
 from test_logic import (
     build_step_table, compute_step_avg, fit_and_extrapolate, parse_alarms,
-    check_pass_fail,
+    check_pass_fail, k_to_watts,
 )
 from config import (
     STEPPED_TEST_NUM_STEPS, STEPPED_TEST_STEP_DURATION_S,
@@ -333,15 +333,16 @@ class TestTab(QWidget):
             if c is not None and t is not None
             and abs(t - setpoint) <= 0.1
         )
-        self._results.append((watts, avg))
+        self._results.append((k, avg))
         self._writer.writerow([idx, watts, k,
                                 f'{avg:.2f}' if avg is not None else 'NaN',
                                 n_valid, skipped])
         self._logfile.flush()
 
-        # Update graph
+        # Update graph — plot against model-predicted watts (k_to_watts),
+        # consistent with the fit line which also uses model watts
         if avg is not None:
-            self._graph_watts.append(watts)
+            self._graph_watts.append(k_to_watts(k))
             self._graph_cooling.append(avg)
             self._curve_data.setData(
                 list(self._graph_watts), list(self._graph_cooling))
@@ -366,7 +367,7 @@ class TestTab(QWidget):
 
     def _update_fitline(self):
         """Redraw linear fit line if ≥2 valid points."""
-        valid = [(w, c) for w, c in self._results if c is not None]
+        valid = [(k, c) for k, c in self._results if c is not None]
         if len(valid) < 2:
             return
         fit = fit_and_extrapolate(valid)
