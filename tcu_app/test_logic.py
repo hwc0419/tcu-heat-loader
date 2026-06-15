@@ -45,56 +45,54 @@ _K_TABLE = [
     (3900, 1958.643),(3950, 1958.643),(4000, 1958.643),
 ]
 # =============================================================================
-# W5 empirical model (3-parameter phase-angle fit, RMSE = 4.86W)
-# Fitted to the 71-point sweep table above. Used for:
-#   - k_to_watts(k)   : actual delivered watts for a given K (model, not table)
-#   - watts_to_k(w)   : inverse — find K that delivers target watts
-# Model:
-#   I_in  = K / 4000 * 20                      (mA, FP0-A21 0-20mA output)
-#   alpha = max(0, (I_MAX - I_in)/I_SPAN * 180 - BIAS_DEG)   (firing angle, deg)
-#   P     = min(P_SAT, P_SAT * (1 - alpha/pi + sin(2*alpha)/(2*pi)))
+# K constant interpolation — piecewise-linear over the 71-point sweep table
 # =============================================================================
-_W5_BIAS_DEG = 23.236402
-_W5_I_MAX_MA = 21.329047
-_W5_I_SPAN_MA = 19.456878
-_W5_P_SAT_W  = 1959.492
+# NOTE: A 3-parameter empirical phase-angle model (RMSE=4.86W overall) was
+# evaluated as a replacement, but it has systematic bias of up to -7.6W
+# (~13% relative error) at K500-800 — the low end of the range used for
+# 0-200W steps. Piecewise-linear interpolation is exact AT all 71 measured
+# points and has much smaller error than the model in this critical region,
+# so it is retained.
+# =============================================================================
+_K_VALS = [row[0] for row in _K_TABLE]
+_W_VALS = [row[1] for row in _K_TABLE]
 
 
 def k_to_watts(k: int) -> float:
     """
-    Predict actual delivered watts for K constant using the empirical
-    3-parameter W5 model (RMSE = 4.86W across 71-point sweep).
-    Returns 0.0 for k <= 0.
+    Interpolate watts for a given K constant from the 71-point sweep table.
+    Returns 0.0 for k <= 0. Clamps to table min/max outside range.
+    Fixed loop bound: at most len(_K_TABLE) = 71 iterations.
     """
     if not isinstance(k, (int, float)) or k <= 0:
         return 0.0
-    k = min(max(k, 0), 4000)
-    i_in  = k / 4000.0 * 20.0
-    alpha_deg = max(0.0, (_W5_I_MAX_MA - i_in) / _W5_I_SPAN_MA * 180.0 - _W5_BIAS_DEG)
-    alpha = np.deg2rad(alpha_deg)
-    watts = _W5_P_SAT_W * (1.0 - alpha / np.pi + np.sin(2 * alpha) / (2 * np.pi))
-    return float(min(_W5_P_SAT_W, max(0.0, watts)))
+    if k <= _K_VALS[0]:
+        return _W_VALS[0]
+    if k >= _K_VALS[-1]:
+        return _W_VALS[-1]
+    for i in range(len(_K_TABLE) - 1):   # bound: 70 iterations
+        if _K_VALS[i] <= k <= _K_VALS[i + 1]:
+            frac = (k - _K_VALS[i]) / (_K_VALS[i + 1] - _K_VALS[i])
+            return _W_VALS[i] + frac * (_W_VALS[i + 1] - _W_VALS[i])
+    return _W_VALS[-1]
 
 
 def watts_to_k(target_watts: float) -> int:
     """
-    Find K constant (0-4000) that delivers target_watts, via binary search
-    against k_to_watts (monotonically increasing model).
-    Returns 0 for target <= 0. Clamps to K4000 if target >= saturation.
-    Fixed loop bound: 32 iterations (2^32 > 4000, more than sufficient).
+    Interpolate K constant from 71-point sweep table.
+    Returns K as int (0-4000). Returns 0 for target <= 0.
+    Returns K_MAX (4000) for target above table maximum.
+    Fixed loop bound: at most len(_K_TABLE) = 71 iterations.
     """
     if target_watts <= 0:
         return 0
-    if target_watts >= _W5_P_SAT_W:
-        return 4000
-    lo, hi = 0, 4000
-    for _ in range(32):   # bound: 32 bisection steps
-        mid = (lo + hi) // 2
-        if k_to_watts(mid) < target_watts:
-            lo = mid + 1
-        else:
-            hi = mid
-    return lo
+    if target_watts >= _W_VALS[-1]:
+        return _K_VALS[-1]
+    for i in range(len(_K_TABLE) - 1):   # bound: 70 iterations
+        if _W_VALS[i] <= target_watts <= _W_VALS[i + 1]:
+            frac = (target_watts - _W_VALS[i]) / (_W_VALS[i + 1] - _W_VALS[i])
+            return int(round(_K_VALS[i] + frac * (_K_VALS[i + 1] - _K_VALS[i])))
+    return _K_VALS[-1]
 
 
 def build_step_table() -> list:
