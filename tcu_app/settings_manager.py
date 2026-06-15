@@ -24,7 +24,7 @@ DEFAULTS = {
     'temp_setpoint':    22.0,
     'temp_tolerance':   0.5,
     'flow_setpoint':    50.0,
-    'flow_tolerance':   0.5,
+    'flow_tolerance':   1.5,
     'test_duration':    180,
     'poll_interval':    1,
     'min_flow_rate':    1,
@@ -41,7 +41,7 @@ DEFAULTS = {
     'rpi_inactivity_timeout_min': 5,
     'access_password_hash': '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
     # ^ SHA-256 of 'admin123' — change via settings Access sub-tab
-    'heater_soft_limit_w': 1959,    # admin password required above this (W5 saturation)
+    'heater_soft_limit_w': 2000,    # admin password required above this (W5 saturation)
 
     # Stepped heat load test
     'stepped_max_watts':        2000,

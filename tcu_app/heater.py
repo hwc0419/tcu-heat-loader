@@ -9,7 +9,7 @@
 
 import bisect
 from plc_comms import PlcComms
-from config import HEATER_MAX_WATTS
+from config import HEATER_MAX_WATTS, PLC_K_MIN, PLC_K_MAX
 
 # Empirical K→watts lookup table from W5 sweep (20/05/2026).
 # Format: (K_value, watts). Monotonically increasing in both columns.
@@ -123,6 +123,23 @@ class Heater:
             print(f'Heater.set_watts: {watts}W out of range [0, {HEATER_MAX_WATTS}]')
             return False
         k = watts_to_k(watts)
+        ok = self._plc.set_k(k)
+        if ok:
+            self._current_k = k
+        return ok
+
+    def set_k(self, k: int) -> bool:
+        """
+        Write K constant directly to PLC DT100 (bypasses watts_to_k).
+        Used by stepped heat load test, which precomputes K per step
+        from the empirical sweep table.
+        """
+        if not isinstance(k, int):
+            print(f'Heater.set_k: expected int, got {type(k)}')
+            return False
+        if not PLC_K_MIN <= k <= PLC_K_MAX:
+            print(f'Heater.set_k: {k} out of range [{PLC_K_MIN}, {PLC_K_MAX}]')
+            return False
         ok = self._plc.set_k(k)
         if ok:
             self._current_k = k

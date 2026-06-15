@@ -207,6 +207,7 @@ class MainWindow(QMainWindow):
         # Wire test tab signals
         self._test_tab.sig_test_start.connect(self._on_test_start)
         self._test_tab.sig_test_stop.connect(self._on_test_stop)
+        self._test_tab.sig_set_k.connect(self._cmd_set_k)
 
         # Wire heater tab signals
         self._heater_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
@@ -298,6 +299,21 @@ class MainWindow(QMainWindow):
         self._response_tab.on_tcu_abnormal()
 
     # ── Heater command ────────────────────────────────────────────────────────
+    def _cmd_set_k(self, k: int):
+        """
+        Set PLC K constant directly — used by stepped heat load test.
+        K is precomputed per step from the empirical sweep table,
+        so no watts→K conversion is needed here.
+        """
+        if not isinstance(k, int):
+            return
+        if not self._heater.is_connected():
+            print(f'Test: SET K={k} → NOT CONNECTED (check PLC port in settings)')
+            return
+        ok = self._heater.set_k(k)
+        if not ok:
+            print(f'Test: SET K={k} → FAILED')
+
     def _cmd_set_heater_watts(self, watts: int):
         """Send watt setpoint to heater via Modbus."""
         if not isinstance(watts, int):

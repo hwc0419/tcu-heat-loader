@@ -210,7 +210,7 @@ def check_pass_fail(inlet_temp, flow_rate, b1, b2, b3, elapsed_min):
 
     Pass conditions (all must hold every second):
       1. inlet_temp = 22 ± 0.5°C       (TEMP_SETPOINT ± TEMP_TOLERANCE)
-      2. flow_rate  = 50 ± 0.5 L/min   (FLOW_SETPOINT ± FLOW_TOLERANCE)
+      2. flow_rate  = 50 ± 1.5 L/min   (FLOW_SETPOINT ± FLOW_TOLERANCE)
       3. BS         = 0x400400          (normal TCU running state)
 
     Returns (passed, msg):

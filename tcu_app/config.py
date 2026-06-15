@@ -41,7 +41,7 @@ PLC_MAX_RETRIES = 100
 PLC_RETRY_DELAY = 0.1   # seconds between retries
 
 # ── Heater (fixed — W5 30A hardware limit, never user-configurable) ───────────
-HEATER_MAX_WATTS = 6900   # 30A × 230V = 6900W (W5SP4V030-24J rated limit)
+HEATER_MAX_WATTS = 2000
 
 # Live values from settings_manager
 PLC_PORT          = settings.get('plc_port')
