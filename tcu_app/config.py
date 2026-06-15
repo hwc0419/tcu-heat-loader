@@ -37,7 +37,7 @@ PLC_DT_SETPOINT = 100   # DT100 — RPi writes K value here
 PLC_UNIT        = '01'  # MEWTOCOL unit number — FP0 default
 PLC_K_MIN       = 0
 PLC_K_MAX       = 4000
-PLC_MAX_RETRIES = 3
+PLC_MAX_RETRIES = 100
 PLC_RETRY_DELAY = 0.1   # seconds between retries
 
 # ── Heater (fixed — W5 30A hardware limit, never user-configurable) ───────────

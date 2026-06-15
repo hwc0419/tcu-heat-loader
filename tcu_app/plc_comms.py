@@ -95,53 +95,43 @@ class PlcComms:
     def is_connected(self) -> bool:
         return self._connected and self._serial is not None
 
-    def set_k(self, k_value: int) -> bool:
+    def set_k(self, k_value: int) -> int:
         """Write K value (0-4000) to PLC DT100."""
+        retries = 0
         if not self.is_connected():
             print('PLC.set_k: not connected')
-            return False
+            return retries
         if not isinstance(k_value, int):
             print(f'PLC.set_k: expected int, got {type(k_value)}')
-            return False
+            return retries
         if not PLC_K_MIN <= k_value <= PLC_K_MAX:
             print(f'PLC.set_k: {k_value} out of range [{PLC_K_MIN}, {PLC_K_MAX}]')
-            return False
+            return retries
             
         cmd = _build_write_cmd(k_value)
-        success = False
-        
-        for attempt in range(PLC_MAX_RETRIES):
+        """Retry strategy: Spam commands until PLC read successfully"""
+        while True:
             try:
                 with self._lock:
                     self._serial.reset_input_buffer()
                     self._serial.reset_output_buffer()
 
                     self._serial.write(cmd)
-                    self._serial.flush()
                     resp = self._serial.read_until(b'\r')
-                    # Consume any immediate stray trailing linefeeds (\n) that follow \r before freeing the lock
-                    time.sleep(0.01)
-                    if self._serial.in_waiting > 0:
-                        self._serial.read(self._serial.in_waiting)
-                
-                if _parse_response(resp):
-                    success = True
-                    break # Break out of loop immediately on success
-                    
-                print(f'PLC: set_k attempt {attempt + 1} bad response: {resp}')
+                    if _parse_response(resp) and retries <= PLC_MAX_RETRIES:
+                        print(f"PLC: successfully received command with {retries} retries")
+                        return retries
+                    if retries > PLC_MAX_RETRIES:
+                        print(f"PLC: exceeded PLC_MAX_RETRIES = {PLC_MAX_RETRIES}")
+                        return retries
+                    retries += 1
             except Exception as e:
                 print(f'PLC: set_k attempt {attempt + 1} failed — {e}')
-            time.sleep(PLC_RETRY_DELAY)
-            
-        # FIX 2: Enforce the inter-command cool-down delay HERE 
-        # so it executes for consecutive external loop queries.
-        time.sleep(0.05) 
-        return success
 
     def emergency_off(self) -> bool:
         return self.set_k(0)
 
-    def read_dt(self, addr: int):
+    def read_dt(self, addr: int) -> int:
         """Read one DT register. Returns properly byte-swapped integer or None."""
         if not self.is_connected():
             return None
@@ -149,42 +139,34 @@ class PlcComms:
         cmd = f'{frame}{_bcc(frame)}\r'.encode('ascii')
         print(f'PLC: sending: {repr(cmd)}')
         
-        try:
-            with self._lock:
-                self._serial.reset_input_buffer()
-                self._serial.reset_output_buffer()
+        """Retry strategy: Spam commands until PLC read successfully"""
+        while True:
+            try:
+                with self._lock:
+                    self._serial.reset_input_buffer()
+                    self._serial.reset_output_buffer()
 
-                self._serial.write(cmd)
-                self._serial.flush()
+                    self._serial.write(cmd)
+                    resp = self._serial.read_until(b'\r')
+                    text = resp.decode('ascii', errors='ignore').strip()
+                    if _parse_response(resp) and retries <= PLC_MAX_RETRIES:
+                        print(f"PLC: successfully received command with {retries} retries")
+                        print(f'PLC: read_dt({addr}) resp: {repr(resp)}')
+                        idx = text.index('$RD') + 3
+                        raw_hex = text[idx:idx+4] # Example: yields 'E803' -> actually represents 0x03E8 = 1000 in decimal
 
-                raw = self._serial.read_until(b'\r')
-                time.sleep(0.01)
-                if self._serial.in_waiting > 0:
-                    self._serial.read(self._serial.in_waiting)
-                
-            time.sleep(0.05) # Inter-command hardware gap
-            print(f'PLC: read_dt({addr}) raw: {repr(raw)}')
-            text = raw.decode('ascii', errors='ignore').strip()
-            
-            if '$RD' in text:
-                idx = text.index('$RD') + 3
-                raw_hex = text[idx:idx+4] # Example: yields 'E803'
-                
-                # FIX 3: Re-swap Little-Endian hex bytes back to proper Big-Endian int
-                low_byte = int(raw_hex[0:2], 16)
-                high_byte = int(raw_hex[2:4], 16)
-                actual_value = (high_byte << 8) | low_byte
-                
-                # Handle signed 16-bit negative values if needed
-                if actual_value & 0x8000:
-                    actual_value -= 0x10000
-                    
-                return actual_value
-                
-            if '!' in text:
-                print(f'PLC: read_dt error response: {text}')
-            return None
-        except Exception as e:
-            print(f'PLC: read_dt failed — {e}')
-            return None
+                        # Re-swap Little-Endian hex bytes back to proper Big-Endian int
+                        low_byte = int(raw_hex[0:2], 16)
+                        high_byte = int(raw_hex[2:4], 16)
+                        actual_value = (high_byte << 8) | low_byte
 
+                        # Handle signed 16-bit negative values if needed
+                        if actual_value & 0x8000: # bit mask to check MSB of actual_value == 1
+                            actual_value -= 0x10000
+                        return actual_value
+                    if retries > PLC_MAX_RETRIES:
+                        print(f"PLC: exceeded PLC_MAX_RETRIES = {PLC_MAX_RETRIES}")
+                        return retries
+                    retries += 1
+            except Exception as e:
+                print(f'PLC: set_k attempt {attempt + 1} failed — {e}')
