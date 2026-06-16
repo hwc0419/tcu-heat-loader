@@ -354,11 +354,16 @@ class TestTab(QWidget):
         avg      = compute_step_avg(self._step_samples, setpoint)
         self._results.append((k, avg))
 
-        # Update graph — plot against model-predicted watts (k_to_watts),
-        # consistent with the fit line which also uses model watts
-        if avg is not None:
+        # Get baseline from step 0 result for net cooling graph
+        baseline = 0.0
+        if self._results and self._results[0][0] <= 0 and self._results[0][1] is not None:
+            baseline = self._results[0][1]
+
+        # Update graph with net cooling (raw - baseline), skip K=0 step
+        if avg is not None and k > 0:
+            net = avg - baseline
             self._graph_watts.append(k_to_watts(k))
-            self._graph_cooling.append(avg)
+            self._graph_cooling.append(net)
             self._curve_data.setData(
                 list(self._graph_watts), list(self._graph_cooling))
             self._update_fitline()
@@ -438,7 +443,11 @@ class TestTab(QWidget):
             f'(extrap. cooling @ {STEPPED_TEST_TARGET_WATTS}W = {extrap:.1f}%)'
         )
 
-        combined = f'{linearity_str}  |  {capacity_str}  |  R²={r2:.3f}  n={n}'
+        baseline     = fit.get('baseline_pct', 0.0)
+        combined = (
+            f'{linearity_str}  |  {capacity_str}  |  '
+            f'baseline={baseline:.1f}%  R²={r2:.3f}  n={n}'
+        )
 
         if linearity_ok and capacity_ok:
             self._end_test('PASS', combined)

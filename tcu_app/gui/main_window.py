@@ -302,8 +302,8 @@ class MainWindow(QMainWindow):
     def _cmd_set_k(self, k: int):
         """
         Set PLC K constant directly — used by stepped heat load test.
-        K is precomputed per step from the empirical sweep table,
-        so no watts→K conversion is needed here.
+        Emits sig_k_confirmed back to test_tab when PLC confirms receipt,
+        so steady-state timing starts from actual confirmation, not command send.
         """
         if not isinstance(k, int):
             return
@@ -311,7 +311,9 @@ class MainWindow(QMainWindow):
             print(f'Test: SET K={k} → NOT CONNECTED (check PLC port in settings)')
             return
         ok = self._heater.set_k(k)
-        if not ok:
+        if ok:
+            self._test_tab.sig_k_confirmed.emit(k)
+        else:
             print(f'Test: SET K={k} → FAILED')
 
     def _cmd_set_heater_watts(self, watts: int):
