@@ -29,12 +29,12 @@ from test_logic import (
     check_pass_fail, k_to_watts,
 )
 from config import (
-    STEPPED_TEST_NUM_STEPS, STEPPED_TEST_STEP_DURATION_S,
+    STEPPED_TEST_STEP_DURATION_S,
     STEPPED_TEST_AVG_WINDOW_S, STEPPED_TEST_MAX_DURATION_S,
     STEPPED_TEST_TARGET_WATTS, LOG_DIR,
 )
 
-_MAX_GRAPH_PTS = STEPPED_TEST_NUM_STEPS + 1   # one per step — fixed bound
+_MAX_GRAPH_PTS = 540   # hard upper bound: 9h / 1min minimum step = 540 steps max
 
 
 class TestTab(QWidget):
@@ -46,6 +46,7 @@ class TestTab(QWidget):
     sig_test_start = pyqtSignal(str)   # emits tcu_serial
     sig_test_stop  = pyqtSignal()
     sig_set_k      = pyqtSignal(int)   # emits K constant for current step
+    sig_k_confirmed = pyqtSignal(int)  # received from main_window when PLC confirms K
 
     def __init__(self, scale: float = 1.0, parent=None):
         self._scale        = scale
@@ -60,7 +61,10 @@ class TestTab(QWidget):
         self._current_step = 0
         self._step_start   = None
         self._step_samples = []   # (timestamp, cooling_pct, inlet_temp)
-        self._results      = []   # (watts, avg_cooling_pct | None)
+        self._results      = []   # (k, avg_cooling_pct | None)
+        self._k_pending    = False  # True while waiting for PLC to confirm K
+        self._writer       = None
+        self._logfile      = None
 
         # Graph data — fixed bound: _MAX_GRAPH_PTS points
         self._graph_watts   = deque(maxlen=_MAX_GRAPH_PTS)
@@ -71,6 +75,7 @@ class TestTab(QWidget):
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
+        self.sig_k_confirmed.connect(self._on_k_confirmed)
 
     # ── UI construction ───────────────────────────────────────────────────────
 
@@ -91,7 +96,7 @@ class TestTab(QWidget):
 
         # Progress — total steps
         self.progress = QProgressBar()
-        self.progress.setRange(0, STEPPED_TEST_NUM_STEPS)
+        self.progress.setRange(0, 0)   # updated at test start with actual step count
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(8)
@@ -176,17 +181,22 @@ class TestTab(QWidget):
         cg.addWidget(self.btn_start); cg.addWidget(self.btn_stop)
         right.addWidget(grp_c)
 
-        # Test info
+        # Test info — values shown are defaults; actual values from settings at test start
         grp_i = QGroupBox('Test Parameters')
         ig    = QVBoxLayout(grp_i)
-        total_min = (STEPPED_TEST_NUM_STEPS + 1) * STEPPED_TEST_STEP_DURATION_S // 60
-        ig.addWidget(QLabel(
-            f'Steps:     {STEPPED_TEST_NUM_STEPS + 1}  (0 → 8000W)\n'
-            f'Step size: {STEPPED_TEST_STEP_DURATION_S // 60} min / 100W\n'
+        max_w     = settings.get('stepped_max_watts')
+        step_size = settings.get('stepped_step_size_w')
+        step_dur  = settings.get('stepped_step_duration_s')
+        n_steps   = max_w // step_size + 1
+        total_min = n_steps * step_dur // 60
+        self._lbl_test_params = QLabel(
+            f'Steps:     {n_steps}  (0 → {max_w}W)\n'
+            f'Step size: {step_dur // 60} min / {step_size}W\n'
             f'Duration:  ~{total_min} min ({total_min // 60}h {total_min % 60}m)\n'
             f'Target:    {STEPPED_TEST_TARGET_WATTS}W\n'
             f'Pass if:   extrap. cooling < 100%'
-        ))
+        )
+        ig.addWidget(self._lbl_test_params)
         right.addWidget(grp_i)
 
         # Result
@@ -277,13 +287,25 @@ class TestTab(QWidget):
 
         # Rebuild step table from current settings
         self._step_table = build_step_table()
-        step_dur = settings.get('stepped_step_duration_s')
+        n_steps   = len(self._step_table) - 1
+        max_w     = settings.get('stepped_max_watts')
+        step_size = settings.get('stepped_step_size_w')
+        step_dur  = settings.get('stepped_step_duration_s')
+        total_min = (n_steps + 1) * step_dur // 60
+        self._lbl_test_params.setText(
+            f'Steps:     {n_steps + 1}  (0 → {max_w}W)\n'
+            f'Step size: {step_dur // 60} min / {step_size}W\n'
+            f'Duration:  ~{total_min} min ({total_min // 60}h {total_min % 60}m)\n'
+            f'Target:    {STEPPED_TEST_TARGET_WATTS}W\n'
+            f'Pass if:   extrap. cooling < 100%'
+        )
         self.step_progress.setRange(0, step_dur)
-        self.progress.setRange(0, len(self._step_table) - 1)
+        self.progress.setRange(0, n_steps)
 
         self._timer.start(1000)
 
         _, w0, k0 = self._step_table[0]
+        self._k_pending = True
         self.sig_set_k.emit(k0)
         self.sig_test_start.emit(serial)
         self._style_banner('running', '')
@@ -295,8 +317,9 @@ class TestTab(QWidget):
         self._logfile = open(self._logpath, 'w', newline='')
         self._writer  = csv.writer(self._logfile)
         self._writer.writerow([
-            'step', 'target_watts', 'k_constant',
-            'avg_cooling_pct', 'n_valid_samples', 'skipped',
+            'timestamp', 'step', 'target_watts', 'k_constant',
+            'inlet_temp', 'flow_rate', 'cooling_pct',
+            'step_elapsed_s', 'k_pending',
         ])
         self.lbl_logfile.setText(self._logpath)
 
@@ -314,6 +337,8 @@ class TestTab(QWidget):
         if elapsed_s >= STEPPED_TEST_MAX_DURATION_S:
             self._finalise()
             return
+        if self._k_pending:
+            return   # waiting for PLC to confirm K — don't count time yet
         step_dur     = settings.get('stepped_step_duration_s')
         step_elapsed = time.time() - self._step_start
         self.step_progress.setValue(int(min(step_elapsed, step_dur)))
@@ -326,18 +351,8 @@ class TestTab(QWidget):
         """Finalise current step, move to next or end test."""
         idx, watts, k = self._step_table[self._current_step]
         setpoint = settings.get('temp_setpoint')
-        avg = compute_step_avg(self._step_samples, setpoint)
-        skipped = avg is None
-        n_valid = sum(
-            1 for _, c, t in self._step_samples
-            if c is not None and t is not None
-            and abs(t - setpoint) <= 0.1
-        )
+        avg      = compute_step_avg(self._step_samples, setpoint)
         self._results.append((k, avg))
-        self._writer.writerow([idx, watts, k,
-                                f'{avg:.2f}' if avg is not None else 'NaN',
-                                n_valid, skipped])
-        self._logfile.flush()
 
         # Update graph — plot against model-predicted watts (k_to_watts),
         # consistent with the fit line which also uses model watts
@@ -357,13 +372,24 @@ class TestTab(QWidget):
             return
 
         _, w_next, k_next = self._step_table[self._current_step]
+        self._k_pending = True
         self.sig_set_k.emit(k_next)
-        self._step_start   = time.time()
-        self._step_samples = []
         self.step_progress.setValue(0)
         self.val_step.setText(
-            f'{self._current_step}/{STEPPED_TEST_NUM_STEPS} — {w_next}W')
+            f'{self._current_step}/{len(self._step_table) - 1} — {w_next}W')
         self.val_heater_w.setText(f'{w_next} W')
+
+    def _on_k_confirmed(self, k: int):
+        """
+        Called by main_window when PLC successfully confirms K value.
+        Resets step start time and sample buffer — steady-state window
+        begins from confirmed PLC response, not from when command was sent.
+        """
+        if not self._test_active:
+            return
+        self._k_pending  = False
+        self._step_start = time.time()
+        self._step_samples = []
 
     def _update_fitline(self):
         """Redraw linear fit line if ≥2 valid points."""
@@ -422,15 +448,35 @@ class TestTab(QWidget):
     # ── Public: called by main window ─────────────────────────────────────────
 
     def update(self, sample, status_msg: str = '', passed=None):
-        """Receive DAQ sample — buffer for step averaging, update displays."""
+        """Receive DAQ sample every second — log to CSV, update displays."""
         if not self._test_active:
             return
-        # Buffer sample for step averaging
-        self._step_samples.append((
-            sample.timestamp,
-            sample.cooling_pct,
-            sample.inlet_temp,
-        ))
+
+        # Current step info for logging
+        idx, watts, k = self._step_table[self._current_step] \
+            if self._current_step < len(self._step_table) else (0, 0, 0)
+        step_elapsed = (time.time() - self._step_start) \
+            if self._step_start is not None else 0.0
+
+        # Per-second CSV log — always written regardless of k_pending state
+        if self._writer is not None:
+            self._writer.writerow([
+                sample.timestamp, idx, watts, k,
+                f'{sample.inlet_temp:.2f}' if sample.inlet_temp is not None else '',
+                f'{sample.flow_rate:.1f}'  if sample.flow_rate  is not None else '',
+                f'{sample.cooling_pct:.2f}'if sample.cooling_pct is not None else '',
+                f'{step_elapsed:.1f}',
+                int(self._k_pending),
+            ])
+            self._logfile.flush()
+
+        # Buffer sample for steady-state average — only after PLC confirms K
+        if not self._k_pending:
+            self._step_samples.append((
+                sample.timestamp,
+                sample.cooling_pct,
+                sample.inlet_temp,
+            ))
 
         # Update live readings
         self.val_temp.setText(
@@ -450,7 +496,7 @@ class TestTab(QWidget):
         self.val_alarm.style().unpolish(self.val_alarm)
         self.val_alarm.style().polish(self.val_alarm)
 
-        # Safety: check all pass conditions every second — abort immediately if violated
+        # Safety check every second — abort immediately if violated
         passed, reason = check_pass_fail(
             sample.inlet_temp, sample.flow_rate,
             sample.b1, sample.b2, sample.b3, 0
@@ -488,7 +534,7 @@ class TestTab(QWidget):
         self._banner_state = state
         self._banner_msg   = msg
         if state == 'running':
-            text = f'STEP {self._current_step}/{STEPPED_TEST_NUM_STEPS} — RUNNING'
+            text = f'STEP {self._current_step}/{len(self._step_table) - 1} — RUNNING'
             self.banner.setText(text)
             self.banner.setStyleSheet(
                 f'background: #064e3b; border: 1px solid {GREEN};'
