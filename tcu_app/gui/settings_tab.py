@@ -205,6 +205,10 @@ class SettingsTab(QWidget):
         g.setSpacing(10)
         g.setColumnStretch(1, 1)
 
+        self.stepped_start_w_spin = QSpinBox()
+        self.stepped_start_w_spin.setRange(0, 29900)
+        self.stepped_start_w_spin.setSuffix(' W')
+
         self.stepped_max_w_spin = QSpinBox()
         self.stepped_max_w_spin.setRange(100, 30000)
         self.stepped_max_w_spin.setSuffix(' W')
@@ -222,19 +226,21 @@ class SettingsTab(QWidget):
         self.stepped_rmse_spin.setDecimals(1)
         self.stepped_rmse_spin.setSuffix(' W')
 
-        self._lbl_max_w    = QLabel('Max heater watts')
+        self._lbl_start_w  = QLabel('Start watts')
+        self._lbl_max_w    = QLabel('Stop watts')
         self._lbl_step_sz  = QLabel('Step size')
-        self._lbl_step_dur = QLabel('Step duration')
+        self._lbl_step_dur = QLabel('Time per step')
         self._lbl_rmse     = QLabel('Linearity RMSE threshold')
 
         note = QLabel(
-            'Phase 1 (2kW):  max=2000W  RMSE=20W\n'
-            'Phase 2 (8kW):  max=8000W  RMSE=80W\n'
-            'Phase 3 (12kW): max=12000W RMSE=120W'
+            'Phase 1 (2kW):  start=0W  stop=2000W  RMSE=20W\n'
+            'Phase 2 (8kW):  start=0W  stop=8000W  RMSE=80W\n'
+            'Phase 3 (12kW): start=0W  stop=12000W RMSE=120W'
         )
         note.setObjectName('label_dim')
 
         rows = [
+            (self._lbl_start_w,  self.stepped_start_w_spin),
             (self._lbl_max_w,    self.stepped_max_w_spin),
             (self._lbl_step_sz,  self.stepped_step_size_spin),
             (self._lbl_step_dur, self.stepped_step_dur_spin),
@@ -294,6 +300,7 @@ class SettingsTab(QWidget):
         self.heater_port_edit.setText(settings.get('heater_port'))
         self._set_combo(self.heater_baud_combo, str(settings.get('heater_baud')))
         # Stepped heat load test
+        self.stepped_start_w_spin.setValue(settings.get('stepped_start_watts'))
         self.stepped_max_w_spin.setValue(settings.get('stepped_max_watts'))
         self.stepped_step_size_spin.setValue(settings.get('stepped_step_size_w'))
         self.stepped_step_dur_spin.setValue(settings.get('stepped_step_duration_s'))
@@ -330,6 +337,7 @@ class SettingsTab(QWidget):
         settings.set('heater_baud', int(self.heater_baud_combo.currentText()))
 
         # Stepped heat load test
+        settings.set('stepped_start_watts',      self.stepped_start_w_spin.value())
         settings.set('stepped_max_watts',        self.stepped_max_w_spin.value())
         settings.set('stepped_step_size_w',      self.stepped_step_size_spin.value())
         settings.set('stepped_step_duration_s',  self.stepped_step_dur_spin.value())

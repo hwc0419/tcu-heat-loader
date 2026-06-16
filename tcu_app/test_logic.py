@@ -98,22 +98,25 @@ def watts_to_k(target_watts: float) -> int:
 def build_step_table() -> list:
     """
     Build list of (step_index, target_watts, k_constant).
-    Step 0 = 0W, steps increment by stepped_step_size_w up to stepped_max_watts.
-    Fixed bound: at most MAX_STEPS = 32400 // 1 iterations (9h / 1s min step).
-    In practice bounded by max_watts / step_size_w + 1.
+    Steps run from stepped_start_watts to stepped_max_watts inclusive,
+    incrementing by stepped_step_size_w each step.
+    Fixed bound: at most MAX_STEPS = 540 iterations.
     """
-    max_watts = settings.get('stepped_max_watts')
-    step_size = settings.get('stepped_step_size_w')
+    start_watts = settings.get('stepped_start_watts')
+    max_watts   = settings.get('stepped_max_watts')
+    step_size   = settings.get('stepped_step_size_w')
     if not isinstance(step_size, int) or step_size < 1:
         step_size = 100
+    if not isinstance(start_watts, int) or start_watts < 0:
+        start_watts = 0
     MAX_STEPS = 540   # hard upper bound: 9h / 1min minimum step = 540 steps
-    steps     = []
-    i         = 0
-    w         = 0
+    steps = []
+    i = 0
+    w = start_watts
     while w <= max_watts and i <= MAX_STEPS:   # bound: MAX_STEPS iterations
         steps.append((i, w, watts_to_k(w)))
         i += 1
-        w  = i * step_size
+        w = start_watts + i * step_size
     return steps
 
 
@@ -153,32 +156,57 @@ def compute_step_avg(samples: list, setpoint: float) -> float | None:
 
 def fit_and_extrapolate(results: list) -> dict:
     """
-    Fit linear model cooling_pct = m * watts + b from completed step results.
+    Fit linear model net_cooling_pct = m * watts + b from completed step results.
 
     results: list of (k_constant, avg_cooling_pct) — entries with
              avg_cooling_pct=None are excluded.
 
-    The watts axis uses k_to_watts(k) — the empirical W5 model
-    (RMSE = 4.86W) — rather than nominal target watts, since the W5's
-    phase-angle response is nonlinear and nominal targets can differ
-    from delivered watts by >1% at low/high K.
+    Net cooling = raw_cooling(K) - raw_cooling(K=0) removes the TCU's
+    baseline load (pump motor, internal heat etc.) so only the heater's
+    contribution is fitted. The K=0 step is excluded from the fit
+    (net=0 by definition). The intercept b should be ~0 for a well-behaved
+    TCU; any deviation indicates residual nonlinearity.
+
+    Extrapolation: net cooling at TARGET_WATTS. If net_cooling < 100%,
+    the TCU has sufficient cooling headroom for worst-case production load.
 
     Returns dict:
+        baseline_pct : float  — raw cooling at K=0 (subtracted from all points)
         slope        : float
         intercept    : float
         r_squared    : float
         rmse         : float
-        extrap_pct   : float  — predicted cooling % at TARGET_WATTS
+        extrap_pct   : float  — predicted NET cooling % at TARGET_WATTS
         passed       : bool   — True if extrap_pct < 100
-        n_points     : int    — number of valid points used
+        n_points     : int    — number of valid points used (excludes K=0)
     """
-    valid = [(k_to_watts(k), c) for k, c in results if c is not None]
+    # Find baseline: first entry with K=0 (or K<=0) and valid cooling
+    baseline_pct = None
+    for k, c in results:
+        if k <= 0 and c is not None:
+            baseline_pct = c
+            break
+
+    # If no K=0 step available, fall back to raw cooling (baseline=0)
+    if baseline_pct is None:
+        baseline_pct = 0.0
+
+    # Build (watts, net_cooling) pairs — exclude K=0 step
+    valid = [
+        (k_to_watts(k), c - baseline_pct)
+        for k, c in results
+        if k > 0 and c is not None
+    ]
+
+    null_result = {
+        'baseline_pct': baseline_pct,
+        'slope': None, 'intercept': None, 'r_squared': None,
+        'rmse': None, 'extrap_pct': None, 'passed': None,
+        'n_points': len(valid),
+    }
     if len(valid) < 2:
-        return {
-            'slope': None, 'intercept': None, 'r_squared': None,
-            'rmse': None, 'extrap_pct': None, 'passed': None,
-            'n_points': len(valid),
-        }
+        return null_result
+
     watts_arr   = np.array([v[0] for v in valid], dtype=float)
     cooling_arr = np.array([v[1] for v in valid], dtype=float)
     m, b        = np.polyfit(watts_arr, cooling_arr, 1)
@@ -189,13 +217,14 @@ def fit_and_extrapolate(results: list) -> dict:
     r2          = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
     extrap      = float(m * STEPPED_TEST_TARGET_WATTS + b)
     return {
-        'slope':       float(m),
-        'intercept':   float(b),
-        'r_squared':   r2,
-        'rmse':        rmse,
-        'extrap_pct':  extrap,
-        'passed':      extrap < 100.0,
-        'n_points':    len(valid),
+        'baseline_pct': baseline_pct,
+        'slope':        float(m),
+        'intercept':    float(b),
+        'r_squared':    r2,
+        'rmse':         rmse,
+        'extrap_pct':   extrap,
+        'passed':       extrap < 100.0,
+        'n_points':     len(valid),
     }
 
 

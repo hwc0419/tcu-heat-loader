@@ -44,6 +44,7 @@ DEFAULTS = {
     'heater_soft_limit_w': 2000,    # admin password required above this (W5 saturation)
 
     # Stepped heat load test
+    'stepped_start_watts':      0,
     'stepped_max_watts':        2000,
     'stepped_step_size_w':      100,
     'stepped_step_duration_s':  300,
