@@ -48,7 +48,6 @@ class SettingsTab(QWidget):
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_post_repair_tab(), tr('subtab_post_repair'))
         self._tabs.addTab(self._build_heater_tab(),      tr('subtab_heater'))
-        self._tabs.addTab(self._build_response_tab(),    tr('subtab_response_test'))
         self._tabs.addTab(self._build_display_tab(),     tr('subtab_display'))
         self._tabs.addTab(self._build_advanced_tab(),    tr('subtab_advanced'))
         self._tabs.currentChanged.connect(self._on_tab_changed)
@@ -110,6 +109,8 @@ class SettingsTab(QWidget):
     def _build_post_repair_tab(self):
         w = QWidget()
         v = QVBoxLayout(w)
+
+        # ── Pass conditions ────────────────────────────────────────────────
         self._grp_test = QGroupBox(tr('settings_test'))
         g = QGridLayout(self._grp_test)
         g.setSpacing(10)
@@ -160,50 +161,13 @@ class SettingsTab(QWidget):
         g.addWidget(self._lbl_flow_tol, 3, 0); g.addWidget(self.flow_tol_spin, 3, 1)
         g.addWidget(self._lbl_test_dur, 4, 0); g.addWidget(self.test_dur_spin, 4, 1)
         g.addWidget(self._lbl_poll_int, 5, 0); g.addWidget(self.poll_int_spin, 5, 1)
-
         v.addWidget(self._grp_test)
-        v.addStretch()
-        return w
 
-    # ── Heater sub-tab ────────────────────────────────────────────────────────
-    def _build_heater_tab(self):
-        w = QWidget()
-        v = QVBoxLayout(w)
-        self._grp_heater = QGroupBox(tr('settings_heater_ctrl'))
-        g = QGridLayout(self._grp_heater)
-        g.setSpacing(10)
-        g.setColumnStretch(1, 1)
-
-        self.heater_port_edit  = QLineEdit()
-        self.heater_baud_combo = QComboBox()
-        self.heater_baud_combo.addItems(['4800', '9600', '19200', '38400'])
-
-        self._lbl_heater_max = QLabel(
-            f'Heater controlled via PLC MEWTOCOL\n'
-            f'Max output: {HEATER_MAX_WATTS} W (W5 saturation)\n'
-            f'K range: 0\u20134000 via FP0-A21 0\u201320mA'
-        )
-        self._lbl_heater_max.setObjectName('label_dim')
-
-        self._lbl_hport = QLabel(tr('heater_port_lbl'))
-        self._lbl_hbaud = QLabel(tr('heater_baud_lbl'))
-
-        g.addWidget(self._lbl_hport, 0, 0); g.addWidget(self.heater_port_edit,  0, 1)
-        g.addWidget(self._lbl_hbaud, 1, 0); g.addWidget(self.heater_baud_combo, 1, 1)
-        g.addWidget(self._lbl_heater_max, 2, 0, 1, 2)
-
-        v.addWidget(self._grp_heater)
-        v.addStretch()
-        return w
-
-    # ── Stepped heat load test sub-tab ────────────────────────────────────────
-    def _build_response_tab(self):
-        w = QWidget()
-        v = QVBoxLayout(w)
-        self._grp_resp = QGroupBox('Stepped Heat Load Test')
-        g = QGridLayout(self._grp_resp)
-        g.setSpacing(10)
-        g.setColumnStretch(1, 1)
+        # ── Stepped Heat Load Test Parameters ─────────────────────────────────
+        self._grp_resp = QGroupBox('Stepped Heat Load Test Parameters')
+        sg = QGridLayout(self._grp_resp)
+        sg.setSpacing(10)
+        sg.setColumnStretch(1, 1)
 
         self.stepped_start_w_spin = QSpinBox()
         self.stepped_start_w_spin.setRange(0, 29900)
@@ -247,11 +211,42 @@ class SettingsTab(QWidget):
             (self._lbl_rmse,     self.stepped_rmse_spin),
         ]
         for i, (lbl, widget) in enumerate(rows):
-            g.addWidget(lbl, i, 0)
-            g.addWidget(widget, i, 1)
-        g.addWidget(note, len(rows), 0, 1, 2)
-
+            sg.addWidget(lbl, i, 0)
+            sg.addWidget(widget, i, 1)
+        sg.addWidget(note, len(rows), 0, 1, 2)
         v.addWidget(self._grp_resp)
+
+        v.addStretch()
+        return w
+
+    # ── Heater sub-tab ────────────────────────────────────────────────────────
+    def _build_heater_tab(self):
+        w = QWidget()
+        v = QVBoxLayout(w)
+        self._grp_heater = QGroupBox(tr('settings_heater_ctrl'))
+        g = QGridLayout(self._grp_heater)
+        g.setSpacing(10)
+        g.setColumnStretch(1, 1)
+
+        self.heater_port_edit  = QLineEdit()
+        self.heater_baud_combo = QComboBox()
+        self.heater_baud_combo.addItems(['4800', '9600', '19200', '38400'])
+
+        self._lbl_heater_max = QLabel(
+            f'Heater controlled via PLC MEWTOCOL\n'
+            f'Max output: {HEATER_MAX_WATTS} W (W5 saturation)\n'
+            f'K range: 0\u20134000 via FP0-A21 0\u201320mA'
+        )
+        self._lbl_heater_max.setObjectName('label_dim')
+
+        self._lbl_hport = QLabel(tr('heater_port_lbl'))
+        self._lbl_hbaud = QLabel(tr('heater_baud_lbl'))
+
+        g.addWidget(self._lbl_hport, 0, 0); g.addWidget(self.heater_port_edit,  0, 1)
+        g.addWidget(self._lbl_hbaud, 1, 0); g.addWidget(self.heater_baud_combo, 1, 1)
+        g.addWidget(self._lbl_heater_max, 2, 0, 1, 2)
+
+        v.addWidget(self._grp_heater)
         v.addStretch()
         return w
 
@@ -373,14 +368,13 @@ class SettingsTab(QWidget):
         # Sub-tab labels
         self._tabs.setTabText(0, tr('subtab_post_repair'))
         self._tabs.setTabText(1, tr('subtab_heater'))
-        self._tabs.setTabText(2, tr('subtab_response_test'))
-        self._tabs.setTabText(3, tr('subtab_display'))
-        self._tabs.setTabText(4, tr('subtab_advanced'))
+        self._tabs.setTabText(2, tr('subtab_display'))
+        self._tabs.setTabText(3, tr('subtab_advanced'))
         # Group box titles
         self._grp_serial.setTitle(tr('settings_serial'))
         self._grp_test.setTitle(tr('settings_test'))
         self._grp_heater.setTitle(tr('settings_heater_ctrl'))
-        self._grp_resp.setTitle(tr('settings_response'))
+        self._grp_resp.setTitle('Stepped Heat Load Test Parameters')
         self._grp_ui.setTitle(tr('settings_ui'))
         # Serial labels
         self._lbl_tcu_port.setText(tr('tcu_port_lbl'))
@@ -396,8 +390,6 @@ class SettingsTab(QWidget):
         # Heater (PLC) labels
         self._lbl_hport.setText(tr('heater_port_lbl'))
         self._lbl_hbaud.setText(tr('heater_baud_lbl'))
-        # Stepped heat load test
-        self._grp_resp.setTitle('Stepped Heat Load Test')
         # Display labels
         self._lbl_theme.setText(tr('theme_lbl'))
         self._lbl_language.setText(tr('language_lbl'))
