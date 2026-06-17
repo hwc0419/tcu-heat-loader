@@ -1,23 +1,13 @@
 # =============================================================================
-# test_logic.py — Stepped Heat Load Test Logic
+# test_logic.py — Shared Test Logic
 # =============================================================================
 # Contains:
 #   - BS status byte parsing         (Haake manual page 33-34)
 #   - K constant interpolation       from 71-point W5 sweep table
-#   - Stepped test averaging         last 3 min, exclude outliers
-#   - Linear fit + extrapolation     cooling_pct = m*W + b → 28604W
-#   - Pass/fail evaluation
+#   - Status decode / abnormal detection helpers (used by daq_thread.py)
 # =============================================================================
 
 import numpy as np
-from config import (
-    STEPPED_TEST_NUM_STEPS,
-    STEPPED_TEST_STEP_WATTS,
-    STEPPED_TEST_AVG_WINDOW_S,
-    STEPPED_TEST_SETPOINT_TOL,
-    STEPPED_TEST_TARGET_WATTS,
-    FLOW_FAIL_GRACE_SAMPLES,
-)
 from settings_manager import settings
 
 # =============================================================================
@@ -95,139 +85,6 @@ def watts_to_k(target_watts: float) -> int:
     return _K_VALS[-1]
 
 
-def build_step_table() -> list:
-    """
-    Build list of (step_index, target_watts, k_constant).
-    Steps run from stepped_start_watts to stepped_max_watts inclusive,
-    incrementing by stepped_step_size_w each step.
-    Fixed bound: at most MAX_STEPS = 540 iterations.
-    """
-    start_watts = settings.get('stepped_start_watts')
-    max_watts   = settings.get('stepped_max_watts')
-    step_size   = settings.get('stepped_step_size_w')
-    if not isinstance(step_size, int) or step_size < 1:
-        step_size = 100
-    if not isinstance(start_watts, int) or start_watts < 0:
-        start_watts = 0
-    MAX_STEPS = 540   # hard upper bound: 9h / 1min minimum step = 540 steps
-    steps = []
-    i = 0
-    w = start_watts
-    while w <= max_watts and i <= MAX_STEPS:   # bound: MAX_STEPS iterations
-        steps.append((i, w, watts_to_k(w)))
-        i += 1
-        w = start_watts + i * step_size
-    return steps
-
-
-# =============================================================================
-# Step averaging
-# =============================================================================
-
-def compute_step_avg(samples: list, setpoint: float) -> float | None:
-    """
-    Average cooling_pct over last STEPPED_TEST_AVG_WINDOW_S seconds,
-    excluding samples outside setpoint ± STEPPED_TEST_SETPOINT_TOL.
-    Returns None if no valid samples remain.
-    Fixed bound: at most len(samples) iterations.
-    """
-    if not samples:
-        return None
-    avg_window = STEPPED_TEST_AVG_WINDOW_S
-    t_end      = samples[-1][0]
-    t_start    = t_end - avg_window
-    valid      = []
-    for ts, cooling, temp in samples:   # bound: caller limits buffer to step window
-        if ts < t_start:
-            continue
-        if temp is None or cooling is None:
-            continue
-        if abs(temp - setpoint) > STEPPED_TEST_SETPOINT_TOL:
-            continue
-        valid.append(cooling)
-    if not valid:
-        return None
-    return float(np.mean(valid))
-
-
-# =============================================================================
-# Linear fit + extrapolation
-# =============================================================================
-
-def fit_and_extrapolate(results: list) -> dict:
-    """
-    Fit linear model net_cooling_pct = m * watts + b from completed step results.
-
-    results: list of (k_constant, avg_cooling_pct) — entries with
-             avg_cooling_pct=None are excluded.
-
-    Net cooling = raw_cooling(K) - raw_cooling(K=0) removes the TCU's
-    baseline load (pump motor, internal heat etc.) so only the heater's
-    contribution is fitted. The K=0 step is excluded from the fit
-    (net=0 by definition). The intercept b should be ~0 for a well-behaved
-    TCU; any deviation indicates residual nonlinearity.
-
-    Extrapolation: net cooling at TARGET_WATTS. If net_cooling < 100%,
-    the TCU has sufficient cooling headroom for worst-case production load.
-
-    Returns dict:
-        baseline_pct : float  — raw cooling at K=0 (subtracted from all points)
-        slope        : float
-        intercept    : float
-        r_squared    : float
-        rmse         : float
-        extrap_pct   : float  — predicted NET cooling % at TARGET_WATTS
-        passed       : bool   — True if extrap_pct < 100
-        n_points     : int    — number of valid points used (excludes K=0)
-    """
-    # Find baseline: first entry with K=0 (or K<=0) and valid cooling
-    baseline_pct = None
-    for k, c in results:
-        if k <= 0 and c is not None:
-            baseline_pct = c
-            break
-
-    # If no K=0 step available, fall back to raw cooling (baseline=0)
-    if baseline_pct is None:
-        baseline_pct = 0.0
-
-    # Build (watts, net_cooling) pairs — exclude K=0 step
-    valid = [
-        (k_to_watts(k), c - baseline_pct)
-        for k, c in results
-        if k > 0 and c is not None
-    ]
-
-    null_result = {
-        'baseline_pct': baseline_pct,
-        'slope': None, 'intercept': None, 'r_squared': None,
-        'rmse': None, 'extrap_pct': None, 'passed': None,
-        'n_points': len(valid),
-    }
-    if len(valid) < 2:
-        return null_result
-
-    watts_arr   = np.array([v[0] for v in valid], dtype=float)
-    cooling_arr = np.array([v[1] for v in valid], dtype=float)
-    m, b        = np.polyfit(watts_arr, cooling_arr, 1)
-    y_pred      = m * watts_arr + b
-    rmse        = float(np.sqrt(np.mean((cooling_arr - y_pred) ** 2)))
-    ss_res      = float(np.sum((cooling_arr - y_pred) ** 2))
-    ss_tot      = float(np.sum((cooling_arr - np.mean(cooling_arr)) ** 2))
-    r2          = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-    extrap      = float(m * STEPPED_TEST_TARGET_WATTS + b)
-    return {
-        'baseline_pct': baseline_pct,
-        'slope':        float(m),
-        'intercept':    float(b),
-        'r_squared':    r2,
-        'rmse':         rmse,
-        'extrap_pct':   extrap,
-        'passed':       extrap < 100.0,
-        'n_points':     len(valid),
-    }
-
-
 # =============================================================================
 # BS status byte parsing
 # =============================================================================
@@ -262,55 +119,6 @@ def parse_alarms(b1, b2, b3):
     if b3 & (1 << 0): alarms.append('Hardware fault: start test')
     return alarms if alarms else ['No alarms']
 
-
-# =============================================================================
-# Legacy pass/fail check — called per sample by main_window during test
-# Now the stepped test handles its own pass/fail in test_tab.py.
-# This function monitors for abnormal TCU conditions only.
-# =============================================================================
-
-def check_pass_fail(inlet_temp, flow_rate, b1, b2, b3, elapsed_min):
-    """
-    Per-sample safety check — called every second throughout the test.
-
-    Pass conditions (all must hold every second):
-      1. inlet_temp = 22 ± 0.5°C       (TEMP_SETPOINT ± TEMP_TOLERANCE)
-      2. flow_rate  = 50 ± 1.5 L/min   (FLOW_SETPOINT ± FLOW_TOLERANCE)
-      3. BS         = 0x400400          (normal TCU running state)
-
-    Returns (passed, msg):
-      None,  'Running' → all conditions met, test continues
-      False, <reason>  → condition violated, abort immediately
-    """
-    from config import (
-        TEMP_SETPOINT, TEMP_TOLERANCE,
-        FLOW_SETPOINT, FLOW_TOLERANCE,
-        BS_NORMAL,
-    )
-
-    if b1 is not None:
-        bs = (b1 << 16) | ((b2 or 0) << 8) | (b3 or 0)
-        if bs != BS_NORMAL:
-            return False, (
-                f'TCU status abnormal: BS=0x{bs:06X} '
-                f'(expected 0x{BS_NORMAL:06X})'
-            )
-
-    if inlet_temp is not None:
-        if abs(inlet_temp - TEMP_SETPOINT) > TEMP_TOLERANCE:
-            return False, (
-                f'Inlet temp out of range: {inlet_temp:.2f}\u00b0C '
-                f'(expected {TEMP_SETPOINT}\u00b1{TEMP_TOLERANCE}\u00b0C)'
-            )
-
-    if flow_rate is not None:
-        if abs(flow_rate - FLOW_SETPOINT) > FLOW_TOLERANCE:
-            return False, (
-                f'Flow rate out of range: {flow_rate:.1f} L/min '
-                f'(expected {FLOW_SETPOINT}\u00b1{FLOW_TOLERANCE} L/min)'
-            )
-
-    return None, 'Running'
 
 def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
     """Return a human-readable status string from BS bytes and live readings."""

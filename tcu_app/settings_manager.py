@@ -49,6 +49,23 @@ DEFAULTS = {
     'stepped_step_size_w':      100,
     'stepped_step_duration_s':  300,
     'stepped_rmse_threshold_w': 20.0,
+
+    # AMAT0 stress test
+    'stress_test_tolerance':         0.1,    # °C — ± band counted as "in tolerance"
+    'stress_test_settle_duration_s': 300,    # consecutive in-tolerance seconds to call it settled
+    'stress_test_tail_duration_s':   300,    # seconds logged after each run's own test_end_time
+    'stress_test_z_threshold':       2.576,  # |z| above this fails (1% two-tailed default)
+
+    # 2kW heat load sequence test
+    'seq_test_load_sequence':      [1000, 1500, 2000, 1500, 1000],  # user-edited stage list
+    'seq_test_settle_duration_s':  300,    # consecutive in-tolerance seconds per stage
+    'seq_test_tail_duration_s':    300,    # seconds logged after each run's final settle
+    'seq_test_z_threshold':        2.576,  # |z| above this fails (1% two-tailed default)
+    'seq_test_random_min_w':       1000,   # random sequence generator range
+    'seq_test_random_max_w':       2000,
+    'seq_test_random_len_min':     10,
+    'seq_test_random_len_max':     100,
+    'seq_test_history':             [],    # list of {timestamp, sequence} — recallable past runs
 }
 
 

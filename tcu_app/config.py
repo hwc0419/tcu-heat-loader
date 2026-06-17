@@ -56,17 +56,28 @@ TEMP_TOLERANCE    = settings.get('temp_tolerance')
 FLOW_SETPOINT     = settings.get('flow_setpoint')
 FLOW_TOLERANCE    = settings.get('flow_tolerance')
 MIN_FLOW_RATE     = settings.get('min_flow_rate')
-FLOW_FAIL_GRACE_SAMPLES = settings.get('flow_fail_grace')
 BS_NORMAL         = 0x400400   # Normal running state: b1=0x40, b2=0x04, b3=0x00
 HEATER_SOFT_LIMIT_W    = settings.get('heater_soft_limit_w')
 
-# ── Stepped heat load test (fixed — not user-configurable) ───────────────────
-STEPPED_TEST_NUM_STEPS       = 80       # 0W, 100W, 200W … 8000W
-STEPPED_TEST_STEP_WATTS      = 100      # W per step
-STEPPED_TEST_STEP_DURATION_S = 300      # 5 minutes per step
-STEPPED_TEST_AVG_WINDOW_S    = 180      # last 3 minutes used for averaging
-STEPPED_TEST_SETPOINT_TOL    = 0.1      # °C — exclude samples outside setpoint ± this
-STEPPED_TEST_TARGET_WATTS    = 28604    # W — extrapolation target (29°C at 50 L/min)
-STEPPED_TEST_MAX_DURATION_S  = 32400   # 9 hours hard limit
+# ── AMAT0 stress test (live from settings) ────────────────────────────────────
+STRESS_TEST_TOLERANCE      = settings.get('stress_test_tolerance')       # °C, ±band for "in tolerance"
+STRESS_TEST_SETTLE_S       = settings.get('stress_test_settle_duration_s')  # consecutive in-tolerance seconds to call it settled
+STRESS_TEST_TAIL_S         = settings.get('stress_test_tail_duration_s')    # seconds logged after each run's own test_end_time
+STRESS_TEST_Z_THRESHOLD    = settings.get('stress_test_z_threshold')        # |z| above this fails (default 2.576 = 1% two-tailed)
+STRESS_TEST_MAX_DURATION_S = 9000      # 2.5h hard upper bound on any single run (safety backstop)
+STRESS_TEST_DATA_DIR       = 'reference_data'
+
+# ── 2kW heat load sequence test (live from settings) ─────────────────────────
+SEQ_TEST_SETTLE_S        = settings.get('seq_test_settle_duration_s')
+SEQ_TEST_TAIL_S          = settings.get('seq_test_tail_duration_s')
+SEQ_TEST_Z_THRESHOLD     = settings.get('seq_test_z_threshold')
+SEQ_TEST_BIN_WIDTH_W     = 10           # fixed — settle-time histogram bin width
+SEQ_TEST_RANDOM_MIN_W    = settings.get('seq_test_random_min_w')
+SEQ_TEST_RANDOM_MAX_W    = settings.get('seq_test_random_max_w')
+SEQ_TEST_RANDOM_LEN_MIN  = settings.get('seq_test_random_len_min')
+SEQ_TEST_RANDOM_LEN_MAX  = settings.get('seq_test_random_len_max')
+SEQ_TEST_MAX_DURATION_S  = 9000         # 2.5h hard upper bound on any single stage (safety backstop)
+SEQ_TEST_MAX_STAGES      = 100          # fixed upper bound — matches random length ceiling
+SEQ_TEST_DATA_DIR        = 'sequence_test_data'
 
 

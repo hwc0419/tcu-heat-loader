@@ -113,7 +113,8 @@ class HeaterTab(QWidget):
         return layout
 
     def _build_graph(self):
-        panel, self._plot, _ = make_graph_panel(tr('heater_graph'), self._scale)
+        self._grp_graph, self._plot, _ = make_graph_panel(tr('heater_graph'), self._scale)
+        panel = self._grp_graph
         self._plot.setLabel('left',   'Temperature', units='°C')
         self._plot.setLabel('bottom', 'Time', units='s')
         self._plot.addLegend()
@@ -251,6 +252,6 @@ class HeaterTab(QWidget):
     def retranslate(self):
         self._grp_sp.setTitle(tr('heater_setpoint'))
         self._grp_actual.setTitle(tr('heater_actual'))
-        self._grp_graph.setTitle(tr('heater_graph'))
+        self._grp_graph.title_label.setText(tr('heater_graph'))
         self._grp_log.setTitle(tr('heater_modbus_log'))
         self._btn_off.setText(tr('btn_heater_off'))

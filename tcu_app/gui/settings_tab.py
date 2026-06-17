@@ -71,40 +71,6 @@ class SettingsTab(QWidget):
         self.btn_reset.clicked.connect(self._on_reset)
 
     # ── Serial sub-tab ────────────────────────────────────────────────────────
-    def _build_serial_tab(self):
-        w = QWidget()
-        v = QVBoxLayout(w)
-        self._grp_serial = QGroupBox(tr('settings_serial'))
-        g = QGridLayout(self._grp_serial)
-        g.setSpacing(10)
-        g.setColumnStretch(1, 1)
-
-        self.tcu_port_edit = QLineEdit()
-        self.tcu_baud_combo = QComboBox()
-        self.tcu_baud_combo.addItems(['1200', '2400', '4800', '9600'])
-        self.pzem_port_edit = QLineEdit()
-        self.pzem_baud_combo = QComboBox()
-        self.pzem_baud_combo.addItems(['4800', '9600', '19200'])
-
-        self._lbl_tcu_port  = QLabel(tr('tcu_port_lbl'))
-        self._lbl_tcu_baud  = QLabel(tr('tcu_baud_lbl'))
-        self._lbl_pzem_port = QLabel(tr('pzem_port_lbl'))
-        self._lbl_pzem_baud = QLabel(tr('pzem_baud_lbl'))
-
-        g.addWidget(self._lbl_tcu_port,   0, 0); g.addWidget(self.tcu_port_edit,   0, 1)
-        g.addWidget(self._lbl_tcu_baud,   1, 0); g.addWidget(self.tcu_baud_combo,  1, 1)
-        g.addWidget(self._lbl_pzem_port,  2, 0); g.addWidget(self.pzem_port_edit,  2, 1)
-        g.addWidget(self._lbl_pzem_baud,  3, 0); g.addWidget(self.pzem_baud_combo, 3, 1)
-
-        self.restart_note = QLabel(tr('restart_note'))
-        self.restart_note.setObjectName('label_dim')
-        self.restart_note.setWordWrap(True)
-        g.addWidget(self.restart_note, 4, 0, 1, 2)
-
-        v.addWidget(self._grp_serial)
-        v.addStretch()
-        return w
-
     # ── Post-repair test sub-tab ───────────────────────────────────────────────
     def _build_post_repair_tab(self):
         w = QWidget()
@@ -163,58 +129,101 @@ class SettingsTab(QWidget):
         g.addWidget(self._lbl_poll_int, 5, 0); g.addWidget(self.poll_int_spin, 5, 1)
         v.addWidget(self._grp_test)
 
-        # ── Stepped Heat Load Test Parameters ─────────────────────────────────
-        self._grp_resp = QGroupBox('Stepped Heat Load Test Parameters')
+        # ── Heat Load Test (2kW sequence test) ────────────────────────────────
+        self._grp_resp = QGroupBox('Heat Load Test')
         sg = QGridLayout(self._grp_resp)
         sg.setSpacing(10)
         sg.setColumnStretch(1, 1)
 
-        self.stepped_start_w_spin = QSpinBox()
-        self.stepped_start_w_spin.setRange(0, 29900)
-        self.stepped_start_w_spin.setSuffix(' W')
+        self.seq_settle_dur_spin = QSpinBox()
+        self.seq_settle_dur_spin.setRange(10, 1800)
+        self.seq_settle_dur_spin.setSuffix(' s')
 
-        self.stepped_max_w_spin = QSpinBox()
-        self.stepped_max_w_spin.setRange(100, 30000)
-        self.stepped_max_w_spin.setSuffix(' W')
+        self.seq_tail_dur_spin = QSpinBox()
+        self.seq_tail_dur_spin.setRange(0, 1800)
+        self.seq_tail_dur_spin.setSuffix(' s')
 
-        self.stepped_step_size_spin = QSpinBox()
-        self.stepped_step_size_spin.setRange(50, 1000)
-        self.stepped_step_size_spin.setSuffix(' W')
+        self.seq_z_threshold_spin = QDoubleSpinBox()
+        self.seq_z_threshold_spin.setRange(0.5, 5.0)
+        self.seq_z_threshold_spin.setSingleStep(0.1)
+        self.seq_z_threshold_spin.setDecimals(3)
 
-        self.stepped_step_dur_spin = QSpinBox()
-        self.stepped_step_dur_spin.setRange(60, 1800)
-        self.stepped_step_dur_spin.setSuffix(' s')
+        self.seq_random_min_w_spin = QSpinBox()
+        self.seq_random_min_w_spin.setRange(0, 2000)
+        self.seq_random_min_w_spin.setSuffix(' W')
 
-        self.stepped_rmse_spin = QDoubleSpinBox()
-        self.stepped_rmse_spin.setRange(1.0, 500.0)
-        self.stepped_rmse_spin.setDecimals(1)
-        self.stepped_rmse_spin.setSuffix(' W')
+        self.seq_random_max_w_spin = QSpinBox()
+        self.seq_random_max_w_spin.setRange(0, 2000)
+        self.seq_random_max_w_spin.setSuffix(' W')
 
-        self._lbl_start_w  = QLabel('Start watts')
-        self._lbl_max_w    = QLabel('Stop watts')
-        self._lbl_step_sz  = QLabel('Step size')
-        self._lbl_step_dur = QLabel('Time per step')
-        self._lbl_rmse     = QLabel('Linearity RMSE threshold')
+        self.seq_random_len_min_spin = QSpinBox()
+        self.seq_random_len_min_spin.setRange(1, 100)
 
-        note = QLabel(
-            'Phase 1 (2kW):  start=0W  stop=2000W  RMSE=20W\n'
-            'Phase 2 (8kW):  start=0W  stop=8000W  RMSE=80W\n'
-            'Phase 3 (12kW): start=0W  stop=12000W RMSE=120W'
-        )
-        note.setObjectName('label_dim')
+        self.seq_random_len_max_spin = QSpinBox()
+        self.seq_random_len_max_spin.setRange(1, 100)
+
+        self._lbl_seq_settle   = QLabel('Settle duration (per stage)')
+        self._lbl_seq_tail     = QLabel('Tail duration')
+        self._lbl_seq_z        = QLabel('z-score threshold')
+        self._lbl_seq_rand_min = QLabel('Random sequence: min watts')
+        self._lbl_seq_rand_max = QLabel('Random sequence: max watts')
+        self._lbl_seq_len_min  = QLabel('Random sequence: min length')
+        self._lbl_seq_len_max  = QLabel('Random sequence: max length')
 
         rows = [
-            (self._lbl_start_w,  self.stepped_start_w_spin),
-            (self._lbl_max_w,    self.stepped_max_w_spin),
-            (self._lbl_step_sz,  self.stepped_step_size_spin),
-            (self._lbl_step_dur, self.stepped_step_dur_spin),
-            (self._lbl_rmse,     self.stepped_rmse_spin),
+            (self._lbl_seq_settle,   self.seq_settle_dur_spin),
+            (self._lbl_seq_tail,     self.seq_tail_dur_spin),
+            (self._lbl_seq_z,        self.seq_z_threshold_spin),
+            (self._lbl_seq_rand_min, self.seq_random_min_w_spin),
+            (self._lbl_seq_rand_max, self.seq_random_max_w_spin),
+            (self._lbl_seq_len_min,  self.seq_random_len_min_spin),
+            (self._lbl_seq_len_max,  self.seq_random_len_max_spin),
         ]
         for i, (lbl, widget) in enumerate(rows):
             sg.addWidget(lbl, i, 0)
             sg.addWidget(widget, i, 1)
-        sg.addWidget(note, len(rows), 0, 1, 2)
         v.addWidget(self._grp_resp)
+
+        # ── AMAT0 Stress Test ──────────────────────────────────────────────────
+        self._grp_stress = QGroupBox('AMAT0 Stress Test')
+        tg = QGridLayout(self._grp_stress)
+        tg.setSpacing(10)
+        tg.setColumnStretch(1, 1)
+
+        self.stress_tolerance_spin = QDoubleSpinBox()
+        self.stress_tolerance_spin.setRange(0.01, 2.0)
+        self.stress_tolerance_spin.setSingleStep(0.05)
+        self.stress_tolerance_spin.setDecimals(2)
+        self.stress_tolerance_spin.setSuffix(' °C')
+
+        self.stress_settle_dur_spin = QSpinBox()
+        self.stress_settle_dur_spin.setRange(10, 1800)
+        self.stress_settle_dur_spin.setSuffix(' s')
+
+        self.stress_tail_dur_spin = QSpinBox()
+        self.stress_tail_dur_spin.setRange(0, 1800)
+        self.stress_tail_dur_spin.setSuffix(' s')
+
+        self.stress_z_threshold_spin = QDoubleSpinBox()
+        self.stress_z_threshold_spin.setRange(0.5, 5.0)
+        self.stress_z_threshold_spin.setSingleStep(0.1)
+        self.stress_z_threshold_spin.setDecimals(3)
+
+        self._lbl_stress_tol    = QLabel('In-tolerance band')
+        self._lbl_stress_settle = QLabel('Settle duration')
+        self._lbl_stress_tail   = QLabel('Tail duration')
+        self._lbl_stress_z      = QLabel('z-score threshold')
+
+        trows = [
+            (self._lbl_stress_tol,    self.stress_tolerance_spin),
+            (self._lbl_stress_settle, self.stress_settle_dur_spin),
+            (self._lbl_stress_tail,   self.stress_tail_dur_spin),
+            (self._lbl_stress_z,      self.stress_z_threshold_spin),
+        ]
+        for i, (lbl, widget) in enumerate(trows):
+            tg.addWidget(lbl, i, 0)
+            tg.addWidget(widget, i, 1)
+        v.addWidget(self._grp_stress)
 
         v.addStretch()
         return w
@@ -294,12 +303,19 @@ class SettingsTab(QWidget):
         # Heater
         self.heater_port_edit.setText(settings.get('heater_port'))
         self._set_combo(self.heater_baud_combo, str(settings.get('heater_baud')))
-        # Stepped heat load test
-        self.stepped_start_w_spin.setValue(settings.get('stepped_start_watts'))
-        self.stepped_max_w_spin.setValue(settings.get('stepped_max_watts'))
-        self.stepped_step_size_spin.setValue(settings.get('stepped_step_size_w'))
-        self.stepped_step_dur_spin.setValue(settings.get('stepped_step_duration_s'))
-        self.stepped_rmse_spin.setValue(settings.get('stepped_rmse_threshold_w'))
+        # Heat Load Test (2kW sequence test)
+        self.seq_settle_dur_spin.setValue(settings.get('seq_test_settle_duration_s'))
+        self.seq_tail_dur_spin.setValue(settings.get('seq_test_tail_duration_s'))
+        self.seq_z_threshold_spin.setValue(settings.get('seq_test_z_threshold'))
+        self.seq_random_min_w_spin.setValue(settings.get('seq_test_random_min_w'))
+        self.seq_random_max_w_spin.setValue(settings.get('seq_test_random_max_w'))
+        self.seq_random_len_min_spin.setValue(settings.get('seq_test_random_len_min'))
+        self.seq_random_len_max_spin.setValue(settings.get('seq_test_random_len_max'))
+        # AMAT0 Stress Test
+        self.stress_tolerance_spin.setValue(settings.get('stress_test_tolerance'))
+        self.stress_settle_dur_spin.setValue(settings.get('stress_test_settle_duration_s'))
+        self.stress_tail_dur_spin.setValue(settings.get('stress_test_tail_duration_s'))
+        self.stress_z_threshold_spin.setValue(settings.get('stress_test_z_threshold'))
         # Display
         self._set_combo_data(self.theme_combo, settings.get('theme'))
         self._set_combo_data(self.lang_combo,  settings.get('language'))
@@ -331,12 +347,20 @@ class SettingsTab(QWidget):
         settings.set('heater_port', self.heater_port_edit.text().strip())
         settings.set('heater_baud', int(self.heater_baud_combo.currentText()))
 
-        # Stepped heat load test
-        settings.set('stepped_start_watts',      self.stepped_start_w_spin.value())
-        settings.set('stepped_max_watts',        self.stepped_max_w_spin.value())
-        settings.set('stepped_step_size_w',      self.stepped_step_size_spin.value())
-        settings.set('stepped_step_duration_s',  self.stepped_step_dur_spin.value())
-        settings.set('stepped_rmse_threshold_w', self.stepped_rmse_spin.value())
+        # Heat Load Test (2kW sequence test)
+        settings.set('seq_test_settle_duration_s', self.seq_settle_dur_spin.value())
+        settings.set('seq_test_tail_duration_s',   self.seq_tail_dur_spin.value())
+        settings.set('seq_test_z_threshold',       self.seq_z_threshold_spin.value())
+        settings.set('seq_test_random_min_w',      self.seq_random_min_w_spin.value())
+        settings.set('seq_test_random_max_w',      self.seq_random_max_w_spin.value())
+        settings.set('seq_test_random_len_min',    self.seq_random_len_min_spin.value())
+        settings.set('seq_test_random_len_max',    self.seq_random_len_max_spin.value())
+
+        # AMAT0 Stress Test
+        settings.set('stress_test_tolerance',         self.stress_tolerance_spin.value())
+        settings.set('stress_test_settle_duration_s', self.stress_settle_dur_spin.value())
+        settings.set('stress_test_tail_duration_s',   self.stress_tail_dur_spin.value())
+        settings.set('stress_test_z_threshold',       self.stress_z_threshold_spin.value())
 
         # Display
         new_theme = self.theme_combo.currentData()
@@ -371,10 +395,11 @@ class SettingsTab(QWidget):
         self._tabs.setTabText(2, tr('subtab_display'))
         self._tabs.setTabText(3, tr('subtab_advanced'))
         # Group box titles
-        self._grp_serial.setTitle(tr('settings_serial'))
+        self._grp_serial_adv.setTitle(tr('settings_serial'))
         self._grp_test.setTitle(tr('settings_test'))
         self._grp_heater.setTitle(tr('settings_heater_ctrl'))
-        self._grp_resp.setTitle('Stepped Heat Load Test Parameters')
+        self._grp_resp.setTitle('Heat Load Test')
+        self._grp_stress.setTitle('AMAT0 Stress Test')
         self._grp_ui.setTitle(tr('settings_ui'))
         # Serial labels
         self._lbl_tcu_port.setText(tr('tcu_port_lbl'))

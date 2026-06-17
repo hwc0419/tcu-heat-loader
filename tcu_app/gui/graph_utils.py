@@ -47,6 +47,7 @@ def make_graph_panel(title: str, scale: float = 1.0):
     lbl = QLabel(title)
     lbl.setObjectName('graph_title')
     lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    container.title_label = lbl   # exposed so callers can retitle later (e.g. on language change)
 
     btn = QPushButton('⬇ Export')
     btn.setObjectName('btn_export')

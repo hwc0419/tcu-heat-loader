@@ -15,11 +15,11 @@ from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QObject
 from PyQt5.QtGui import QFont
 
 from gui.monitor_tab       import MonitorTab
-from gui.test_tab          import TestTab
+from gui.sequence_test_tab import SequenceTestTab
 from gui.settings_tab      import SettingsTab
 from gui.docs_tab          import DocsTab
 from gui.heater_tab        import HeaterTab
-from gui.response_test_tab import ResponseTestTab
+from gui.stress_test_tab   import StressTestTab
 from gui.styles            import get_app_style, ACCENT, RED, GREEN, AMBER
 
 from settings_manager import settings
@@ -31,7 +31,7 @@ from logger_thread import LoggerThread
 from tcu       import TCU
 from pzem004t  import PZEM004T
 from heater    import Heater
-from test_logic   import parse_alarms, check_pass_fail
+from test_logic   import parse_alarms
 
 from config import (
     TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
@@ -82,7 +82,6 @@ class MainWindow(QMainWindow):
         self._test_active    = False
         self._test_start_t   = None
         self._test_serial    = ''
-        self._low_flow_count = 0
 
         # ── RPi priority / inactivity ────────────────────────────────────────
         self._rpi_active        = False
@@ -137,17 +136,17 @@ class MainWindow(QMainWindow):
         self._tabs = QTabWidget()
         self._tabs.tabBar().setExpanding(False)
         self._monitor_tab     = MonitorTab(scale=self._scale)
-        self._test_tab        = TestTab(scale=self._scale)
+        self._seq_test_tab    = SequenceTestTab(scale=self._scale)
         self._heater_tab      = HeaterTab(scale=self._scale)
-        self._response_tab    = ResponseTestTab(scale=self._scale)
+        self._stress_test_tab = StressTestTab(scale=self._scale)
         self._settings_tab    = SettingsTab(scale=self._scale)
         self._docs_tab        = DocsTab(scale=self._scale)
-        self._tabs.addTab(self._monitor_tab,  tr('tab_monitor'))
-        self._tabs.addTab(self._test_tab,     tr('tab_test'))
-        self._tabs.addTab(self._heater_tab,   tr('tab_heater'))
-        self._tabs.addTab(self._response_tab, tr('tab_response'))
-        self._tabs.addTab(self._settings_tab, tr('tab_settings'))
-        self._tabs.addTab(self._docs_tab,     tr('tab_docs'))
+        self._tabs.addTab(self._monitor_tab,     tr('tab_monitor'))
+        self._tabs.addTab(self._seq_test_tab,    tr('tab_test'))
+        self._tabs.addTab(self._heater_tab,      tr('tab_heater'))
+        self._tabs.addTab(self._stress_test_tab, tr('tab_response'))
+        self._tabs.addTab(self._settings_tab,    tr('tab_settings'))
+        self._tabs.addTab(self._docs_tab,        tr('tab_docs'))
 
         # Emergency stop button — fixed bottom-right, always visible
         self._estop_btn = QPushButton(tr('estop_btn'))
@@ -204,16 +203,17 @@ class MainWindow(QMainWindow):
         self._monitor_tab.sig_close_valve.connect(self._cmd_close_valve)
         self._monitor_tab.sig_set_setpoint.connect(self._cmd_set_setpoint)
 
-        # Wire test tab signals
-        self._test_tab.sig_test_start.connect(self._on_test_start)
-        self._test_tab.sig_test_stop.connect(self._on_test_stop)
-        self._test_tab.sig_set_k.connect(self._cmd_set_k)
+        # Wire sequence test tab signals (2kW heat load sequence test)
+        self._seq_test_tab.sig_test_start.connect(self._on_test_start)
+        self._seq_test_tab.sig_test_stop.connect(self._on_test_stop)
+        self._seq_test_tab.sig_set_k.connect(self._cmd_set_k)
 
         # Wire heater tab signals
         self._heater_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
 
-        # Wire response test tab signals
-        self._response_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
+        # Wire stress test tab signals (AMAT0 burst-and-decay test)
+        self._stress_test_tab.sig_test_start.connect(self._on_stress_test_start)
+        self._stress_test_tab.sig_test_stop.connect(self._on_stress_test_stop)
 
     def _on_tabs_resize(self, event):
         """Reposition estop button on tab widget resize."""
@@ -296,14 +296,15 @@ class MainWindow(QMainWindow):
         # Abort active tests
         if self._test_active:
             self._on_test_stop()
-        self._response_tab.on_tcu_abnormal()
+        self._seq_test_tab.on_tcu_abnormal()
+        self._stress_test_tab.on_tcu_abnormal()
 
     # ── Heater command ────────────────────────────────────────────────────────
     def _cmd_set_k(self, k: int):
         """
-        Set PLC K constant directly — used by stepped heat load test.
-        Emits sig_k_confirmed back to test_tab when PLC confirms receipt,
-        so steady-state timing starts from actual confirmation, not command send.
+        Set PLC K constant directly — used by the 2kW sequence test.
+        Emits sig_k_confirmed back to seq_test_tab when PLC confirms receipt,
+        so settle timing starts from actual confirmation, not command send.
         """
         if not isinstance(k, int):
             return
@@ -312,7 +313,7 @@ class MainWindow(QMainWindow):
             return
         ok = self._heater.set_k(k)
         if ok:
-            self._test_tab.sig_k_confirmed.emit(k)
+            self._seq_test_tab.sig_k_confirmed.emit(k)
         else:
             print(f'Test: SET K={k} → FAILED')
 
@@ -368,7 +369,8 @@ class MainWindow(QMainWindow):
         """Received in GUI thread — update all tabs."""
         self._monitor_tab.update(sample)
         self._heater_tab.update_sample(sample)
-        self._response_tab.update_sample(sample)
+        self._stress_test_tab.update_sample(sample)
+        self._seq_test_tab.update_sample(sample)
 
         # Auto-off heater if BS != 0x400400 (TCU abnormal)
         if sample.b1 is not None:
@@ -378,19 +380,8 @@ class MainWindow(QMainWindow):
                 if not ok:
                     print("MainWindow: heater auto-off on TCU abnormal failed")
                 self._heater_tab.emergency_off()
-
-        if self._test_active:
-            elapsed_min = (time.time() - self._test_start_t) / 60.0
-            passed, msg = check_pass_fail(
-                sample.inlet_temp, sample.flow_rate,
-                sample.b1, sample.b2, sample.b3, elapsed_min
-            )
-            self._logger_thread.set_status(msg)
-            self._test_tab.update(sample, msg, passed)
-            if passed is not None:
-                self._end_test(passed, msg)
-        else:
-            self._test_tab.update(sample)
+                self._stress_test_tab.on_tcu_abnormal()
+                self._seq_test_tab.on_tcu_abnormal()
 
     # ── TCU commands ──────────────────────────────────────────────────────────
     def _cmd_start(self):
@@ -462,14 +453,11 @@ class MainWindow(QMainWindow):
 
     # ── Test management ───────────────────────────────────────────────────────
     def _on_test_start(self, serial: str):
-        self._test_active    = True
-        self._test_start_t   = time.time()
-        self._test_serial    = serial
-        self._low_flow_count = 0
+        self._test_active  = True
+        self._test_start_t = time.time()
+        self._test_serial  = serial
         self._logger_thread.start_session(serial, mode='TEST')
-        self._test_tab.set_logfile(self._logger_thread.filename)
-        self._status_bar.showMessage(
-            f"Heat load test running — TCU: {serial} — 30 min")
+        self._status_bar.showMessage(f"Sequence test running — TCU: {serial}")
 
     def _on_test_stop(self):
         self._end_test(False, 'Aborted by operator')
@@ -482,6 +470,15 @@ class MainWindow(QMainWindow):
         self._logger_thread.end_session(result)
         self._status_bar.showMessage(
             f"Test complete — {result}: {msg}")
+
+    def _on_stress_test_start(self):
+        """AMAT0 stress test Start button — send TCU start command, then logging
+        begins on the tab's own timer (update_sample feeds it per-second data)."""
+        self._tcu.start()
+        self._status_bar.showMessage("AMAT0 stress test running")
+
+    def _on_stress_test_stop(self):
+        self._status_bar.showMessage("AMAT0 stress test stopped")
 
     # ── Settings hot reload ───────────────────────────────────────────────────
     def _update_header_style(self):
@@ -503,15 +500,11 @@ class MainWindow(QMainWindow):
 
     def _on_language_changed(self, lang: str):
         """Hot reload all tab labels and UI strings when language changes."""
-        self._tabs.setTabText(0, tr('tab_monitor'))
-        self._tabs.setTabText(1, tr('tab_test'))
-        self._tabs.setTabText(2, tr('tab_settings'))
-        self._tabs.setTabText(3, tr('tab_docs'))
         self._monitor_tab.retranslate()
-        self._test_tab.retranslate()
+        self._seq_test_tab.retranslate()
         self._settings_tab.retranslate()
         self._heater_tab.retranslate()
-        self._response_tab.retranslate()
+        self._stress_test_tab.retranslate()
         # Update tab bar labels
         self._tabs.setTabText(0, tr('tab_monitor'))
         self._tabs.setTabText(1, tr('tab_test'))
@@ -535,7 +528,7 @@ class MainWindow(QMainWindow):
         # Refresh both tabs on any test parameter change
         if key in ('temp_setpoint', 'temp_tolerance', 'test_duration', 'poll_interval'):
             self._monitor_tab.refresh_settings()
-            self._test_tab.refresh_settings()
+            self._seq_test_tab.refresh_settings()
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     def closeEvent(self, event):
