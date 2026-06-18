@@ -43,6 +43,7 @@ class _Signals(QObject):
     new_sample   = pyqtSignal(object)   # Sample
     fill_done    = pyqtSignal()
     fill_status  = pyqtSignal(str)
+    cmd_done     = pyqtSignal(object)   # callable — invoked on the GUI thread with the command's result
 
 
 class MainWindow(QMainWindow):
@@ -82,6 +83,9 @@ class MainWindow(QMainWindow):
         self._test_active    = False
         self._test_start_t   = None
         self._test_serial    = ''
+        self._auto_off_in_flight = False   # guards against _on_sample spawning
+                                            # a new emergency_off() attempt every
+                                            # second while one is still running
 
         # ── RPi priority / inactivity ────────────────────────────────────────
         self._rpi_active        = False
@@ -96,6 +100,7 @@ class MainWindow(QMainWindow):
         self._sig.new_sample.connect(self._on_sample)
         self._sig.fill_done.connect(self._on_fill_done)
         self._sig.fill_status.connect(self._on_fill_status)
+        self._sig.cmd_done.connect(lambda callback: callback())
 
         # ── Build UI ────────────────────────────────────────────────────────
         self._build_ui()
@@ -286,18 +291,49 @@ class MainWindow(QMainWindow):
             return
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'EMERGENCY STOP', '')
-        # Heater off FIRST — always before TCU stop
+        # GUI state updates first — instant, no hardware wait
         self._heater_tab.emergency_off()
-        ok = self._heater.emergency_off()
-        if not ok:
-            print("MainWindow: heater emergency_off Modbus failed")
-        # TCU stop
-        self._cmd_stop()
-        # Abort active tests
+        # Abort active tests immediately — don't wait on hardware round-trips
         if self._test_active:
             self._on_test_stop()
         self._seq_test_tab.on_tcu_abnormal()
         self._stress_test_tab.on_tcu_abnormal()
+
+        # Heater off FIRST, then TCU stop — both hit hardware and must not
+        # block the GUI thread (PLC retries can take up to ~110s). Chained
+        # in the background so TCU stop only starts once heater-off returns,
+        # exactly as the prior synchronous ordering guaranteed.
+        def _heater_off_then_tcu_stop():
+            ok = self._heater.emergency_off()
+            if not ok:
+                print("MainWindow: heater emergency_off Modbus failed")
+            if self._tcu.connected:
+                self._tcu.stop()
+                self._sig.cmd_done.emit(lambda: self._monitor_tab.log_command('STOP', '$'))
+
+        threading.Thread(target=_heater_off_then_tcu_stop, daemon=True).start()
+
+    # ── Async command runner ────────────────────────────────────────────────
+    def _run_async(self, work_fn, on_done=None):
+        """
+        Run a blocking TCU/heater/PLC call off the GUI thread, then invoke
+        on_done(result) back on the GUI thread once it completes. Use this
+        for every command that talks to hardware — set_k, set_watts, start,
+        stop, release_alarm, close_valve, set_setpoint, emergency_off all
+        have retry/timeout loops that can block for seconds to ~110s, and
+        none of that may run on the Qt event loop or the whole UI freezes.
+
+        work_fn: zero-arg callable, runs in a background thread, returns
+            whatever value should be passed to on_done.
+        on_done: optional callable(result), runs on the GUI thread after
+            work_fn completes. Omit for fire-and-forget commands with no
+            follow-up UI work.
+        """
+        def _worker():
+            result = work_fn()
+            if on_done is not None:
+                self._sig.cmd_done.emit(lambda: on_done(result))
+        threading.Thread(target=_worker, daemon=True).start()
 
     # ── Heater command ────────────────────────────────────────────────────────
     def _cmd_set_k(self, k: int):
@@ -305,20 +341,24 @@ class MainWindow(QMainWindow):
         Set PLC K constant directly — used by the 2kW sequence test.
         Emits sig_k_confirmed back to seq_test_tab when PLC confirms receipt,
         so settle timing starts from actual confirmation, not command send.
+        Runs off the GUI thread — PLC retries can take up to ~110s.
         """
         if not isinstance(k, int):
             return
         if not self._heater.is_connected():
             print(f'Test: SET K={k} → NOT CONNECTED (check PLC port in settings)')
             return
-        ok = self._heater.set_k(k)
-        if ok:
-            self._seq_test_tab.sig_k_confirmed.emit(k)
-        else:
-            print(f'Test: SET K={k} → FAILED')
+
+        def _on_set_k_done(ok):
+            if ok:
+                self._seq_test_tab.sig_k_confirmed.emit(k)
+            else:
+                print(f'Test: SET K={k} → FAILED')
+
+        self._run_async(lambda: self._heater.set_k(k), _on_set_k_done)
 
     def _cmd_set_heater_watts(self, watts: int):
-        """Send watt setpoint to heater via Modbus."""
+        """Send watt setpoint to heater via Modbus. Runs off the GUI thread."""
         if not isinstance(watts, int):
             return
         self.record_interaction()
@@ -327,11 +367,15 @@ class MainWindow(QMainWindow):
             self._heater_tab.log_modbus_response(
                 f'SET {watts}W → NOT CONNECTED (check heater port in settings)')
             return
-        ok  = self._heater.set_watts(watts)
-        msg = f'SET {watts}W → {"OK" if ok else "FAILED"}'
-        self._heater_tab.log_modbus_response(msg)
-        if ok:
-            self._heater_tab.update_setpoint_watts(watts)
+
+        def _on_set_watts_done(ok):
+            msg = f'SET {watts}W → {"OK" if ok else "FAILED"}'
+            self._heater_tab.log_modbus_response(msg)
+            if ok:
+                self._heater_tab.update_setpoint_watts(watts)
+
+        self._run_async(lambda: self._heater.set_watts(watts), _on_set_watts_done)
+
     def _connect_tcu(self):
         self._tcu.connect()
         pzem_status = "PZEM004T ✓" if self._pzem.connected else "PZEM004T ✗"
@@ -376,56 +420,63 @@ class MainWindow(QMainWindow):
         if sample.b1 is not None:
             bs = (sample.b1 << 16) | ((sample.b2 or 0) << 8) | (sample.b3 or 0)
             if bs != 0x400400:
-                ok = self._heater.emergency_off()
-                if not ok:
-                    print("MainWindow: heater auto-off on TCU abnormal failed")
                 self._heater_tab.emergency_off()
                 self._stress_test_tab.on_tcu_abnormal()
                 self._seq_test_tab.on_tcu_abnormal()
+
+                if not self._auto_off_in_flight:
+                    self._auto_off_in_flight = True
+
+                    def _on_auto_off_done(ok):
+                        self._auto_off_in_flight = False
+                        if not ok:
+                            print("MainWindow: heater auto-off on TCU abnormal failed")
+
+                    self._run_async(self._heater.emergency_off, _on_auto_off_done)
 
     # ── TCU commands ──────────────────────────────────────────────────────────
     def _cmd_start(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU START', '')
         if self._tcu.connected:
-            self._tcu.start()
-            self._monitor_tab.log_command('START', '$')
+            self._run_async(self._tcu.start,
+                             lambda _: self._monitor_tab.log_command('START', '$'))
 
     def _cmd_stop(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU STOP', '')
         if self._tcu.connected:
-            self._tcu.stop()
-            self._monitor_tab.log_command('STOP', '$')
+            self._run_async(self._tcu.stop,
+                             lambda _: self._monitor_tab.log_command('STOP', '$'))
 
     def _cmd_clear_alarm(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLEAR ALARM', '')
         if self._tcu.connected:
-            self._tcu.release_alarm()
-            self._monitor_tab.log_command('ER', '$')
+            self._run_async(self._tcu.release_alarm,
+                             lambda _: self._monitor_tab.log_command('ER', '$'))
 
     def _cmd_close_valve(self):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU CLOSE VALVE', '')
         if self._tcu.connected:
-            self._tcu._send('CVE')
-            self._monitor_tab.log_command('CVE', '$')
+            self._run_async(self._tcu.close_valve,
+                             lambda _: self._monitor_tab.log_command('CVE', '$'))
 
     def _cmd_set_setpoint(self, temp: float):
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU SET SETPOINT', f'{temp:.2f}°C')
         if self._tcu.connected:
-            self._tcu.set_setpoint(temp)
-            self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$')
+            self._run_async(
+                lambda: self._tcu.set_setpoint(temp),
+                lambda _: self._monitor_tab.log_command(f'SOLL  {temp:.2f}', '$'))
 
     def _cmd_precond(self):
         """VT — pretemperature control only (no fill)."""
         self.record_interaction()
         audit_logger.log('Desktop', 'desktop', 'TCU PRECOND', '')
         if self._tcu.connected:
-            threading.Thread(
-                target=self._tcu._send, args=('VT',), daemon=True).start()
+            self._run_async(self._tcu.precond)
             self._monitor_tab.log_command('VT', '(running...)')
 
     def _cmd_fill(self):
