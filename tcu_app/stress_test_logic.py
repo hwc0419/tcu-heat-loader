@@ -102,16 +102,18 @@ def _ensure_data_dir():
 
 def save_run(run_id: str, temp_series: list, flow_series: list,
              transient_start_time: int, test_end_time: int,
-             transient_end_time: int, passed) -> str:
+             transient_end_time: int, passed, tcu_serial: str = '') -> str:
     """
     Persist one completed run to reference_data/<run_id>.json.
     passed: bool or None (None if there was no dataset yet to compare against).
+    tcu_serial: operator-entered serial number of the unit under test.
     Returns the file path written.
     """
     _ensure_data_dir()
     path = os.path.join(STRESS_TEST_DATA_DIR, f'{run_id}.json')
     data = {
         'run_id': run_id,
+        'tcu_serial': tcu_serial,
         'temp_series': temp_series,
         'flow_series': flow_series,
         'transient_start_time': transient_start_time,
@@ -193,6 +195,32 @@ def compute_dataset_stats(runs: list) -> dict:
         'end_mean':   float(ends.mean()),
         'end_std':    float(ends.std(ddof=1))   if len(runs) > 1 else 0.0,
     }
+
+
+def compute_five_point_summary(runs: list) -> dict:
+    """
+    Five-number summary (min, Q1, median, Q3, max) of transient_start_time
+    and transient_end_time across every run in the dataset. Computed fresh
+    from runs rather than cached, since it's cheap and load_all_runs()
+    already does the only expensive part (reading the JSON files).
+
+    Returns None if runs is empty.
+    """
+    if not runs:
+        return None
+    starts = np.array([r['transient_start_time'] for r in runs], dtype=float)
+    ends   = np.array([r['transient_end_time']   for r in runs], dtype=float)
+
+    def _five(arr):
+        return {
+            'min':    float(np.min(arr)),
+            'q1':     float(np.percentile(arr, 25)),
+            'median': float(np.median(arr)),
+            'q3':     float(np.percentile(arr, 75)),
+            'max':    float(np.max(arr)),
+        }
+
+    return {'transient_start_time': _five(starts), 'transient_end_time': _five(ends)}
 
 
 def save_dataset_stats(stats: dict) -> str:

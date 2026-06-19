@@ -27,7 +27,7 @@ from PyQt5.QtWidgets import (
 
 from gui.osk import OskLineEdit as QLineEdit
 from gui.graph_utils import make_graph_panel
-from gui.styles import GREEN, RED, AMBER, TEXT_DIM
+from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
 from settings_manager import settings
 from translations import tr
 from config import (
@@ -398,17 +398,17 @@ class SequenceTestTab(QWidget):
             self.banner.setText(msg or 'RUNNING')
             self.banner.setStyleSheet(
                 f'background: #064e3b; border: 1px solid {GREEN};'
-                f'color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {GREEN}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         elif state == 'aborted':
             self.banner.setText(f'Aborted — {msg}')
             self.banner.setStyleSheet(
                 f'background: #422006; border: 1px solid {AMBER};'
-                f'color: {AMBER}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {AMBER}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         else:
             self.banner.setText(msg or 'Ready')
             self.banner.setStyleSheet(
                 f'background: #1a1a1a; border: 1px solid {TEXT_DIM};'
-                f'color: {TEXT_DIM}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {TEXT_DIM}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
 
     def retranslate(self):
         pass

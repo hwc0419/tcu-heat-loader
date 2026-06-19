@@ -20,7 +20,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
 from gui.styles import (
-    PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+    PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM,
+    pt_primary, pt_secondary
 )
 
 
@@ -69,7 +70,7 @@ class DocsTab(QWidget):
     def _h1(self, text):
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            f"color: {ACCENT}; font-size: {round(14 * self._scale)}px; "
+            f"color: {ACCENT}; font-size: {pt_primary(14, self._scale)}px; "
             f"font-weight: bold; font-family: 'Courier New'; "
             f"padding: 8px 0 4px 0;")
         return lbl
@@ -77,7 +78,7 @@ class DocsTab(QWidget):
     def _h2(self, text):
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            f"color: {TEXT}; font-size: {round(12 * self._scale)}px; "
+            f"color: {TEXT}; font-size: {pt_secondary(12, self._scale)}px; "
             f"font-weight: bold; font-family: 'Courier New'; "
             f"padding: 4px 0 2px 0;")
         return lbl
@@ -87,7 +88,7 @@ class DocsTab(QWidget):
         lbl.setWordWrap(True)
         lbl.setStyleSheet(
             f"color: {color or TEXT}; "
-            f"font-size: {round(11 * self._scale)}px; "
+            f"font-size: {pt_primary(11, self._scale)}px; "
             f"font-family: 'Courier New'; padding: 2px 0;")
         return lbl
 
@@ -106,7 +107,7 @@ class DocsTab(QWidget):
         grid.setSpacing(0)
         grid.setContentsMargins(0, 0, 0, 0)
 
-        fs = round(10 * self._scale)
+        fs = pt_secondary(10, self._scale)
 
         # Header row
         for col, h in enumerate(headers):
@@ -155,7 +156,7 @@ class DocsTab(QWidget):
             f"background: {SURFACE}; color: {color or AMBER}; "
             f"border-left: 3px solid {color or AMBER}; "
             f"padding: 6px 10px; "
-            f"font-size: {round(10 * self._scale)}px; "
+            f"font-size: {pt_secondary(10, self._scale)}px; "
             f"font-family: 'Courier New';")
         return lbl
 

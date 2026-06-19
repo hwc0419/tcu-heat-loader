@@ -12,11 +12,11 @@ from settings_manager import settings
 STRINGS = {
     # ── Tab names ─────────────────────────────────────────────────────────────
     'tab_monitor':      {'en': 'MONITOR',               'zh': '监控'},
-    'tab_test':         {'en': 'HEAT LOAD TEST',        'zh': '热负载测试'},
+    'tab_test':         {'en': '2KW PULSE TEST',        'zh': '2千瓦脉冲测试'},
     'tab_settings':     {'en': 'SETTINGS',              'zh': '设置'},
     'tab_docs':         {'en': 'DOCUMENTATION',         'zh': '文档'},
     'tab_heater':       {'en': 'HEATER',                'zh': '加热器'},
-    'tab_response':     {'en': 'RESPONSE TEST',         'zh': '响应测试'},
+    'tab_response':     {'en': 'AMAT0 TRANSIENT TEST',  'zh': 'AMAT0 瞬态测试'},
 
     # ── Monitor tab ───────────────────────────────────────────────────────────
     'live_readings':    {'en': 'LIVE READINGS',         'zh': '实时读数'},
@@ -67,7 +67,6 @@ STRINGS = {
     'subtab_serial':        {'en': 'Serial',            'zh': '串口'},
     'subtab_post_repair':   {'en': 'Post-repair test',  'zh': '维修后测试'},
     'subtab_heater':        {'en': 'Heater',            'zh': '加热器'},
-    'subtab_response_test': {'en': 'Response test',     'zh': '响应测试'},
     'subtab_access':        {'en': 'Access',            'zh': '访问控制'},
 
     # ── Settings tab — group box titles ───────────────────────────────────────
@@ -75,7 +74,6 @@ STRINGS = {
     'settings_test':        {'en': 'TEST PARAMETERS',   'zh': '测试参数'},
     'settings_ui':          {'en': 'DISPLAY & LANGUAGE','zh': '显示与语言'},
     'settings_heater_ctrl': {'en': 'HEATER CONTROL',    'zh': '加热器控制'},
-    'settings_response':    {'en': 'RESPONSE TEST',     'zh': '响应测试'},
 
     # ── Settings tab — serial fields ──────────────────────────────────────────
     'tcu_port_lbl':         {'en': 'TCU Port',          'zh': 'TCU 端口'},
@@ -136,11 +134,9 @@ STRINGS = {
     'btn_heater_off':       {'en': 'HEATER OFF',            'zh': '加热器关'},
 
     # ── Response test tab ─────────────────────────────────────────────────────
-    'resp_status':          {'en': 'TEST STATUS',           'zh': '测试状态'},
     'resp_stage':           {'en': 'CURRENT STAGE',         'zh': '当前阶段'},
     'resp_graph':           {'en': 'TEMPERATURE vs TIME',   'zh': '温度 vs 时间'},
     'resp_summary':         {'en': 'RESPONSE TIME vs STAGE','zh': '响应时间 vs 阶段'},
-    'btn_resp_start':       {'en': '▶  START RESPONSE TEST','zh': '▶  开始响应测试'},
     'btn_resp_stop':        {'en': '■  ABORT',              'zh': '■  中止'},
 
     # ── Emergency stop ────────────────────────────────────────────────────────

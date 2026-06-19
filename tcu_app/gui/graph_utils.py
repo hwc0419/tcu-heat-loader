@@ -51,8 +51,6 @@ def make_graph_panel(title: str, scale: float = 1.0):
 
     btn = QPushButton('⬇ Export')
     btn.setObjectName('btn_export')
-    btn.setFixedHeight(int(22 * scale))
-    btn.setFixedWidth(int(72 * scale))
     btn.setToolTip('Export graph as PNG or SVG')
 
     hbox.addWidget(lbl)

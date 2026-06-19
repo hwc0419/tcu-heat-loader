@@ -66,6 +66,7 @@ STRESS_TEST_TAIL_S         = settings.get('stress_test_tail_duration_s')    # se
 STRESS_TEST_Z_THRESHOLD    = settings.get('stress_test_z_threshold')        # |z| above this fails (default 2.576 = 1% two-tailed)
 STRESS_TEST_MAX_DURATION_S = 9000      # 2.5h hard upper bound on any single run (safety backstop)
 STRESS_TEST_DATA_DIR       = 'reference_data'
+STRESS_TEST_HISTORY_MAX    = 100       # most-recent runs shown in the history dropdown
 
 # ── 2kW heat load sequence test (live from settings) ─────────────────────────
 SEQ_TEST_SETTLE_S        = settings.get('seq_test_settle_duration_s')

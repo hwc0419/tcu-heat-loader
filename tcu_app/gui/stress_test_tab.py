@@ -21,22 +21,22 @@ import pyqtgraph as pg
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton, QGroupBox,
+    QLabel, QPushButton, QGroupBox, QLineEdit, QComboBox,
 )
 
 from gui.graph_utils import make_graph_panel
-from gui.styles import GREEN, RED, AMBER, TEXT_DIM
+from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
 from settings_manager import settings
 from translations import tr
 from config import (
     TEMP_SETPOINT, STRESS_TEST_TOLERANCE, STRESS_TEST_SETTLE_S,
     STRESS_TEST_TAIL_S, STRESS_TEST_Z_THRESHOLD, STRESS_TEST_MAX_DURATION_S,
-    LOG_DIR,
+    STRESS_TEST_HISTORY_MAX, LOG_DIR,
 )
 from stress_test_logic import (
     detect_transient_times, should_stop_logging, compute_log_row_fields,
     save_run, load_all_runs, compute_dataset_stats, save_dataset_stats,
-    load_dataset_stats, evaluate_run,
+    load_dataset_stats, evaluate_run, compute_five_point_summary,
 )
 
 _MAX_GRAPH_PTS = STRESS_TEST_MAX_DURATION_S + 1   # fixed upper bound
@@ -67,8 +67,12 @@ class StressTestTab(QWidget):
         self._graph_temp = deque(maxlen=_MAX_GRAPH_PTS)
         self._graph_flow = deque(maxlen=_MAX_GRAPH_PTS)
 
+        self._history_runs = []   # last up-to-100 run dicts, newest last; combo index i+1 -> this[i]
+        self._viewing_history = False   # True while a past run is shown instead of the live graph
+
         self._build_ui()
         self._setup_graph()
+        self._refresh_history()
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -88,12 +92,29 @@ class StressTestTab(QWidget):
         self._style_banner('ready', '')
         left.addWidget(self.banner)
 
+        history_row = QHBoxLayout()
+        history_row.addWidget(QLabel('History:'))
+        self.combo_history = QComboBox()
+        self.combo_history.addItem('Live / current run')
+        self.combo_history.currentIndexChanged.connect(self._on_history_selected)
+        history_row.addWidget(self.combo_history, 1)
+        left.addLayout(history_row)
+
         graph_container, self._plot, _ = make_graph_panel('AMAT0 Stress Test', self._scale)
         left.addWidget(graph_container, 1)
+
+        serial_row = QHBoxLayout()
+        serial_row.addWidget(QLabel('TCU Serial No.:'))
+        self.edit_serial = QLineEdit()
+        self.edit_serial.setPlaceholderText('Required before starting')
+        self.edit_serial.textChanged.connect(self._on_serial_changed)
+        serial_row.addWidget(self.edit_serial)
+        left.addLayout(serial_row)
 
         btn_row = QHBoxLayout()
         self.btn_start = QPushButton('Start')
         self.btn_start.setObjectName('btn_start')
+        self.btn_start.setEnabled(False)   # disabled until a serial number is entered
         self.btn_start.clicked.connect(self._on_start_clicked)
         self.btn_stop = QPushButton('Stop')
         self.btn_stop.setObjectName('btn_stop')
@@ -134,20 +155,109 @@ class StressTestTab(QWidget):
         rg.addWidget(self.lbl_logfile)
         right.addWidget(grp_result)
 
+        grp_stats = QGroupBox('Dataset Statistics (5-point summary)')
+        sg = QGridLayout(grp_stats)
+        sg.addWidget(QLabel(''), 0, 0)
+        sg.addWidget(QLabel('Min'), 0, 1)
+        sg.addWidget(QLabel('Q1'), 0, 2)
+        sg.addWidget(QLabel('Median'), 0, 3)
+        sg.addWidget(QLabel('Q3'), 0, 4)
+        sg.addWidget(QLabel('Max'), 0, 5)
+        self.val_summary_start = [QLabel('--') for _ in range(5)]
+        self.val_summary_end   = [QLabel('--') for _ in range(5)]
+        sg.addWidget(QLabel('Transient start'), 1, 0)
+        for i, lbl in enumerate(self.val_summary_start):
+            sg.addWidget(lbl, 1, i + 1)
+        sg.addWidget(QLabel('Transient end'), 2, 0)
+        for i, lbl in enumerate(self.val_summary_end):
+            sg.addWidget(lbl, 2, i + 1)
+        right.addWidget(grp_stats)
+
         right.addStretch()
 
     def _setup_graph(self):
-        self._plot.setLabel('left', 'Temperature', units='°C')
-        self._plot.setLabel('bottom', 'Time', units='s')
-        self._plot.showGrid(x=True, y=True, alpha=0.2)
-        self._curve_temp = self._plot.plot([], [], pen=pg.mkPen('#0077B6', width=2))
+        plot_item = self._plot.getPlotItem()
+        plot_item.setLabel('left', 'Temperature', units='°C')
+        plot_item.setLabel('bottom', 'Time', units='s')
+        plot_item.showGrid(x=True, y=True, alpha=0.2)
+        self._curve_temp = plot_item.plot([], [], pen=pg.mkPen('#0077B6', width=2), name='Temperature')
+
+        # Flow rate on a second Y-axis (right side) — different units/scale
+        # from temperature, so it needs its own linked ViewBox rather than
+        # sharing the left axis.
+        self._flow_vb = pg.ViewBox()
+        plot_item.showAxis('right')
+        plot_item.scene().addItem(self._flow_vb)
+        plot_item.getAxis('right').linkToView(self._flow_vb)
+        self._flow_vb.setXLink(plot_item)
+        plot_item.getAxis('right').setLabel('Flow Rate', units='L/min')
+        self._curve_flow = pg.PlotCurveItem([], [], pen=pg.mkPen('#FFB703', width=2))
+        self._flow_vb.addItem(self._curve_flow)
+
+        def _sync_flow_view():
+            self._flow_vb.setGeometry(plot_item.vb.sceneBoundingRect())
+        plot_item.vb.sigResized.connect(_sync_flow_view)
+        _sync_flow_view()
+
         self._fail_lines = []   # vertical InfiniteLine items for failing timesteps
+        self._transient_markers = []   # vertical InfiniteLine items for transient start/end, drawn every run
 
     # ── Test control ─────────────────────────────────────────────────────────
+
+    def _on_serial_changed(self, text: str):
+        if not self._test_active:
+            self.btn_start.setEnabled(bool(text.strip()))
+
+    def _refresh_history(self, all_runs=None):
+        """Reload the dropdown with the most recent STRESS_TEST_HISTORY_MAX runs.
+        Pass all_runs if the caller already has a fresh load_all_runs() result,
+        to avoid reading every run file from disk a second time."""
+        if all_runs is None:
+            all_runs = load_all_runs()
+        self._history_runs = all_runs[-STRESS_TEST_HISTORY_MAX:]   # most recent N, oldest-first within that window
+        self.combo_history.blockSignals(True)
+        self.combo_history.clear()
+        self.combo_history.addItem('Live / current run')
+        for run in self._history_runs:   # bound: at most STRESS_TEST_HISTORY_MAX iterations
+            serial = run.get('tcu_serial') or '(no serial)'
+            label = f"{run['run_id']} — {serial}"
+            self.combo_history.addItem(label)
+        self.combo_history.blockSignals(False)
+        self._update_summary_display(all_runs)
+
+    def _update_summary_display(self, all_runs: list):
+        summary = compute_five_point_summary(all_runs)
+        if summary is None:
+            for lbl in self.val_summary_start + self.val_summary_end:
+                lbl.setText('--')
+            return
+        for lbl, key in zip(self.val_summary_start, ('min', 'q1', 'median', 'q3', 'max')):
+            lbl.setText(f"{summary['transient_start_time'][key]:.1f}")
+        for lbl, key in zip(self.val_summary_end, ('min', 'q1', 'median', 'q3', 'max')):
+            lbl.setText(f"{summary['transient_end_time'][key]:.1f}")
+
+    def _on_history_selected(self, index: int):
+        if index <= 0:
+            # "Live / current run" — restore whatever the live graph currently holds
+            self._viewing_history = False
+            self._curve_temp.setData(list(self._graph_t), list(self._graph_temp))
+            self._curve_flow.setData(list(self._graph_t), list(self._graph_flow))
+            self._clear_transient_markers()
+            return
+        self._viewing_history = True
+        run = self._history_runs[index - 1]
+        t = list(range(len(run['temp_series'])))
+        self._curve_temp.setData(t, run['temp_series'])
+        self._curve_flow.setData(t, run.get('flow_series', []))
+        self._draw_transient_markers(run['transient_start_time'], run['transient_end_time'])
 
     def _on_start_clicked(self):
         if self._test_active:
             return
+        if not self.edit_serial.text().strip():
+            return   # defensive guard — button should already be disabled in this case
+        self.combo_history.setCurrentIndex(0)   # snap back to live view if a history run was selected
+        self._viewing_history = False
         self._test_active = True
         self._temp_series = []
         self._flow_series = []
@@ -156,8 +266,10 @@ class StressTestTab(QWidget):
         self._graph_temp.clear()
         self._graph_flow.clear()
         self._clear_fail_lines()
+        self._clear_transient_markers()
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(True)
+        self.edit_serial.setEnabled(False)   # locked for the duration of the run
         self._style_banner('running', '')
 
         stats = load_dataset_stats()
@@ -230,7 +342,10 @@ class StressTestTab(QWidget):
         t = len(self._temp_series) - 1
         self._graph_t.append(t)
         self._graph_temp.append(temp)
-        self._curve_temp.setData(list(self._graph_t), list(self._graph_temp))
+        self._graph_flow.append(flow)
+        if not self._viewing_history:
+            self._curve_temp.setData(list(self._graph_t), list(self._graph_temp))
+            self._curve_flow.setData(list(self._graph_t), list(self._graph_flow))
 
         row = compute_log_row_fields(
             self._temp_series, TEMP_SETPOINT, STRESS_TEST_TOLERANCE, STRESS_TEST_SETTLE_S)
@@ -251,8 +366,9 @@ class StressTestTab(QWidget):
             return
         self._test_active = False
         self._timer.stop()
-        self.btn_start.setEnabled(True)
+        self.btn_start.setEnabled(bool(self.edit_serial.text().strip()))
         self.btn_stop.setEnabled(False)
+        self.edit_serial.setEnabled(True)
 
         if self._logfile is not None:
             self._logfile.close()
@@ -268,15 +384,18 @@ class StressTestTab(QWidget):
 
         start, test_end_time, end = (
             row['transient_start_time'], row['test_end_time'], row['transient_end_time'])
+        self._draw_transient_markers(start, end)
 
         stats = load_dataset_stats()
         result = evaluate_run(self._temp_series, self._flow_series, start, end, stats)
         save_run(self._run_id, self._temp_series, self._flow_series,
-                  start, test_end_time, end, result['passed'])
+                  start, test_end_time, end, result['passed'],
+                  tcu_serial=self.edit_serial.text().strip())
         runs = load_all_runs()
         new_stats = compute_dataset_stats(runs)
         save_dataset_stats(new_stats)
         self.val_dataset_n.setText(str(new_stats['n_runs']))
+        self._refresh_history(runs)
 
         if result['passed'] is None:
             self._style_banner('ready', 'Recorded — not enough dataset history to evaluate yet')
@@ -293,6 +412,24 @@ class StressTestTab(QWidget):
             self._draw_fail_lines(result['failing_timesteps'])
 
         self.sig_test_stop.emit()
+
+    # ── Transient start/end markers (drawn on every run, pass or fail) ─────────
+
+    def _clear_transient_markers(self):
+        for line in self._transient_markers:
+            self._plot.removeItem(line)
+        self._transient_markers = []
+
+    def _draw_transient_markers(self, transient_start_time, transient_end_time):
+        self._clear_transient_markers()
+        for t, label in ((transient_start_time, 'start'), (transient_end_time, 'end')):
+            if t is None:
+                continue
+            line = pg.InfiniteLine(
+                pos=t, angle=90, pen=pg.mkPen(AMBER, width=2),
+                label=f'transient {label}', labelOpts={'position': 0.9, 'color': AMBER})
+            self._plot.addItem(line)
+            self._transient_markers.append(line)
 
     # ── Fail-line annotation ────────────────────────────────────────────────
 
@@ -315,27 +452,27 @@ class StressTestTab(QWidget):
             self.banner.setText('RUNNING')
             self.banner.setStyleSheet(
                 f'background: #064e3b; border: 1px solid {GREEN};'
-                f'color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {GREEN}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         elif state == 'pass':
             self.banner.setText('✓  PASS')
             self.banner.setStyleSheet(
                 f'background: #064e3b; border: 1px solid {GREEN};'
-                f'color: {GREEN}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {GREEN}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         elif state == 'fail':
             self.banner.setText(f'✗  FAIL — {msg}')
             self.banner.setStyleSheet(
                 f'background: #4c0519; border: 1px solid {RED};'
-                f'color: {RED}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {RED}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         elif state == 'aborted':
             self.banner.setText(f'Aborted — {msg}')
             self.banner.setStyleSheet(
                 f'background: #422006; border: 1px solid {AMBER};'
-                f'color: {AMBER}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {AMBER}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
         else:
             self.banner.setText(msg or 'Ready — connect AMAT0 to TCU, then press Start')
             self.banner.setStyleSheet(
                 f'background: #1a1a1a; border: 1px solid {TEXT_DIM};'
-                f'color: {TEXT_DIM}; font-size: 13px; letter-spacing: 2px; padding: 6px;')
+                f'color: {TEXT_DIM}; font-size: {pt_secondary(13, self._scale)}px; letter-spacing: 2px; padding: 6px;')
 
     def retranslate(self):
         pass   # static English labels for now — matches current app-wide convention elsewhere

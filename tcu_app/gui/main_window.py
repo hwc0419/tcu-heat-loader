@@ -20,7 +20,7 @@ from gui.settings_tab      import SettingsTab
 from gui.docs_tab          import DocsTab
 from gui.heater_tab        import HeaterTab
 from gui.stress_test_tab   import StressTestTab
-from gui.styles            import get_app_style, ACCENT, RED, GREEN, AMBER
+from gui.styles            import get_app_style, ACCENT, RED, GREEN, AMBER, pt_primary
 
 from settings_manager import settings
 from translations     import tr
@@ -124,9 +124,13 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header bar
+        # Header bar. Height intentionally not scaled by self._scale: the
+        # title's font floors at pt_primary's 22px regardless of scale (see
+        # _update_title_style), so its actual height requirement barely
+        # changes across the real scale range — scaling this container down
+        # would leave almost no margin at low scale (was 2px at scale=0.65).
         header = QWidget()
-        header.setFixedHeight(int(44 * self._scale))
+        header.setFixedHeight(48)
         self._header = header  # keep ref for theme reload
         self._update_header_style()
         hl = QVBoxLayout(header)
@@ -147,16 +151,25 @@ class MainWindow(QMainWindow):
         self._settings_tab    = SettingsTab(scale=self._scale)
         self._docs_tab        = DocsTab(scale=self._scale)
         self._tabs.addTab(self._monitor_tab,     tr('tab_monitor'))
+        self._tabs.addTab(self._stress_test_tab, tr('tab_response'))
         self._tabs.addTab(self._seq_test_tab,    tr('tab_test'))
         self._tabs.addTab(self._heater_tab,      tr('tab_heater'))
-        self._tabs.addTab(self._stress_test_tab, tr('tab_response'))
         self._tabs.addTab(self._settings_tab,    tr('tab_settings'))
         self._tabs.addTab(self._docs_tab,        tr('tab_docs'))
 
-        # Emergency stop button — fixed bottom-right, always visible
+        # Emergency stop button — fixed bottom-right, always visible.
+        # Sized to fit its two-line label ("⚠ EMERGENCY\nSTOP" / "⚠ 紧急\n停止")
+        # at the current font size. NOT multiplied by self._scale: the primary
+        # font tier floors at 22px, so the button's actual content requirement
+        # barely changes across the real scale range (measured sizeHint
+        # 180x67 at scale=0.65 up to 190x73 at scale=1.0) — scaling the fixed
+        # size down here would undo the floor's protection at small scales,
+        # the same clipping problem this fix addresses in the first place.
+        # This is the single most safety-critical control in the app, so it
+        # must never be clipped or hard to read.
         self._estop_btn = QPushButton(tr('estop_btn'))
         self._estop_btn.setObjectName('btn_estop')
-        self._estop_btn.setFixedSize(int(90 * self._scale), int(64 * self._scale))
+        self._estop_btn.setFixedSize(210, 85)
         self._estop_btn.clicked.connect(self._on_estop)
 
         # Stack tabs and estop button in same area
@@ -194,7 +207,6 @@ class MainWindow(QMainWindow):
         # Release control button (hidden until RPi is active)
         self._release_btn = QPushButton('Release Control')
         self._release_btn.setObjectName('btn_fill')
-        self._release_btn.setFixedHeight(22)
         self._release_btn.setVisible(False)
         self._release_btn.clicked.connect(self._on_release_control)
         self._status_bar.addPermanentWidget(self._release_btn)
@@ -541,7 +553,7 @@ class MainWindow(QMainWindow):
 
     def _update_title_style(self):
         self._title_label.setStyleSheet(
-            f"color: {ACCENT}; font-size: {max(10, round(14 * self._scale))}px; "
+            f"color: {ACCENT}; font-size: {pt_primary(14, self._scale)}px; "
             f"letter-spacing: {max(1, round(4 * self._scale))}px; font-family: 'Courier New';")
 
     def _on_theme_changed(self, theme: str):
@@ -558,9 +570,9 @@ class MainWindow(QMainWindow):
         self._stress_test_tab.retranslate()
         # Update tab bar labels
         self._tabs.setTabText(0, tr('tab_monitor'))
-        self._tabs.setTabText(1, tr('tab_test'))
-        self._tabs.setTabText(2, tr('tab_heater'))
-        self._tabs.setTabText(3, tr('tab_response'))
+        self._tabs.setTabText(1, tr('tab_response'))
+        self._tabs.setTabText(2, tr('tab_test'))
+        self._tabs.setTabText(3, tr('tab_heater'))
         self._tabs.setTabText(4, tr('tab_settings'))
         self._tabs.setTabText(5, tr('tab_docs'))
         self._estop_btn.setText(tr('estop_btn'))

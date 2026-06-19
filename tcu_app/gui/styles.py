@@ -21,6 +21,29 @@ TEXT_DIM   = "#666666"   # secondary / label text
 TEXT_BRIGHT= "#000000"   # maximum contrast text
 
 
+# ── Font size floors ──────────────────────────────────────────────────────────
+# Accessibility floor, shared by every file that sets a font-size directly
+# (styles.py's own stylesheet, plus main_window.py, docs_tab.py,
+# sequence_test_tab.py, stress_test_tab.py result/status labels). Two tiers:
+# secondary/caption-style text (group titles, dim labels, status text, the
+# scrolling RS232 log) floors at 18px; primary body text and anything
+# interactive (buttons, inputs, tab labels, the main title) sits a notch
+# above at 22px so the two remain visually distinct rather than collapsing
+# to one size everywhere.
+FONT_FLOOR_SECONDARY_PX = 18
+FONT_FLOOR_PRIMARY_PX   = 22
+
+
+def pt_secondary(base: int, scale: float = 1.0) -> int:
+    """Scaled font size for secondary/caption text, floored at FONT_FLOOR_SECONDARY_PX."""
+    return max(FONT_FLOOR_SECONDARY_PX, round(base * scale))
+
+
+def pt_primary(base: int, scale: float = 1.0) -> int:
+    """Scaled font size for primary/interactive text, floored at FONT_FLOOR_PRIMARY_PX."""
+    return max(FONT_FLOOR_PRIMARY_PX, round(base * scale))
+
+
 def get_app_style(scale: float = 1.0, theme: str = None) -> str:
     """
     Generate the full application stylesheet scaled to the current display.
@@ -87,15 +110,18 @@ def get_app_style(scale: float = 1.0, theme: str = None) -> str:
     def px(base: int) -> str:
         return f"{max(1, round(base * scale))}px"
 
-    def pt(base: int) -> str:
-        return f"{max(8, round(base * scale))}px"
+    def pt_secondary_px(base: int) -> str:
+        return f"{pt_secondary(base, scale)}px"
+
+    def pt_primary_px(base: int) -> str:
+        return f"{pt_primary(base, scale)}px"
 
     return f"""
 QMainWindow, QWidget {{
     background-color: {bg};
     color: {text};
     font-family: 'Courier New', monospace;
-    font-size: {pt(13)};
+    font-size: {pt_primary_px(13)};
 }}
 
 QTabWidget::pane {{
@@ -109,7 +135,7 @@ QTabBar::tab {{
     padding: {px(6)} {px(10)};
     border: 1px solid {border};
     border-bottom: none;
-    font-size: {pt(11)};
+    font-size: {pt_primary_px(11)};
     letter-spacing: 0px;
     text-transform: uppercase;
 }}
@@ -131,7 +157,7 @@ QPushButton {{
     border: 1px solid {border};
     padding: {px(8)} {px(14)};
     font-family: 'Courier New', monospace;
-    font-size: {pt(11)};
+    font-size: {pt_primary_px(11)};
     letter-spacing: {px(1)};
     text-transform: uppercase;
     min-width: {px(90)};
@@ -177,7 +203,7 @@ QPushButton#btn_estop {{
     border: 2px solid #7F1D1D;
     border-radius: 8px;
     color: #FFFFFF;
-    font-size: {pt(10)};
+    font-size: {pt_primary_px(10)};
     font-weight: bold;
     letter-spacing: {px(1)};
 }}
@@ -193,7 +219,7 @@ QPushButton#btn_export {{
     border: 1px solid {border};
     border-radius: 4px;
     color: {text_dim};
-    font-size: {pt(9)};
+    font-size: {pt_secondary_px(9)};
     padding: 1px 4px;
 }}
 QPushButton#btn_export:hover {{
@@ -209,7 +235,7 @@ QWidget#graph_header {{
 }}
 
 QLabel#graph_title {{
-    font-size: {pt(10)};
+    font-size: {pt_secondary_px(10)};
     font-weight: bold;
     color: {text};
 }}
@@ -224,7 +250,7 @@ QPushButton#btn_test_start {{
     background-color: {btn_tstart_bg};
     border-color: {green};
     color: {green};
-    font-size: {pt(13)};
+    font-size: {pt_primary_px(13)};
     min-height: {px(42)};
     letter-spacing: {px(1)};
 }}
@@ -233,7 +259,7 @@ QPushButton#btn_test_stop {{
     background-color: {btn_tstop_bg};
     border-color: {red};
     color: {red};
-    font-size: {pt(13)};
+    font-size: {pt_primary_px(13)};
     min-height: {px(42)};
 }}
 
@@ -241,7 +267,7 @@ QGroupBox {{
     border: 1px solid {border};
     margin-top: {px(10)};
     padding: {px(6)};
-    font-size: {pt(10)};
+    font-size: {pt_secondary_px(10)};
     color: {tdim};
     letter-spacing: {px(1)};
     text-transform: uppercase;
@@ -262,7 +288,7 @@ QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {{
     border: 1px solid {border};
     padding: {px(5)} {px(8)};
     font-family: 'Courier New', monospace;
-    font-size: {pt(12)};
+    font-size: {pt_primary_px(12)};
 }}
 
 QLineEdit:focus, QDoubleSpinBox:focus, QComboBox:focus {{
@@ -279,44 +305,44 @@ QTextEdit {{
     color: {log_color};
     border: 1px solid {border};
     font-family: 'Courier New', monospace;
-    font-size: {pt(10)};
+    font-size: {pt_secondary_px(10)};
     padding: {px(3)};
 }}
 
 QLabel#val_large {{
-    font-size: {pt(30)};
+    font-size: {pt_primary_px(30)};
     font-family: 'Courier New', monospace;
     color: {accent};
     letter-spacing: {px(1)};
 }}
 
 QLabel#val_medium {{
-    font-size: {pt(18)};
+    font-size: {pt_primary_px(18)};
     font-family: 'Courier New', monospace;
     color: {tbright};
 }}
 
 QLabel#status_ok {{
     color: {green};
-    font-size: {pt(12)};
+    font-size: {pt_secondary_px(12)};
     letter-spacing: {px(1)};
 }}
 
 QLabel#status_warn {{
     color: {amber};
-    font-size: {pt(12)};
+    font-size: {pt_secondary_px(12)};
     letter-spacing: {px(1)};
 }}
 
 QLabel#status_err {{
     color: {red};
-    font-size: {pt(12)};
+    font-size: {pt_secondary_px(12)};
     letter-spacing: {px(1)};
 }}
 
 QLabel#label_dim {{
     color: {tdim};
-    font-size: {pt(10)};
+    font-size: {pt_secondary_px(10)};
     letter-spacing: {px(1)};
     text-transform: uppercase;
 }}
