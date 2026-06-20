@@ -53,8 +53,9 @@ DEFAULTS = {
     # AMAT0 stress test
     'stress_test_tolerance':         0.1,    # °C — ± band counted as "in tolerance"
     'stress_test_settle_duration_s': 300,    # consecutive in-tolerance seconds to call it settled
-    'stress_test_tail_duration_s':   300,    # seconds logged after each run's own test_end_time
-    'stress_test_z_threshold':       2.576,  # |z| above this fails (1% two-tailed default)
+    'stress_test_duration_s':        1800,   # USER_CONFIGURED_DURATION — fixed total test runtime, operator-set before Start
+    'stress_test_min_endurance_s':   600,    # MIN_ENDURANCE_DURATION — (duration - test_end_time) must exceed this to pass Endurance
+    'stress_test_min_seed_runs':     30,     # minimum pass-dataset size before the main AMAT0 test can run at all
 
     # 2kW heat load sequence test
     'seq_test_load_sequence':      [1000, 1500, 2000, 1500, 1000],  # user-edited stage list

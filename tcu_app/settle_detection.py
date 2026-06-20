@@ -51,8 +51,9 @@ def find_settle_point(temp_series: list, setpoint: float,
             consecutive_in_tol = 0
             if first_disturbance_time is None:
                 first_disturbance_time = t   # first out-of-tolerance sample, forward scan
-        if consecutive_in_tol >= settle_s:
-            settle_time = t - settle_s + 1   # start of the current clean run; keeps updating
+        if consecutive_in_tol == settle_s:
+            settle_time = t - settle_s + 1   # start of the current clean run; locks here until the
+                                              # next reset (consecutive_in_tol back to 0) and re-achievement
 
     if settle_time is not None:
         for t in range(settle_time, -1, -1):   # bound: settle_time+1 iterations, <= limit

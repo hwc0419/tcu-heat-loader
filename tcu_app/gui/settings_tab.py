@@ -200,25 +200,29 @@ class SettingsTab(QWidget):
         self.stress_settle_dur_spin.setRange(10, 1800)
         self.stress_settle_dur_spin.setSuffix(' s')
 
-        self.stress_tail_dur_spin = QSpinBox()
-        self.stress_tail_dur_spin.setRange(0, 1800)
-        self.stress_tail_dur_spin.setSuffix(' s')
+        self.stress_duration_spin = QSpinBox()
+        self.stress_duration_spin.setRange(60, 9000)
+        self.stress_duration_spin.setSuffix(' s')
 
-        self.stress_z_threshold_spin = QDoubleSpinBox()
-        self.stress_z_threshold_spin.setRange(0.5, 5.0)
-        self.stress_z_threshold_spin.setSingleStep(0.1)
-        self.stress_z_threshold_spin.setDecimals(3)
+        self.stress_min_endurance_spin = QSpinBox()
+        self.stress_min_endurance_spin.setRange(0, 9000)
+        self.stress_min_endurance_spin.setSuffix(' s')
 
-        self._lbl_stress_tol    = QLabel('In-tolerance band')
-        self._lbl_stress_settle = QLabel('Settle duration')
-        self._lbl_stress_tail   = QLabel('Tail duration')
-        self._lbl_stress_z      = QLabel('z-score threshold')
+        self.stress_min_seed_runs_spin = QSpinBox()
+        self.stress_min_seed_runs_spin.setRange(2, 1000)
+
+        self._lbl_stress_tol       = QLabel('In-tolerance band')
+        self._lbl_stress_settle    = QLabel('Settle duration')
+        self._lbl_stress_duration  = QLabel('Test duration (fixed)')
+        self._lbl_stress_endurance = QLabel('Min. endurance duration')
+        self._lbl_stress_min_seed  = QLabel('Min. reference dataset size')
 
         trows = [
-            (self._lbl_stress_tol,    self.stress_tolerance_spin),
-            (self._lbl_stress_settle, self.stress_settle_dur_spin),
-            (self._lbl_stress_tail,   self.stress_tail_dur_spin),
-            (self._lbl_stress_z,      self.stress_z_threshold_spin),
+            (self._lbl_stress_tol,       self.stress_tolerance_spin),
+            (self._lbl_stress_settle,    self.stress_settle_dur_spin),
+            (self._lbl_stress_duration,  self.stress_duration_spin),
+            (self._lbl_stress_endurance, self.stress_min_endurance_spin),
+            (self._lbl_stress_min_seed,  self.stress_min_seed_runs_spin),
         ]
         for i, (lbl, widget) in enumerate(trows):
             tg.addWidget(lbl, i, 0)
@@ -314,8 +318,9 @@ class SettingsTab(QWidget):
         # AMAT0 Stress Test
         self.stress_tolerance_spin.setValue(settings.get('stress_test_tolerance'))
         self.stress_settle_dur_spin.setValue(settings.get('stress_test_settle_duration_s'))
-        self.stress_tail_dur_spin.setValue(settings.get('stress_test_tail_duration_s'))
-        self.stress_z_threshold_spin.setValue(settings.get('stress_test_z_threshold'))
+        self.stress_duration_spin.setValue(settings.get('stress_test_duration_s'))
+        self.stress_min_endurance_spin.setValue(settings.get('stress_test_min_endurance_s'))
+        self.stress_min_seed_runs_spin.setValue(settings.get('stress_test_min_seed_runs'))
         # Display
         self._set_combo_data(self.theme_combo, settings.get('theme'))
         self._set_combo_data(self.lang_combo,  settings.get('language'))
@@ -359,8 +364,9 @@ class SettingsTab(QWidget):
         # AMAT0 Stress Test
         settings.set('stress_test_tolerance',         self.stress_tolerance_spin.value())
         settings.set('stress_test_settle_duration_s', self.stress_settle_dur_spin.value())
-        settings.set('stress_test_tail_duration_s',   self.stress_tail_dur_spin.value())
-        settings.set('stress_test_z_threshold',       self.stress_z_threshold_spin.value())
+        settings.set('stress_test_duration_s',        self.stress_duration_spin.value())
+        settings.set('stress_test_min_endurance_s',   self.stress_min_endurance_spin.value())
+        settings.set('stress_test_min_seed_runs',     self.stress_min_seed_runs_spin.value())
 
         # Display
         new_theme = self.theme_combo.currentData()

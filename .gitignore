@@ -28,3 +28,8 @@ users.json
 vapid_keys.json
 .tcu_ipc.json
 .tcu_cmd.json
+
+# Other unrelated projects
+claude-code/
+leak-sensor/
+hf-automation/

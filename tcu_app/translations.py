@@ -16,7 +16,7 @@ STRINGS = {
     'tab_settings':     {'en': 'SETTINGS',              'zh': '设置'},
     'tab_docs':         {'en': 'DOCUMENTATION',         'zh': '文档'},
     'tab_heater':       {'en': 'HEATER',                'zh': '加热器'},
-    'tab_response':     {'en': 'AMAT0 TRANSIENT TEST',  'zh': 'AMAT0 瞬态测试'},
+    'tab_response':     {'en': 'AMAT0 TEST',          'zh': 'AMAT0 测试'},
 
     # ── Monitor tab ───────────────────────────────────────────────────────────
     'live_readings':    {'en': 'LIVE READINGS',         'zh': '实时读数'},
