@@ -4,10 +4,12 @@
 
 import time
 import threading
+import os
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QTextEdit,
-    QDoubleSpinBox, QSizePolicy, QDialog, QPlainTextEdit
+    QDoubleSpinBox, QSizePolicy, QDialog, QPlainTextEdit,
+    QFileDialog, QMessageBox
 )
 from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
 
@@ -17,7 +19,7 @@ import pyqtgraph as pg
 from collections import deque
 from datetime import datetime
 
-from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM
+from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM, pt_secondary
 from gui.graph_utils import make_graph_panel
 from settings_manager import settings
 from translations import tr
@@ -115,15 +117,12 @@ class MonitorTab(QWidget):
         self._graph_lbl.setObjectName("graph_title")
         self._toggle_btn = QPushButton("→ Flow Rate")
         self._toggle_btn.setObjectName("btn_export")
-        self._toggle_btn.setFixedWidth(int(110 * self._scale))
         self._toggle_btn.clicked.connect(self._on_toggle)
         self._popup_btn  = QPushButton("📈 Popup")
         self._popup_btn.setObjectName("btn_export")
-        self._popup_btn.setFixedWidth(int(80 * self._scale))
         self._popup_btn.clicked.connect(self._on_show_popup)
         self._export_btn = QPushButton("⬇ Export")
         self._export_btn.setObjectName("btn_export")
-        self._export_btn.setFixedWidth(int(80 * self._scale))
         self._export_btn.clicked.connect(self._on_export)
         hdr.addWidget(self._graph_lbl)
         hdr.addStretch()
@@ -181,8 +180,12 @@ class MonitorTab(QWidget):
         self.cmd_log.setReadOnly(True)
         self.cmd_log.setMinimumHeight(int(200 * self._scale))
         self.cmd_log.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self.cmd_log.setFont(QFont('Liberation Mono', 9))
+        _cmd_log_font = QFont('Liberation Mono')
+        _cmd_log_font.setPixelSize(pt_secondary(9, self._scale))
+        self.cmd_log.setFont(_cmd_log_font)
         self.cmd_log.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.cmd_log.setCursor(Qt.PointingHandCursor)
+        self.cmd_log.mousePressEvent = lambda event: self._on_cmd_log_clicked()
         lg.addWidget(self.cmd_log)
         right.addWidget(self._grp_log, stretch=1)
 
@@ -193,7 +196,11 @@ class MonitorTab(QWidget):
         self.alarm_log.setReadOnly(True)
         self.alarm_log.setMaximumHeight(int(100 * self._scale))
         self.alarm_log.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self.alarm_log.setFont(QFont('Liberation Mono', 9))
+        _alarm_log_font = QFont('Liberation Mono')
+        _alarm_log_font.setPixelSize(pt_secondary(9, self._scale))
+        self.alarm_log.setFont(_alarm_log_font)
+        self.alarm_log.setCursor(Qt.PointingHandCursor)
+        self.alarm_log.mousePressEvent = lambda event: self._on_alarm_log_clicked()
         ah.addWidget(self.alarm_log)
         right.addWidget(self._grp_ah)
 
@@ -316,6 +323,82 @@ class MonitorTab(QWidget):
     def _on_show_popup(self):
         self._popup.show()
         self._popup.raise_()
+
+    # ── Command log popup + export ──────────────────────────────────────────
+
+    def _on_cmd_log_clicked(self):
+        """Tapping the command log opens it in a larger, dedicated popup —
+        same content, easier to read on a small screen."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle('Command Log — RS232')
+        dlg.setMinimumSize(int(600 * self._scale), int(450 * self._scale))
+        v = QVBoxLayout(dlg)
+
+        view = QPlainTextEdit()
+        view.setReadOnly(True)
+        view.setLineWrapMode(QPlainTextEdit.NoWrap)
+        font = QFont('Liberation Mono')
+        font.setPixelSize(pt_secondary(9, self._scale))
+        view.setFont(font)
+        view.setPlainText(self.cmd_log.toPlainText())
+        v.addWidget(view)
+
+        btn_row = QHBoxLayout()
+        btn_export = QPushButton('Export')
+        btn_export.setObjectName('btn_export')
+        btn_export.clicked.connect(lambda: self._export_log_text(
+            self.cmd_log.toPlainText(), 'command_log'))
+        btn_row.addStretch()
+        btn_row.addWidget(btn_export)
+        v.addLayout(btn_row)
+
+        dlg.exec_()
+
+    # ── Alarm history popup + export ────────────────────────────────────────
+
+    def _on_alarm_log_clicked(self):
+        """Tapping the alarm history opens it in a larger, dedicated popup."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle('Alarm History')
+        dlg.setMinimumSize(int(600 * self._scale), int(400 * self._scale))
+        v = QVBoxLayout(dlg)
+
+        view = QPlainTextEdit()
+        view.setReadOnly(True)
+        view.setLineWrapMode(QPlainTextEdit.NoWrap)
+        font = QFont('Liberation Mono')
+        font.setPixelSize(pt_secondary(9, self._scale))
+        view.setFont(font)
+        view.setPlainText(self.alarm_log.toPlainText())
+        v.addWidget(view)
+
+        btn_row = QHBoxLayout()
+        btn_export = QPushButton('Export')
+        btn_export.setObjectName('btn_export')
+        btn_export.clicked.connect(lambda: self._export_log_text(
+            self.alarm_log.toPlainText(), 'alarm_history'))
+        btn_row.addStretch()
+        btn_row.addWidget(btn_export)
+        v.addLayout(btn_row)
+
+        dlg.exec_()
+
+    def _export_log_text(self, text: str, default_stem: str):
+        """Shared export helper for both the command log and alarm history
+        popups — saves the current session's log content to a text file
+        the operator picks."""
+        default_name = f'{default_stem}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
+        path, _ = QFileDialog.getSaveFileName(
+            self, f'Export {default_stem.replace("_", " ").title()}',
+            default_name, 'Text files (*.txt)')
+        if not path:
+            return
+        try:
+            with open(path, 'w') as f:
+                f.write(text)
+            QMessageBox.information(self, 'Exported', f'Saved to {path}')
+        except OSError as e:
+            QMessageBox.warning(self, 'Export failed', f'Could not save {path}:\n{e}')
 
     # ── Update from DAQ ───────────────────────────────────────────────────────
     def update(self, sample):

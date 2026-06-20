@@ -13,7 +13,8 @@ from PyQt5.QtWidgets import (
     QLabel, QPushButton, QGroupBox, QComboBox,
     QDoubleSpinBox, QSpinBox, QLineEdit, QTabWidget,
     QSizePolicy, QDialog, QDialogButtonBox, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox
+    QTableWidgetItem, QHeaderView, QMessageBox,
+    QScrollArea, QFrame
 )
 from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
 
@@ -69,6 +70,16 @@ class SettingsTab(QWidget):
 
         self.btn_apply.clicked.connect(self._on_apply)
         self.btn_reset.clicked.connect(self._on_reset)
+
+    def _scroll(self, widget):
+        """Wrap a sub-tab's content widget in a scroll area, so it doesn't
+        get clipped top/bottom on screens too short to show it all at
+        once. Same pattern as docs_tab.py's _scroll helper."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        scroll.setFrameShape(QFrame.NoFrame)
+        return scroll
 
     # ── Serial sub-tab ────────────────────────────────────────────────────────
     # ── Post-repair test sub-tab ───────────────────────────────────────────────
@@ -230,7 +241,7 @@ class SettingsTab(QWidget):
         v.addWidget(self._grp_stress)
 
         v.addStretch()
-        return w
+        return self._scroll(w)
 
     # ── Heater sub-tab ────────────────────────────────────────────────────────
     def _build_heater_tab(self):
@@ -576,7 +587,7 @@ class SettingsTab(QWidget):
 
         v.addWidget(self._grp_auth)
         v.addWidget(self._access_content)
-        return w
+        return self._scroll(w)
 
     def _on_tab_changed(self, index: int):
         """Lock access tab every time user navigates away and back."""
