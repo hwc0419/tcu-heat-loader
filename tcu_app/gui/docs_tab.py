@@ -603,7 +603,7 @@ class DocsTab(QWidget):
             'heater circuit is still worth documenting even though the AMAT0 '
             'Stress Test no longer uses it directly.'))
 
-        diagram_path = os.path.join(DOCS_ASSETS_DIR, 'system_architecture.png')
+        diagram_path = os.path.join(DOCS_ASSETS_DIR, 'System_Overview.png')
         diagram_pixmap = QPixmap(diagram_path)
         diagram_lbl = QLabel()
         diagram_lbl.setAlignment(Qt.AlignCenter)
