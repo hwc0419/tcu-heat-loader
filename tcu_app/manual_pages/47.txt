@@ -1,0 +1,39 @@
+Spare Parts List
+46
+12.2 Temperature controlled water system
+solenoid valve 3
+internal filling
+solenoid valve 1 + 2 external
+supply + return
+9
+10
+11
+12
+13
+14
+15
+16
+19
+20
+21
+085–1892
+Seal for threaded joint 22 x 3/4”
+27 x 21 x 1.5
+085–1891
+Seal (6x) for threaded joint
+28 x 1”
+34 x 26.5 x 1.5
+002–7650
+Ball valve (2x)
+002–7651
+Hose nozzle (2x) 17
+18
+Part Description Order No.
+9 Internal pump 002 – 0514
+10 Heater 002 – 0516
+11 External pump 002 – 0512
+12 Hand throttle 002 – 0523
+13 Flow measurement 002 – 0815
+14 Solenoid valve 1 + 2 external 001 – 7009
+15 Magn. coil for solenoid valve 1 + 2 ext. 002 – 2748
+16 Solenoid valve 3 internal 001 – 7416

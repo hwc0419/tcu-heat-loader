@@ -1,0 +1,28 @@
+Description of Operating Elements
+6
+4. Description of Operating Elements
+4.1 TCU – Controller
+STATUS
+AUTOMATIC
+FULL
+ALARM
+READY
+INT
+EXT
+PUMP
+PUMP
+MANUAL
+REFILL
+WATERBATH
+HEATER
+COMPR
+FiILLING
+FILLING
+1
+3 4 5
+2
+1 ”CONTROL” display panel
+2 ”LIQUID LEVEL” display and operating panel
+3 Connection for computer: ”Interface RS232C”
+4 Connection A for TCU – control and monitoring signals
+5 Connection B for TCU – 24 V~ for TCU controller

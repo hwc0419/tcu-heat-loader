@@ -1,0 +1,25 @@
+Description of Operating Elements
+7
+4.2 Temperature Control Unit
+Front view
+1
+2
+3
+4
+6
+5
+A B
+Full
+Refill
+Min
+Power
+Mainswitch
+TCU
+Drainage
+1 Liquid Level Display
+2 1/2” hose nozzle for drainage tube
+3 Bushing for connection cable for 19” electronics
+module
+4 Power supply socket for 19” electronics module
+5 Operating signal lamp
+6 Main switch

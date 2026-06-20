@@ -1,0 +1,36 @@
+Technical Specifications
+44
+11. Technical Specifications
+(according to DIN 58 966) ASM Unit
+Operating temperature range °C +17 to +27
+Temperature setting via interface
+Temperature accuracy °C ±0.02
+Flow rate l/min 50
+(at pressure difference of 0.5 bar
+between outlet and inlet nozzles of the 
+temperature control circuit)
+Pressure max. (flow rate = 0 l/min)
+at 50 Hz bar 2.3
+at 60 Hz bar 3.0
+Heat transfer liquid water
+Heating capacity watts 1500
+Cooling capacity at 20°C outlet temperature watts 1200
+Cooling water supply
+Temperature range °C +15 to +30
+Flow rate l/min 3
+Max. stress kW 2.5
+Pressure loss bar 0.5
+Cooling liquid water
+Max. tubing resistance bar 15
+Ambient temperature range °C +20 to +32
+Temperature deviation k/h 1
+Humidity % 35 – 60
+Temperature control circuit parts made of Copper, brass, bronze
+stainless steel, plastic
+Cooling circuit parts made of Copper, brass, bronze
+stainless steel
+Dimensions (W x D x H) mm 444 x 662 x 749
+(incl 19” electronics module: without dimensions
+for 19” module grips and front plate)
+Weight kg 80 to 100
+Mains connection 3 Ph/N/PE 380 V ± 10% 50/60Hz

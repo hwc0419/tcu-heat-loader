@@ -1,0 +1,15 @@
+Refrigeration Circuit
+38
+8.2 Oil cycle
+Oil runs all the way along the refrigeration circuit together with the refrigerant. in the refrigerant. In the
+compressor a very small amount (approx. 5%) of hot oil
+passes the bearings and enters the chamber to be
+compressed and discharged together with the refrigerant into the circuit. The oil flows with the hot superheated gas within the discharge line in the form of minute oil drops (as in fog) along to the condenser.
+After the refrigerant phase change in the condenser,
+the oil becomes completely invisible within the liquid refrigerant and is transported up to the evaporator passing through the sight glass, filter and automatic expansion valve. After the refrigerant has completely evaporated the oil is transported away in the form of a thin film
+on the inside tube wall of the suction line by the gas
+stream of the refrigerant.
+Refrigerant leakages thus also cause oil traces to be
+left at the location of the leakage. Any oil traces found
+along the refrigerant system should be investigated for
+possible refrigerant leakages.

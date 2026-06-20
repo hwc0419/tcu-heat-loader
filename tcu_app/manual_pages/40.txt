@@ -1,0 +1,28 @@
+Refrigeration Circuit
+39
+8.3 Basic physical aspects
+Every refrigeration circuit is divided into a high pressure and a low pressure side. The compressor (discharge side), discharge line, condenser, sight glass, filter and automatic expansion valve together make up
+the high pressure side. The pressure is nearly the
+same on all mentioned positions (no pressure loss).
+This in turns means that the discharge pressure, condensation pressure and saturation pressure are all
+equal at 7.7 bar abs. Whilst the pressure is the same
+for the above mentioned components, the refrigerant
+temperature is however different for all of the positions
+that make up the high pressure side. The superheated
+refrigerant gas has a temperature of about 70°C on
+leaving the compressor. By the time the refrigerant liquid leaves the condenser, it has a temperature of only
+30°C (condensation temperature). This temperature is
+maintained until the refrigerant reaches the automatic
+expansion valve. The low pressure side of the refrigeration circuit commences after the automatic expansion
+device with the evaporator, then the suction line and
+last the compressor (suction side). As with the high
+pressure side of the circuit the pressure on all components of the low pressure side is roughly the same (no
+pressure loss) and therefore evaporation pressure,
+saturation pressure and suction pressure are all equal
+to 3,3 bar abs. Similarly to the high pressure side, the
+temperature on the low pressure side varies as the refrigerant travels through the various components from
+the evaporator back to the compressor. The refrigerant
+boils at 3°C in the evaporator (saturation pressure 3,3
+bar abs) and superheats up to nearly temperature controlled water temperature. This is also the temperature
+of the refrigerant in the suction line and the compressor
+entrance temperature.

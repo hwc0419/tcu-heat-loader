@@ -1,0 +1,20 @@
+General Description
+3
+1. General Description
+The ASM unit is a temperature control unit which is controlled via an RS232 interface designed for temperature controlling external connected objects. The operating mode and
+the set temperature of the bath liquid as it leaves the temperature control unit is specified via a computer.
+The control of the actual temperature of the bath liquid as it
+leaves the temperature control unit is carried out independently by the temperature control unit. The fine-tuning of the
+actual temperature in the external object can be accomplished at the computer via temperature registration and processing and subsequent adjustment of the set temperature
+for the temperature control unit. The temperature control unit
+is designed to be installed into a 19” rack.
+The filling process for the whole system can be carried out
+automatically by the temperature control unit operating program.
+Comprehensive in-built safety features switch the system off
+permanently in the case of a malfunction.
+The respective malfunction can be analyzed by the computer using a malfunction code.
+It is only possible to negate the alarm status via the computer
+after the malfunction has been eliminated.
+The temperature control unit’s status is indicated via control
+lights on the electronics module and can also be displayed
+on the computer monitor at any time.

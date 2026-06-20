@@ -1,0 +1,36 @@
+Commissioning Sequence
+13
+5.3 Initial filling with heat transfer liquid
+After switching the computer on, the unit can be activated by
+turning the main switch (6) from position 0 to position 1. This
+should then cause the ALARM light to blink rapidly and the
+EMPTY light to illuminate. This indicates that the actual water level is below the minimum level.
+In order to initiate the filling and temperature control procedure the command AFV should be entered and acknowledged at the computer terminal. This is the initial command
+of the commissioning procedure which is used to fill the system (water bath and external connected object) with the correct amount of water whilst at the same time roughly temperature controlling the water used to within ± 0.2°C of the temperature required and set by the operator.
+The recommended heat transfer liquid is de-ionized water.
+To prevent calcification or algae contamination, it is additionally recommended to dilute the heat transfer liquid with any
+standard decalcification agent to a ratio of 1 teaspoon to 10
+liters of water. These proportions should be subsequently
+observed in case of topping up, in order to guarantee that the
+decalcification agent content remains constant in relation to
+the heat transfer liquid.
+The water bath is thus filled with water until the maximum level has been reached. The water level is also shown on the
+water level display window (1) at the left of the front side on
+the unit. When the maximum water level has been reached,
+the REFILL light extinguishes completely and the FULL light
+comes on.
+When the water bath is full, the internal pump and the heater
+are activated. Both corresponding lights on the STATUS
+panel illuminate accordingly. The heat transfer liquid in the
+water bath is then continuously heated up until the actual
+temperature is within ± 0.2°C of the set temperature. The
+compressor is not activated if the actual temperature is less
+than the set temperature + 0.5k. The thermal gradient can be
+simultaneously digitally displayed on the computer monitor
+by entering the respective command if so required.
+The HEATER, COMPR and INTERNAL PUMP lights extinguish when the set temperature has been reached and the
+READY light and EXTERNAL PUMP light illuminate. This
+signals the pumping of the temperature controlled water
+from the water bath into the external closed system.
+After the water bath has emptied, the filling and approximate
+temperature setting procedure is restarted and the whole

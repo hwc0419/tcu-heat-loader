@@ -1,0 +1,28 @@
+Description of Operating Elements
+8
+Rear View
+8
+9
+10
+13
+12
+11
+7 Filling
+Overflow
+Outlet
+Temp. controlled
+water
+Supply Retour
+Retour Supply
+Cooling water
+14
+15
+7 Filling nozzle (Quick water coupling filling NW10)
+8 Throttle tap
+9 1/2” overflow hose nozzle
+10 Cooling water inlet and outlet nozzles (1/2”)
+11 Power supply cable
+12 Flow rate measuring device
+13 Solenoid valves – temperature control circuit
+14 Ball valve (002–7650)
+15 Hose connection 1” (002–7651)

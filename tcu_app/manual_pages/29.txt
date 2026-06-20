@@ -1,0 +1,28 @@
+ASM Operating Software
+28
+Command Reply Description
+PI<CR> 0$<CR><LF> status pump 1 (internal)
+1$<CR><LF> (1 = ON, 0 = OFF)
+PEE<CR> $<CR><LF> pump 1 (external) ON
+1. external solenoid valve open
+2. external pump 2 ON (after 2 secs.)
+PEA<CR> $<CR><LF> pump 1 (external) OFF
+1. external pump 2 OFF
+2. external solenoid valve close
+ (after 2 secs.)
+PE<CR> 0$<CR><LF> status pump 2 (external)
+1$<CR><LF> (1 = ON, 0 = OFF)
+OVE<CR> $<CR><LF> open external solenoid valve
+CVE<CR> $<CR><LF> close external solenoid valve
+1. external pump 2 OFF
+2. external solenoid valve close
+ (after 2 secs.)
+VE<CR> 0$<CR><LF> status external solenoid valve
+1$<CR><LF> (1 = open, 0 = closed)
+OKE<CR> $<CR><LF> open external circuit
+– external solenoid valve open
+– external pump 2 ON (after 2 secs.)
+CKE<CR> $<CR><LF> close external circuit
+– external pump 2 OFF
+– close external solenoid valve
+ (after 2 secs.)

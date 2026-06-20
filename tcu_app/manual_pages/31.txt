@@ -1,0 +1,34 @@
+ASM Operating Software
+30
+Command Reply Description
+E1<CR> <B><VZ>XX.XXXX V$<CR><LF> record temperature in volts at analog
+input E1 (measuring sensor) without
+limitation, with operational sign and
+measuring range specifications.
+The temperature is calculated using
+the Pt500 formula.
+The range specifications indicates
+the voltage range which
+corresponds to the temperature.
+1.800 {Ei}
+T = –––––– * –––––––
+0.07 {DACref}
+<B>: ”0” ––> 2 – 4 volts
+”1” ––> 0 – 2 volts
+”2” ––> 4 – 5 volts
+”3” ––> 5 – 10 volts
+<VZ>: ”+” or ”–”
+XX.XXXX : 00.0000 – 09.9999 V
+E10R<CR> <B><VZ>XX.XXXX V$<CR><LF> see E1. Analog input E1 is read
+without the REF voltage for Pt500
+being reset.
+E2<CR> <B><VZ>XX.XXXX V$<CR><LF> record temperature (volts) to E2
+(control sensor)
+( –––> see E1 description)
+E3<CR> <B><VZ>XX.XXXX V$<CR><LF> record flow rate (volts) to E3
+( –––> see E1 description)
+({E3} – 0.4 V) * 60 l
+D = –––––––––––––––––
+1.6 V
+0.4 volts = 0 liters
+2.0 volts = 60 liters

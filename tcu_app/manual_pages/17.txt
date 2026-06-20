@@ -1,0 +1,28 @@
+ASM Operating Software
+16
+* Command acknowledgement without data requirement (3 ASCII characters)
+$ <CR> <LF>
+* Command acknowledgement with data requirement (3
+– 10 ASCII characters)
+ (ASCII data)$ <CR> <LF>
+* Fault signal (3 ASCII characters)
+Every non-executable or incorrect command is acknowledged by the following statement.
+F <CR> <LF>
+Character explanation:
+< $ > – ASCII code for ”$” (24H)
+< F > – ASCII code for ”F” (46H)
+< CR > – ASCII code for Carriage Return (0DH)
+< LF > – ASCII code for Line Feed (0AH)
+Standard V24 / RS232C interface:
+– Adjustable parameters
+* Transfer rate: 600, 1200, 2400 bauds
+* Parity: with/without even/odd
+* Handshake
+signal: with/without CTS/RTS
+– Transfer format (10 or 11 bits)
+* 1 start bit
+* 8 data bits
+(* 1 parity bit ––> 11 bits)
+* 1 stop bit
+– Character code
+* ASCII character code

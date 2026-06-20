@@ -1,0 +1,14 @@
+Spare Parts List
+49
+12.4 Electronics system
+30
+31
+32
+33
+Part Description Order No.
+30 TCU-controller 337 – 5003
+31 Control lamp trafo 087 – 2707
+32 Control lamp 087 – 2708
+33 Main switch TCU 002 – 2648
+Part No. 002–9034 B
+Subject to alterations Printed in Germany (FRG) 1.1.019.2–03.96

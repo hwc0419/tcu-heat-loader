@@ -1,0 +1,31 @@
+Table of Contents
+1
+1. General Description . . . . . . . . . . . . . . . . . . . . . . . . 3
+2. Checking for Possible Transport
+Damage . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+3. Packaging List . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+4. Description of Operating Elements . . . . . . . . 6
+4.1 Temperature Control Unit – Controller 6 . . . . . . . . 
+4.2 Temperature Control Unit 7 . . . . . . . . . . . . . . . . . 
+4.3 Interface description 9 . . . . . . . . . . . . . . . . . . . . . . . 
+5. Commissioning Sequence . . . . . . . . . . . . . . . . 11
+5.1 Connecting and setting up TCU Controller 11 . . . 
+5.2 Connecting and setting up Temperature
+Control Unit 12 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+5.3 Initial filling with heat transfer liquid 13 . . . . . . . . 
+6. ASM Control Software . . . . . . . . . . . . . . . . . . . 15
+6.1 Data Transfer 15 . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+6.2 General Explanation 17 . . . . . . . . . . . . . . . . . . . . . 
+6.3 ASM unit commands and respective
+replies 24 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+6.4 Special Commands 26 . . . . . . . . . . . . . . . . . . . . . . 
+6.5 Meaning of bit positions when displaying
+operating status 33 . . . . . . . . . . . . . . . . . . . . . . . . . 
+7. Safety Elements . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+8. Refrigeration Circuit . . . . . . . . . . . . . . . . . . . . . 36
+8.1 Components 36 . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+8.2 Oil cycle 38 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+8.3 Basic physical aspects 39 . . . . . . . . . . . . . . . . . . . 
+9. ASM Circuit Diagrams . . . . . . . . . . . . . . . . . . . 40
+9.1 ASM unit diagram 40 . . . . . . . . . . . . . . . . . . . . . . . 
+9.2 Temperature control circuit diagram 41 . . . . . . . . 

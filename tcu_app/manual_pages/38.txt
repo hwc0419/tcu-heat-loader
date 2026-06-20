@@ -1,0 +1,33 @@
+Refrigeration Circuit
+37
+5 Receiver bottle:
+This contains the condensed refrigerant and enables
+the separation of liquid and gas refrigerant.
+6 Liquid line:
+(copper tube). This transports the condensed refrigerant from the receiver bottle to the automatic expansion
+valve.
+7 Sight glass / moisture indicator:
+This allows the observation of the refrigerant flow in the
+liquid line and thus can indicate if there is a lack of refrigerant. If the glass is clear there is no loss of refrigerant, if there are bubbles a small leakage may be the
+cause and the presence of foam indicates a large leakage. This indicator also enables the detection of humidity within the refrigeration circuit.
+8 Filter / dryer:
+Molecular sieves of hygroscopic material filter and dry
+the liquid refrigerant continuously.
+9 Automatic expansion valve:
+(insulated evaporation pressure control valve). This is
+a control device that throttles the refrigerant flow, (allowing the refrigerant to evaporate at a low pressure
+within the evaporator), in a manner to obtain a constant
+evaporation pressure and temperature. The preset value is 3,3 bar abs at 3°C boiling temperature measured
+at the charging hose.
+10 Evaporator:
+(copper tube heat exchanger). The liquid refrigerant
+evaporates inside the tube removing heat from the
+temperature controlled water in the tank (boiling pressure 3°C, saturation pressure 3,3 bar abs).
+11 Suction line:
+(insulated copper tube). This transports the refrigerant
+gas from the evaporator to the compressor.
+12 High-pressure cut-off:
+(pressure switch). This stops the refrigeration circuit if
+the discharge pressure should exceed the maximum
+allowed value due to a failure in the cooling water flow.
+Set value for cut-off is 18 bar abs, diff. 4 bar.

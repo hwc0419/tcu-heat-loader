@@ -1,0 +1,26 @@
+ASM Operating Software
+29
+Command Reply Description
+KE<CR> 0$<CR><LF> status external circuit
+1$<CR><LF> (1 = ON, 0 = OFF)
+KPE<CR> $<CR><LF> compressor ON
+observe waiting time between
+switching OFF and ON again
+(approx. 2 minutes)
+(not possible during temperature
+control process)
+KPA<CR> $<CR><LF> compressor OFF
+(not possible during temperature
+control process)
+KP<CR> 0$<CR><LF> status compressor
+1$<CR><LF> (1 = ON, 0 = OFF)
+(status can be displayed at any time)
+HEIN<CR> $<CR><LF> heating ON
+HAUS<CR> $<CR><LF> heating OFF
+HEIZ<CR> 0$<CR><LF> status heating
+1$<CR><LF> (0 = OFF, 1 = ON)
+HSE<CR> $<CR><LF> main contactor ON
+HSA<CR> $<CR><LF> main contactor OFF
+HS<CR> 0$<CR><LF> status main contactor
+1$<CR><LF> (0 = OFF, 1 = ON)
+R<CR> XX.XXXX C$<CR><LF> temperature control sensor

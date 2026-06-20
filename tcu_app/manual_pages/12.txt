@@ -1,0 +1,46 @@
+Commissioning Sequence
+11
+5. Commissioning Sequence
+5.1 Connecting and setting up the TCU Controller
+STATUS
+AUTOMATIC
+FULL
+ALARM
+READY
+INT
+EXT
+PUMP
+PUMP
+MANUAL
+REFILL
+WATERBATH
+HEATER
+COMPR
+FiILLING
+FILLING
+Connection Cable A Connection 
+Cable B
+4–pole
+4–pole
+Hirschmann
+Socket
+Hirschmann
+Bushing
+37–pole
+Sub D
+Socket
+37–pole
+Sub D
+Socket
+Connect the TCU Controller to the Temperature Control Unit
+via the flat band connection cable A. This should be plugged
+into the sockets marked A (both 37–pole Sub D sockets) of
+the TCU Controller and Temperature Control Unit.
+The 24 V~ mains supply for the TCU Controller is provided
+by similarly connecting the 4–pole Hirschmann socket on the
+TCU Controller with the 4–pole Hirschmann bushing (both
+marked B) on the Temperature Control Unit using connection cable B.
+The TCU Controller is connected to the RS 232 C interface
+on the computer via a flat band cable which is inserted into
+the 25–pole Sub D socket (marked with RS 232 C) on the
+TCU Controller.

@@ -1,0 +1,27 @@
+ASM Operating Software
+27
+Command Reply Description
+TFV<CR> $<CR><LF> fill circulator and pretemperature
+control to within ± 0.2°C of the set
+temperature.
+(status information !!!)
+VT<CR> $<CR><LF> pretemperature control circulator
+to within ± 0.2°C of the set
+temperature.
+(status information !!!)
+MTB<CR> $<CR><LF> activate temperature limitation
+(17°C < T < 27°C)
+OTB<CR> $<CR><LF> temperature limitation switched off
+(17°C < T < 27°C)
+TB<CR> 0$<CR><LF> temperature limitation status
+1$<CR><LF> (1 = with, 0 = without)
+OVI<CR> $<CR><LF> opening filling valve
+(only software release !!!)
+CVI<CR> $<CR><LF> close filling valve
+VI<CR> 0$<CR><LF> filling valve status
+1$<CR><LF> (1 = software release
+ 0 = software blocked)
+PIE<CR> $<CR><LF> pump 1 (internal) ON
+(switches main contactor on !!)
+PIA<CR> $<CR><LF> pump 1 (internal) OFF
+(switches main contactor off !!)

@@ -1,0 +1,20 @@
+Commissioning Sequence
+14
+procedure is automatically repeated until the system is perceived to be full. This is indicated by the illumination of the
+FULL light on the WATERBATH display panel. When the
+READY light illuminates, the automatic filling and approximate temperature setting procedure is finished and the TCU
+Controller is ready to receive additional commands via the
+computer interface.
+The actual fine temperature controlling of the water to within
+± 0.02°C of the set temperature cannot be activated until this
+stage has been reached.
+This fine temperature control procedure is initiated by the
+command START. After this command has been entered
+and acknowledged, the internal and external pumps are activated and both their respective lights on the STATUS display
+panel light up. The cooling compressor switches on and this
+is also correspondingly signalled by the constant illumination
+of the COMPR light. The heater light blinks in time with the
+rapid switching on and off of the heater which is characteristic for the fine-tuning mode of the temperature control procedure.
+The Temperature Control Unit and connected system is now
+filled with water and temperature controlled accurately to
+within ± 0.02°C of the desired set temperature.

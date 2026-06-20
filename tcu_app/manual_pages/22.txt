@@ -1,0 +1,42 @@
+ASM Operating Software
+21
+– ”AFV”, ”TFV” and ”VT” commands
+The whole system can be filled and pretemperature
+controlled to within ± 0.2°C of the set temperature with
+these three commands.
+* ”AFV” command:
+This command monitors the filling process automatically. After this process has elapsed the system is filled up to the full mark and pretemperature controlled.
+This command is not acknowledged with a
+$<CR><LF> until the end. Status information is
+outputted continuously during the process.
+The ”AFV” command is made up of the following
+messages:
+TF<CR><LF> Fill circulator
+VT<CR><LF> Pretemperature control
+circulator
+<temperature>
+<CR><LF> Intermediate temperatures
+(every 2 secs) until set
+value is reached (± 0.2°C)
+AF<CR><LF> Feed circulator contents
+into system
+This block of information is repeated until the system is full. It is thus possible to monitor the filling
+procedure.
+It is not very expedient to enter the acknowledgement character directly after the filling process
+has begun, as otherwise only a small number of
+commands could be carried out. (”START<CR>”
+not possible, command is blocked !!!)
+It is also not necessary to be able to check the
+temperature at all times, as for example the temperature sensor is not immersed anyway when
+the circulator is either empty or half full.
+The ”AFV” command can be interrupted with
+”STOP<CR>”.
+* ”TFV” and ”VT” commands:
+The ”AFV” command can be replaced by these
+two commands. However detailed knowledge of
+the system required for this. All pumps, valves,
+filling marks, the heating/cooling compressor and
+other functions have to be additionally triggered
+by individual commands.
+No status information is displayed as for
+”AFV<CR>”. It is also not possible to interrupt the

@@ -1,0 +1,17 @@
+ASM Operating Software
+34
+* ASM unit:
+– Dip switch setting next to V24 interface
+ON = switch up
+OFF = switch down
+1 – ON without parity
+2 – ON even
+3 – OFF with RTS/CTS
+4 – OFF
+5 – OFF
+6 – ON 2400 Baud
+7 – ON Computer operation
+– Switching on unit
+The dip switch setting is only effective when
+switching on. Alterations made during operation
+are ignored.

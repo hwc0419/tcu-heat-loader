@@ -1,0 +1,32 @@
+Refrigeration Circuit
+36
+8. Refrigeration Circuit
+(see 12.1 Refrigeration circuit diagram)
+8.1 Components
+1 Compressor:
+(reciprocating compressor, hermetic type). The motorwinding is cooled by the returning refrigerant gas from
+the evaporator. The compressor holds the oil charge
+for lubrication. The oil circulates along the entire refrigeration circuit. (See 8.2 Oil cycle for further details).
+2 Discharge line:
+(insulated copper tube). Transports superheated compressed gas from the compressor to the condenser.
+The connection to the discharge hose and the high
+pressure hose is cut off.
+3 Condenser:
+(welded stainless steel plate heat exchanger). Hot superheated compressed refrigeration gas from the compressor is condensed in the condenser due to heat exchange. The heat load (superheat and condensation
+heat) is removed by the cooling water system (inlet
+temperature min. 15°C, max. 30°C) at a refrigerant
+temperature (condensation temperature) of 30°C. The
+saturation pressure of the refrigerant R134a at 30°C is
+7.7 bar abs. This pressure (condensation pressure) is
+measured at the discharge hose. Condensation temperature and pressure rise up to a maximum of 35°C
+at 14 bar abs as the cooling water inlet temperature
+reaches it’s maximum temperature of 30°C and the
+cooling water inlet pressure drops to it’s minimum pressure of 0.5 bar.
+The cooling water outlet temperature and the cooling
+water flow also vary as a function of the cooling water
+inlet temperature and pressure. The cooling water outlet temperature ranges between 35°C – 40°C and cooling water flow between 2 – 12 l/min.
+4 Cooling water economizer:
+(condensation pressure control valve). This adjusts the
+cooling water flow as a function of different inlet temperatures and pressures to obtain constant condensation pressure. The valve closes when the refrigeration
+circuit is switched off. The preset value is 7.7 bar abs
+and the indication mark is located between 3 and 4.

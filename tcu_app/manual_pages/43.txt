@@ -1,0 +1,28 @@
+Trouble Shooting
+42
+10. Trouble Shooting
+Faults in various subassemblies in the system are signalled
+by coded fault messages which are reported via an RS232
+interface. A summary of all the coded fault signals which are
+reported via the RS232 interface is presented on page 33.
+Some system faults cannot however be directly encoded
+and therefore are not displayed as coded fault messages.
+The following system faults come into this category:
+ • insufficient or zero heating capacity
+ • insufficient or zero cooling capacity
+ • insufficient or zero external pump capacity
+ • insufficient temperature accuracy
+10.1 Insufficient or zero heating capacity
+CAUSE ! Heater defective
+REMEDY Carry out electrical check on
+heater.
+CAUSE ! Heater control defective
+REMEDY Carry out check on TCU-controller.
+10.2 Insufficient or zero cooling capacity
+CAUSE ! Leakage in the cooling system
+REMEDY Check if bubbles or foam are visible
+in the sight glass. Check for refrigerant oil traces along the refrigeration circuit.
+CAUSE ! Compressor does not start
+REMEDY Check for defective start relay, defective start capacitor or faulty compressor mechanics. Check if internal coil protection switch interrupts
+motor when starting up. Carry out
+electrical check on motor.

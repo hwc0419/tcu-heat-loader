@@ -1,0 +1,18 @@
+Safety Elements
+35
+7. Safety Elements
+The Temperature Control Unit is equipped with a range of
+safety features as a protection against faulty handling, operation or operating conditions. These are listed below.
+Excess temperature protection 27.5°C ±0.5K
+Low temperature protection 16.5°C ±0.5K
+Low liquid level protection
+Pump motor protection switch
+Heating monitoring
+Fault monitoring
+No cooling water supply (high pressure cut-off compressor)
+These features trigger off fault messages which are displayed via the 19” control module and the RS232 interface
+on the computer monitor.
+The overflow nozzle and solenoid valves (which are only activated when the pump is running) serve a protective function
+in case of water overflowing from the temperature control circuit.
+Topping up which is also displayed via the 19” control module
+and the RS232 interface on the computer monitor, is required for water losses of approx. 2 to 3 liters.

@@ -1,0 +1,13 @@
+Packaging List
+5
+3. Packaging List
+For reasons of packaging convenience, the ASM unit is split
+into the following subassemblies.
+a) Temperature Control Unit – Controller (hereafter
+referred to as TCU – Controller)
+b) Temperature Control Unit (hereafter referred to as
+TCU)
+All other accessories (e.g. hoses, adaptors, fittings, front
+plates etc.) are supplied in the same packaging casing as the
+TCU except connection cables A and B which are supplied
+with the TCU – Controller.

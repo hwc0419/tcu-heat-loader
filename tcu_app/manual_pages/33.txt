@@ -1,0 +1,14 @@
+ASM Operating Software
+32
+Command Reply Description
+XXXXXX : xx.xxxxxx …°C
+IN<CR> XXXXXXXX$<CR><LF> Integral value (integral_new)
+XXXXXX : xx.xxxxxx …°C
+BYTE__ XX$<CR><LF> read RAM storage
+<ADR><CR> <ADR>: decimal value of the Ram
+address (0 ... 255)
+ABS<CR> <A1><A2><A3>$<CR><LF> call up original alarm status
+(see extra sheet)
+<A1> : ALARM_STATUS1
+<A2> : ALARM_STATUS2
+<A3> : ALARM_STATUS3

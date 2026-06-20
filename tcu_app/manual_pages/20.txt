@@ -1,0 +1,35 @@
+ASM Operating Software
+19
+ter circuit, water will continuously be added. The results
+of this process are not difficult to imagine!
+– The cooling compressor
+When operating the cooling compressor using the special commands ”KPE” (compressor ON) and ”KPA”
+(compressor OFF) it should be noted that the time span
+between switching OFF and ON again is at least 2 minutes. If this time span is not observed, the cooling compressor can be damaged. 
+All commands, which are not listed in the special command list fulfill these ON/OFF conditions by means of
+a switching hysteresis
+– Temperature limit
+It is possible to cancel the temperature limit of
+17°C / 27°C by entering the command ”OTB” (without
+temperature limit). If the temperature is within the
+range 4°C . . . 40°C, the fault can be eliminated by using
+the ”ER” command, if it was caused by the temperature
+range being exceeded.
+The temperature limit is always switched on after
+”START”. The temperature limit is not valid when employing the ”AFV” command (filling and pretemperature controlling the system). This is necessary in order
+to pretemperature control liquids which are at a temperature outside the 17°C / 27°C range.
+– ”SOLL” and ”SOLL__<value>”
+The current set temperature value can be displayed by
+entering ”SOLL<CR>”.
+The set temperature value can be changed with
+”SOLL__<value> <CR>”. In this case the ”__” (underscore) represents 2 spaces. The new set value (<value>) can be specified to an accuracy of 0.01°C. The
+<value> consists of 5 characters (2 places before the
+decimal point, the decimal point itself and 2 places after
+the decimal point). The first character of the <value> is
+the 7th character in the command string. Set values below 17.00°C or above 27.00°C are not permitted.
+– ”START” – / ”STOP” command
+After the ASM unit has been switched on it assumes a
+waiting mode. The unit does not begin to operate automatically. The temperature control process can be
+started with the ”START” command if the system is already full. It is possible to to interrupt the temperature
+control process by using the ”STOP” command. This is
+necessary if the system has to be topped up by entering the ”AFV” command (filling and pretemperature

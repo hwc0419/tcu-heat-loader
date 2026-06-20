@@ -1,0 +1,38 @@
+ASM Operating Software
+20
+controlling the system). This same is valid for the two
+commands ”VT” (pretemperature control) and ”TFV”
+(fill and pretemperature control circulator only).
+– ”ER” command (release)
+The hardware safety circuit recognizes faults within the
+system displays them via the red alarm LED (blinks).
+Examples of faults are listed below:
+– Exceeding the temperature limits 17°C / 27°C
+– Sensor breakage / short circuit
+– Water below ”min” level
+– Pressostat (operating pressure exceeded)
+– Pump 1 and pump 2 (operating temperature exceeded)
+After the fault has been eliminated, the software must
+also be ”released”. If the cause of the fault has not been
+completely eliminated, the alarm LED carries on blinking.
+The ”START” command cannot be entered as long as
+the LED blinks.
+– ”BS” and ”BSB”
+”BS<CR>” displays the operating status in the form of
+6 hexadecimal characters. These 6 characters result in
+6 * 4 bit positions. Every bit characterizes one operating status. The meaning can be gathered from an additional list.
+”BSB<CR>” gives the same information as ”BS<CR>”.
+The 6 characters are already coded as a bit sequence.
+Example:
+a) ”BS<CR>” – – –> 536C64$<CR><LF>
+with B1 = 53H
+with B2 = 6CH
+with B3 = 64H
+b) ”BSB<CR>”
+B1 B2 B3
+– –> 1––1––11 –11–11–– –11––1––$<CR><LF>
+Operating status in normal operation:
+”BS<CR>” : 400000$<CR><LF>
+or
+”BSB<CR>”:–1–––– ––––– –––––$<CR><LF>
+ ”–” = filling mark ”FULL” exceeded (no fault)

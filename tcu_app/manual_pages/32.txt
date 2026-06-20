@@ -1,0 +1,33 @@
+ASM Operating Software
+31
+Command Reply Description
+REF<CR> <B><VZ>XX.XXXX V$<CR><LF> record reference voltage at E5
+without limitation, with operational
+sign and measuring range
+specifications
+( –––> {DACref} ).
+( –––> see E1 description)
+Y<CR> <VZ><y> – <ynorm>$<CR><LF> display correcting variable
+<VZ>: ”+”, ”–” operational sign of
+the correcting variable y)
+<y>: XXXXXX 6 figure value of
+the calculated correcting
+variable)
+<ynorm>XXXX (4 figure value of the
+standardized correcting
+variable value from y for the
+heating control.
+0 <= ynorm <= 101
+y < 0 –> ynorm = 0
+y > 255 –> ynorm = 100
+XDN<CR> XXXXXX$<CR><LF> XD_NEW = SET – ACTUAL_NEW
+XXXXXX : xx.xxxx °C
+XDA<CR> XXXXXX$<CR><LF> XD_OLD = SET – ACTUAL_OLD
+XXXXXX : xx.xxxx °C
+DIF<CR> XXXXXX$<CR><LF> DIFFER._XD=XD_OLD – XD_NEW
+XXXXXX : xx.xxxx °C
+SUM<CR> XXXXXX$<CR><LF> SUM_XD = XD_OLD + XD_NEW
+XXXXXX : xx.xxxx °C
+GR<CR> XXXXXX$<CR><LF> GRADIENT = 0
+XXXXXX : 00.0000
+IA<CR> XXXXXXXX$<CR><LF> Integral value (integral_old)

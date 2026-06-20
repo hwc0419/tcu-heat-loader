@@ -65,10 +65,14 @@ STRESS_TEST_SETTLE_S       = settings.get('stress_test_settle_duration_s')  # co
 STRESS_TEST_DURATION_S     = settings.get('stress_test_duration_s')      # USER_CONFIGURED_DURATION — fixed total test runtime
 STRESS_TEST_MIN_ENDURANCE_S = settings.get('stress_test_min_endurance_s')  # MIN_ENDURANCE_DURATION — (duration - test_end_time) must exceed this
 STRESS_TEST_MIN_SEED_RUNS  = settings.get('stress_test_min_seed_runs')   # minimum pass-dataset size before the main AMAT0 test can run at all — below this, use the Reference subtab
-STRESS_TEST_MIN_SEED_RUNS  = 30        # pass-dataset must reach this size before the main test's Start button is enabled
 STRESS_TEST_MAX_DURATION_S = 9000      # 2.5h hard ceiling on STRESS_TEST_DURATION_S itself — sanity backstop against misconfiguration
 STRESS_TEST_DATA_DIR       = 'reference_data'
 STRESS_TEST_HISTORY_MAX    = 100       # most-recent runs shown in the history dropdown
+
+# ── In-app Documentation tab assets ───────────────────────────────────────────
+MANUAL_DIR        = 'manual_pages'   # Haake ASM TCU manual, pre-extracted as page JPEGs
+MANUAL_PAGE_COUNT = 50                # fixed — manual_pages/1.jpeg .. 50.jpeg
+DOCS_ASSETS_DIR   = 'docs_assets'    # images used by the in-app Documentation tab
 
 # ── 2kW heat load sequence test (live from settings) ─────────────────────────
 SEQ_TEST_SETTLE_S        = settings.get('seq_test_settle_duration_s')

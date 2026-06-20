@@ -1,0 +1,29 @@
+Commissioning Sequence
+12
+5.2 Connecting and setting up the Temperature Control Unit
+Rear View
+8
+9
+10
+13
+12
+11
+7 Filling
+Overflow
+Outlet
+Temp. controlled
+water
+Supply Retour
+Retour Supply
+Cooling water
+14
+15
+Connect the cooling water inlet and outlet tubes to the 1/2”
+supply and retour hoses (10) at the bottom left of the unit on
+the rear side.
+In the same way connect the temperature control circuit inlet
+and outlet tubes to the 1” hoses marked supply and retour
+(15) at the rear of the unit.
+The mains supply cable located at the bottom left-hand corner (11) at the rear of the unit should now be plugged into the
+mains supply.
+The filling tube should be connected to the quick coupling filling fitting NW 10 (7) at the back of the unit.

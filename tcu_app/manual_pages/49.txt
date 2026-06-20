@@ -1,0 +1,34 @@
+Spare Parts List
+48
+12.3 Electrical system
+automatic
+fuse 3 x 16A
+(087–2378)
+phase
+sequence
+relay
+(087–2658)
+relay
+1
+(087–2772)
+(087–2773)
+relay
+2
+(087–2771)
+SSR–relay
+(087–1412)
+PCB–
+relay
+ASM
+(002–0364)
+25 26 23
+27 29 28
+24
+Part Description Order No.
+23 Automatic fuse 087 – 2378
+24 Phase sequence relay 087 – 2658
+25 Relay 1 087 – 2772
+26 Additional contact for relay 1 087 – 2773
+27 Relay 2 087 – 2771
+28 SSR-relay 087 – 1412
+29 PCB-relay ASM 002 – 0364

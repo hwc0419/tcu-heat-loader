@@ -1,0 +1,37 @@
+ASM Operating Software
+18
+The START command can be entered after this sequence has elapsed.
+2 Pretemperature controlling into the 17°C to 27°C temperature range:
+– ”VT” command: Pretemperature control
+circulator contents
+– ”PIE” command: Pump 1 ON (main
+contactor)
+– ”OKE” command: Open EXTERNAL circuit
+(OPEN EXTERNAL
+solenoid valve, pump 2
+ON)
+(The circulator contents are fed into the system circuit.
+The external pump should run for at least 1 minute in
+order to guarantee a sufficient mixing of the bath liquid).
+– ”CKE” command: Close EXTERNAL circuit
+(pump 2 OFF, CLOSE
+EXTERNAL solenoid
+valve)
+– ”PIA” command: Pump 1 OFF (main
+contactor is released)
+The steps listed above should be repeated as long as
+the red alarm LED still blinks. When the alarm LED extinguishes, the liquid temperature is only just above
+17°C or just below 27°C.
+The START command can now be entered. If the alarm
+LED should start to blink again after this, the temperature was too close to limit values. The above mentioned
+steps should be repeated.
+– Manual filling
+The temperature control process does not have to be
+interrupted in order to top up the system. The filling
+valve can be opened by first entering the ”OMF” command (release manual filling) and then depressing the
+manual filling button. Water is however only added if
+the water level is below the full mark.
+– Automatic filling during temperature control process
+The process should be carried out with great care. The
+filling valve is opened via the ”OVI” command. If the water level sinks below the full filling mark, water is added
+automatically. If there is a leakage anywhere in the wa-

@@ -1,0 +1,38 @@
+ASM Operating Software
+17
+6.2 General Explanation
+– Temperature controlling and pretemperature controlling
+The term ”temperature controlling” is always used in
+connection with the temperature control function. The
+deviation from the SET temperature amounts to just
+± 0.02°C.
+The term ”pretemperature controlling” is always used
+in connection with the commands ”AFV”, ”TFV” and
+”VT”. The temperature deviation amounts to ± 0.2°C in
+this case.
+– Temperature controlling a filled system
+A system which has already been filled is temperature
+controlled to the desired set temperature after switching on via the START command. If the temperature is
+outside the 17°C . . . 27°C range (red alarm light blinks),
+and a ”pseudo” filling process should be started with
+the command ”AFV <CR>” (fill and pretemperature
+control the system). The heat transfer liquid is thus pretemperature controlled to within ± 0.2°C of the set temperature. This automatic process provides the safest
+way of beginning temperature controlling.
+There are two possibilities available if pretemperature
+controlling is to be carried out using special commands. It can be easily recognized that the method using the ”AFV” command is the more convenient one.
+1 Pretemperature controlling the heat transfer liquid to
+within ± 0.2°C of the set temperature.
+– ”PIE” command: Pump 1 ON (main
+contactor)
+– ”OKE” command: Open EXTERNAL circuit
+(OPEN EXTERNAL
+solenoid valve, pump 2
+ON)
+– ”VT” command: Pretemperature control
+circulator content
+– ”CKE” command: Close EXTERNAL circuit
+(pump 2 OFF, CLOSE
+EXTERNAL solenoid
+valve)
+– ”PIA” command: Pump 1 OFF (main
+contactor is released)

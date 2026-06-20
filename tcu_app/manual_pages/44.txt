@@ -1,0 +1,28 @@
+Trouble Shooting
+43
+CAUSE ! Refrigerant compressor control defective
+REMEDY Carry out check on TCU-controller.
+10.3 Insufficient or zero external pump capacity
+CAUSE ! External pump defective
+REMEDY Check flow rate and compare.
+CAUSE ! External pump control defective
+REMEDY Carry out check on TCU-controller.
+CAUSE ! External solenoid valve defective
+REMEDY Check for switching noises made
+by solenoid valves. Carry out electrical check on coils.
+CAUSE ! External solenoid valve control defective
+REMEDY Carry out check on TCU-controller.
+10.4 Insufficient temperature accuracy
+CAUSE ! Insufficient or zero heating capacity
+REMEDY See 12.1.
+CAUSE ! Insufficient or zero cooling capacity
+REMEDY See 12.2.
+CAUSE ! Insufficient or zero internal pump capacity
+REMEDY Internal pump defective
+Check if internal pump fault message has been signalled.
+REMEDY Internal pump control defective
+Carry out check on TCU-controller.
+CAUSE ! Heater control defective
+REMEDY Carry out check on TCU-controller.
+CAUSE ! Temperature sensor defective
+REMEDY Check sensor cable and plug.

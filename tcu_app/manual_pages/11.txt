@@ -1,0 +1,23 @@
+Description of Operating Elements
+10
+ASM TCU Unit – Computer Connection RS232C
+25 pole Sub D bushing
+The setting of the interface parameters is carried out at switch S1 on the printed circuit 
+board 0001 – 4752 in the TCU controller
+Computer
+operation
+Baud rate
+RTS/CTS
+Parity
+/black=switch
+ setting
+ON ON ON OFF OFF OFF OFF
+Connection Cable
+without
+with
+even
+odd
+without
+with
+Earthed conductor
+Signal earth

@@ -1,0 +1,34 @@
+Description of Operating Elements
+9
+4.3 Interface Description
+Serial interface RS232C
+Command transmission:
+The commands are usually sent from the computer to the
+temperature control unit. The temperature control unit also
+sends messages, but only when requested to via the computer.
+Command set:
+Output commands with regard to:
+– Set temperature
+– Temperature control process
+– Filling process
+– External pump and valves
+– Releasing the alarm
+– Self-calibration
+– Temperature limitation
+Request commands with regard to:
+– Temperature value
+– Switching conditions
+– Operating mode
+– Fault code
+Transmission format
+10 (11) bits:
+– 1 start bit
+– 8 data bits
+– (1 parity bit)
+– 1 stop bit
+Adjustable parameters
+Transmission rate: 600, 1200, 2400, 4800 bauds
+Handshake signals: with/without RT5, CT5
+Parity: with/without. even/odd
+Connection plug
+25 pole Sub D bushing at the front of the electronics rack insert.

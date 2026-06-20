@@ -1,0 +1,12 @@
+ASM Operating Software
+23
+– ”REF”
+This command supplies a reference voltage value (1.8
+volts) which is required for temperature measuring via
+the temperature sensor PT500. It is thus possible to
+check if the reference voltage is correct when there is
+a faulty temperature measurement.
+– ”BYTE__<Address>”
+A RAM storage address can be directly read out with
+this command. It is only used for test purposes. ”__”
+represents 2 spaces.

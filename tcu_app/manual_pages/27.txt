@@ -1,0 +1,15 @@
+ASM Operating Software
+26
+6.4 Special Commands
+The usage of these commands requires exact knowledge of
+the unit’s functioning. Most commands are simple software
+switches which release certain functions without actually
+starting the process within the unit.
+i.e. The heating cannot directly be switched on by using the
+command ”HEIN”, but rather not until the main contactor has
+been activated. The main contactor is activated by the commands ”PIE” (internal pump 1 ON) or ”HSE” (main contactor
+ON).
+The command ”OVI” only causes the water to be topped up
+if the level is below the full level mark, therefore meaning that
+the electronics actually causes release.
+This generally means that a type of AND linkage exists between the hard- and software.

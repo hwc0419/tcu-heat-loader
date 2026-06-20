@@ -1,0 +1,38 @@
+ASM Operating Software
+22
+command sequence.
+– ”OKE”, ”CKE” and ”KE” (identical to: ”PEE”, ”PEA” and
+”PE”)
+These commands are used to trigger the exterior circuit. In this connection it should be noted that when
+opening the circuit, the valve is triggered first and the
+pump switched on approximately 2 seconds later. On
+closing, the pump is switched off first and the valve
+closed after approximately 2 seconds. This prevents
+the pump from working against a closed valve.
+– ”OVE”, ”CVE” and ”VE”
+These commands control the external valve.
+”OVE<CR> ” simply opens the external valve. In order
+to avoid a situation where the pump is working against
+a closed valve, ”CVE<CR>” first switches off the pump
+and turns off the valve approximately 2 seconds later.
+– ”HSE”, ”HSA” and ”HS”
+These commands activate the main contactor. All functions which are monitored by the safety circuit can only
+be carried out by software commands if the main contactor has released (and there is a linkage between the
+hard- and software).
+– ”PIE”, ”PIA” and ”PI”
+These commands are used to operate the circulation
+pumps in the circulator. They are identical to the control
+commands for the main contactor.
+– XDN”, ”XDA”, ”DIF”, ”SUM”, ”GR”, ”IA”, ”IN” and ”Y”
+It is possible to display the control variables when calculating the correcting variable Y, by using these commands. ”Y<CR>” on its own displays two correcting
+variables for triggering the heating . The first value is
+the calculated correcting variable plus operational
+sign. The second value is the standardized correcting
+value (0% . . . 100%) for the heating interval.
+– ”R”
+The module displays a malfunction when this command is used. It tries to input a non-existent temperature sensor.
+– ”E1”, ”E10R”, ”E2” and ”E3”
+These commands cause the measuring variables to be
+inputted as voltage levels. The corresponding measuring values (flow rate, temperature) can be calculated,
+if these values are used within the correct formulas
+(see command list).

@@ -1,0 +1,43 @@
+ASM Operating Software
+33
+6.5 Meaning of bit positions when displaying the operating status
+BYTE 1 = <B1>: ASCII characters 1 and 2
+Bit 7 no meaning
+Bit 6 = 1 –> Liquid level mark ”Full” exceeded
+Bit 5 = 1 –> Liquid level mark ”ASM” not reached
+Bit 4 = 1 –> Liquid level mark ”MIN” not reached (A)
+Bit 3 = 1 –> Pump 2 (ext.) operating temperature
+exceeded (A)
+Bit 2 = 1 –> Pump 1 (int.) operating temperature
+exceeded (A)
+Bit 1 = 1 –> 27°C temperature exceeded (A)
+Bit 0 = 1 –> 17°C temperature exceeded (A)
+BYTE 2 = <B2>: ASCII characters 3 and 4
+Bit 7 = 1 –> ALARM unit switches off automatically
+Bit 6 = 1 –> Release START and STOP commands and
+internal monitoring functions cannot be
+carried out.
+Bit 5 = 1 –> 3°C temperature not reached or (A)
+40°C temperature exceeded
+Bit 4 = 1 –> Temperature sensor breakage/ (A)
+short-circuit
+Bit 3 = 1 –> Calibration mistake (A)
+Bit 2 = 1 –> Main contactor activated
+( = 1 – at START
+ = 0 – at STOP and ALARM)
+Bit 1 = 1 –> Fault in heating circuit (A)
+Bit 0 = 1 –> Operating pressure not reached (A)
+BYTE 3 = <B3>: ASCII characters 5 and 6
+Bit 7 = 1 –> Supply voltage not present in safety circuit
+Bit 6 no meaning
+Bit 5 no meaning
+Bit 4 = 1 –> Hardware fault in main contactor (S)
+Bit 3 = 1 –> Hardware fault in watchdog switching (S)
+Bit 2 = 1 –> Hardware fault in alarm triggering (S)
+switching
+Bit 1 = 1 –> Hardware fault in unlocking switching (S)
+Bit 0 = 1 –> Hardware fault in start test (S)
+Character explanation
+(A) – Alarm source
+(S) – START and ER command cannot be carried out,
+ unit must be switched off

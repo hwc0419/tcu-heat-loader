@@ -1,0 +1,32 @@
+Spare Parts List
+45
+12. Spare Parts List
+12.1 Refrigeration circuit
+1
+2
+3
+4
+5
+7
+8
+750 R 134a
+3,3
+002–7478
+3,3
+7.7
+002–4582
+SC 18 GX 13
+4
+002–7627
+002–8406
+117 U 5016
+117 U 6019
+7.7
+Part Description Order No.
+1 Compressor 002 – 4582
+2 Start relay 002 – 8406
+3 Start capacitor 000 – 7627
+4 Cooling water economizer 000 – 8095
+5 Filter / dryer 001 – 5507
+7 Automatic expension valve 002 – 7478
+8 High pressure cut-off 001 – 3294

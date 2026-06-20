@@ -1,0 +1,29 @@
+ASM Operating Software
+24
+6.3 ASM unit commands and respective replies
+Command Reply Description
+V<CR> 1.2–4/90–017$<CR><LF> current software version
+RESET<CR> return unit to switched on state and
+recalibrate
+KALIBRIERT$<CR><LF> calibration successful
+NICHT KALIBRIERT$<CR><LF> calibration fault
+START<CR> $<CR><LF> START temperature control.
+Temperature control must be restarted
+each time the module is switched on
+STOP<CR> $<CR><LF> termination command for
+temperature control, filling and
+pretemperature controlling
+M<CR> XX.XX C$<CR><LF> temperature measuring sensor
+(0°C . . . . 28°C)
+XX.XX = {00.00 . . . 28.00}
+D<CR> XX 1/min$<CR><LF> flow rate in liters/minutes
+(0 . . . . 60 l/min)
+XX = {00 . . . 60}
+SOll__XX.XX<CR> $<CR><LF> set preset temperature value
+(17.00°C . . . 27.00°C)
+XX.XX = {17.00 . . . 27.00}
+”__”: 2 spaces
+SOll<CR> $<CR><LF> show preset set value
+ER<CR> release safety circuit
+$<CR><LF> safety circuit released 
+F<CR><LF> releasing not possible,

@@ -1,0 +1,37 @@
+ASM Operating Software
+25
+Command Reply Description
+fault source not eliminated
+BS<CR> <B1><B2><B3>$<CR><LF> display operating status
+––> 6 hexadecimal values
+(see additional sheet)
+<B1> : Byte 1 ( 2 ASCII )
+<B2> : Byte 2 ( 2 ASCII )
+<B3> : Byte 3 ( 2 ASCII )
+Bit: 7 0
+BSB<CR> XXXXXXXX<Space><Space> output the operating status in bits.
+XXXXXXXX<Space><Space> Sequence corresponds to ”BS”
+XXXXXXXX
+$<CR><LF> ––> <B1><B2><B3>$<CR><LF>
+Bit 7: High-Bit
+Bit 0: Low Bit
+AFV<CR> <status information>$<CR><LF> fill system and pretemperature control
+to within ± 0.2°C of the set
+temperature.
+<status information> :
+the following cycle of N outputs is
+repeated until the system is full:
+[ TF<CR><LF>
+ VT<CR><LF>
+ <temperature><CR><LF>
+ ”
+until the set value has been with an
+accuracy of ± 0.2°C.
+ ”
+ <temperature><CR><LF>
+ AF<CR><LF>
+]
+OMF<CR> $<CR><LF> release manual filling
+CMF<CR> $<CR><LF> lock manual filling
+MF<CR> 0$<CR><LF> manual filling status
+1$<CR><LF> (1 = possible, 0 = locked)

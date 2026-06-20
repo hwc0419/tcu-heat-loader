@@ -1,0 +1,35 @@
+ASM Operating Software
+15
+6. ASM Control Software
+Unit’s switched on state:
+– Temperature Control switched off
+– Heating off
+– Compressor off
+– All valves closed
+– All pumps off
+– Temperature limits (17°C < T < 27°C) activated in
+safety circuit
+– Manual filling blocked
+– Last set temperature value has been saved
+The following information is displayed when the unit is
+switched on:
+CALIBRATED <CR> <LF> if calibration is successful
+or
+NOT CALIBRATED <CR> < LF> in case of calibration fault
+1.2–4/90–017 <CR> <LF> current software version
+OR$ <CR> <LF> OR: Temperature control OFF
+6.1 Data Transfer
+1 Computer ––––> ASM Unit:
+Every command entered via the computer must be terminated by <CR>. An additional <LF> is ignored and
+should therefore not be transferred.
+< ASCII command code > <CR>
+2 ASM Unit ––––> Computer:
+Every executable command is only acknowledged with
+$ <CR> <LF> after it has been processed.
+The Temperature Control – Start command (”START”)
+is an exception. As it is possible to carry out further
+commands during the temperature control phase,
+”START” is immediately acknowledged with $ <CR>
+<LF>.
+For commands such as version enquiries, operating
+mode display etc. the data of the above shown acknowledgement character sequence is shown first.
