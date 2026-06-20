@@ -46,6 +46,7 @@ class DocsTab(QWidget):
         # Sub-tab navigation
         self._subtabs = QTabWidget()
         self._subtabs.tabBar().setExpanding(False)
+        self._subtabs.addTab(self._build_about_app(),      'ABOUT THIS APP')
         self._subtabs.addTab(self._build_system_overview(), 'SYSTEM OVERVIEW')
         self._subtabs.addTab(self._build_tcu_specs(),     'TCU SPECS')
         self._subtabs.addTab(self._build_rs232_ref(),     'RS232 COMMANDS')
@@ -588,7 +589,157 @@ class DocsTab(QWidget):
     def _manual_next_page(self):
         self._manual_load_page(self._manual_page_num + 1)
 
-    # ── Tab: System Overview ─────────────────────────────────────────────────
+    # ── Tab: About This App ──────────────────────────────────────────────────
+
+    def _build_about_app(self):
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        layout.addWidget(self._h1('About This App'))
+        layout.addWidget(self._p(
+            'What each tab in TCU++ is for, what it can do, and when you\'d '
+            'actually reach for it. One inner tab per top-level tab in the app.'))
+
+        inner_tabs = QTabWidget()
+        inner_tabs.tabBar().setExpanding(False)
+        for name, builder in [
+            ('MONITOR',        self._about_monitor),
+            ('AMAT0 TEST',     self._about_amat0_test),
+            ('2KW PULSE TEST', self._about_2kw_pulse_test),
+            ('HEATER',         self._about_heater),
+            ('SETTINGS',       self._about_settings),
+        ]:
+            inner_tabs.addTab(builder(), name)
+        layout.addWidget(inner_tabs)
+
+        return w
+
+    def _about_tab_page(self, one_liner, features, use_cases):
+        """Shared layout for one inner About-This-App page: a one-line
+        summary, a full feature table, and a use-cases table. features and
+        use_cases are each a list of (name, description) pairs."""
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        layout.addWidget(self._p(one_liner))
+        layout.addWidget(self._divider())
+
+        layout.addWidget(self._h2('What it can do'))
+        layout.addWidget(self._table(['Feature', 'Description'], features, [4, 6]))
+
+        layout.addWidget(self._h2('When to use it'))
+        layout.addWidget(self._table(['Situation', 'Why this tab helps'], use_cases, [4, 6]))
+
+        layout.addStretch()
+        return self._scroll(w)
+
+    def _about_monitor(self):
+        return self._about_tab_page(
+            one_liner='The at-a-glance home base for the TCU\'s live state, and the '
+                      'place to send direct hardware commands outside of a formal test.',
+            features=[
+                ['Live readings', 'Inlet temperature, flow rate, and setpoint, updated every second'],
+                ['Rolling graph', 'Temperature and flow plotted over the last polling window, updated every second'],
+                ['PRECOND button', 'Raise TCU internal tank temperature to setpoint, without a full fill cycle'],
+                ['START / STOP', 'Direct TCU temperature-control start/stop, independent of any test'],
+                ['FILL / Clear Alarm / Close Valve / Set Setpoint', 'Direct, single-command access to the rest of the TCU\'s control surface'],
+                ['Command log', 'Every RS232 command sent and the TCU\'s reply, tap to pop out + Export to .txt'],
+                ['Alarm history', 'Every alarm condition the TCU has reported this session, tap to pop out + Export to .txt'],
+                ['Flow/Temp toggle', 'Switch the live graph between the two signals without leaving the tab'],
+            ],
+            use_cases=[
+                ['Confirming the TCU is alive and responding before starting any test', 'Live readings + command log give an immediate health check, no test needs to be running'],
+                ['TCU was just powered on or just finished a fill', 'PRECOND brings the tank to setpoint quickly, without re-running a full AFV fill'],
+                ['Diagnosing an intermittent comms or alarm issue', 'Command log and alarm history are both exportable, so a problem pattern can be shared or reviewed offline'],
+                ['Manually recovering from an alarm or unexpected state', 'Clear Alarm / Close Valve / direct Stop give a way to intervene without starting a new test'],
+            ],
+        )
+
+    def _about_amat0_test(self):
+        return self._about_tab_page(
+            one_liner='Burst-and-decay pass/fail test for a repaired TCU, scored against '
+                      'a growing reference dataset of known-good units. Two sub-tabs: '
+                      'Main (the actual test) and Reference (builds the comparison data).',
+            features=[
+                ['Gated Start (Main)', 'Start is locked until the reference dataset has enough runs to score against meaningfully'],
+                ['TCU serial number entry', 'Ties each test result to the specific physical unit tested'],
+                ['Fixed-duration logging', 'Configurable test length in Settings, so every run is directly comparable'],
+                ['Temp + flow dual-axis graph', 'Watch both signals at once during a run'],
+                ['Transient start/end markers', 'Shows exactly where the algorithm placed the transient window, on every run'],
+                ['Four-condition pass/fail', 'Time, temp-shape, flow-shape, and endurance all checked independently against the reference dataset'],
+                ['Auto-filing', 'Every scored run automatically grows the pass/fail dataset — no manual step'],
+                ['Run history dropdown (Main)', 'Pull up any of the last 100 runs\' graphs for comparison'],
+                ['5-point statistical summary (Main)', 'Quick sense of the reference dataset\'s spread without exporting data'],
+                ['Simplified test flow (Reference)', 'Build the reference dataset from known-good units, no scoring overhead'],
+                ['Dataset table + delete + CSV import (Reference)', 'View, prune, or backfill the reference dataset directly'],
+            ],
+            use_cases=[
+                ['A TCU has just been repaired and needs sign-off', 'Main sub-tab gives an objective, repeatable pass/fail verdict instead of an operator judgment call'],
+                ['The reference dataset is too small or new to trust yet', 'Reference sub-tab is exactly for this — run known-good units through it with no scoring pressure'],
+                ['A result looks surprising and you want to sanity-check it', 'The run history dropdown plus the 5-point summary let you compare this run against the dataset directly, in-app'],
+                ['You already have CSV logs from past good units', 'Reference sub-tab\'s Import lets you backfill the dataset without re-running physical tests'],
+            ],
+        )
+
+    def _about_2kw_pulse_test(self):
+        return self._about_tab_page(
+            one_liner='Tests the TCU\'s 2kW heater through a user-defined sequence of '
+                      'instant load changes, scoring each stage\'s settle time against '
+                      'a dataset binned by watts.',
+            features=[
+                ['Sequence editor', 'Define an exact, repeatable pattern of watt values to step through'],
+                ['Random sequence generator', 'Generate a varied test sequence quickly, ranges configurable in Settings'],
+                ['Per-stage settle-time scoring', 'Each individual load step is checked against history for that specific wattage, not just the sequence as a whole'],
+                ['Automatic trailing 0W stage', 'Every sequence ends with a cool-down stage automatically, not something you have to remember to add'],
+                ['Searchable run history (Ctrl+F)', 'Find and re-load a past sequence quickly instead of scrolling a long list'],
+            ],
+            use_cases=[
+                ['Testing the heater\'s actual duty-cycle responsiveness', 'A custom sequence can mirror the real photo-tool load pattern, not just a single step'],
+                ['Quickly generating varied coverage for a broader test pass', 'Random sequence generation avoids hand-typing dozens of watt values'],
+                ['Investigating a slow-settling load level specifically', 'Per-stage scoring (binned by watts) isolates whether the problem is at one wattage or systemic'],
+                ['Repeating a sequence used on a previous unit for direct comparison', 'Search the run history (Ctrl+F) and reload it instead of re-typing it'],
+            ],
+        )
+
+    def _about_heater(self):
+        return self._about_tab_page(
+            one_liner='Direct, manual control of the heater\'s power level, outside of '
+                      'any formal test — for setup, calibration checks, or troubleshooting.',
+            features=[
+                ['Manual watts entry', 'Drive the heater to a specific power level directly'],
+                ['Live setpoint/actual readout', 'Confirm the heater is actually responding to commands'],
+                ['Modbus response log', 'Diagnose heater communication issues independent of the TCU/PLC link'],
+            ],
+            use_cases=[
+                ['Confirming the heater itself responds before relying on it in a test', 'Manual entry plus the live readout gives a direct, isolated check'],
+                ['Calibration or commissioning work on a new or repaired heater', 'Set specific watt levels and observe the actual response directly'],
+                ['Suspecting a heater comms problem rather than a TCU problem', 'The Modbus log isolates heater communication from the rest of the system'],
+            ],
+        )
+
+    def _about_settings(self):
+        return self._about_tab_page(
+            one_liner='Configuration for serial ports, test pass/fail parameters, '
+                      'and display preferences — everything the operator might need '
+                      'to tune without editing files directly.',
+            features=[
+                ['Serial port configuration', 'TCU/PZEM/PLC port and baud settings, under Advanced (password-gated)'],
+                ['Post-repair test parameters', 'Pass/fail thresholds and timing for both the AMAT0 and 2kW Pulse tests'],
+                ['Theme (light/dark)', 'Match the display to the workshop\'s lighting conditions'],
+                ['Language (English/Chinese)', 'Support operators more comfortable in either language'],
+                ['Scrollable sub-tabs', 'Post-repair test and Advanced sub-tabs scroll on shorter screens instead of clipping content'],
+            ],
+            use_cases=[
+                ['A serial port changed (e.g. after re-cabling or a new adapter)', 'Update the port directly in Settings rather than editing config files on the device'],
+                ['Tightening or loosening a test\'s pass/fail strictness', 'AMAT0 and 2kW Pulse Test parameters are both adjustable here as the process matures'],
+                ['Switching operators between English and Chinese', 'Language toggle applies across the whole app immediately'],
+                ['Working in a brightly lit or darkened workshop area', 'Theme toggle adjusts the whole app\'s display for visibility'],
+            ],
+        )
 
     def _build_system_overview(self):
         w = QWidget()
