@@ -28,7 +28,7 @@ import pyqtgraph as pg
 from settings_manager import settings
 from translations import tr
 from config import HEATER_MAX_WATTS
-from gui.graph_utils import make_graph_panel
+from gui.graph_utils import make_graph_panel, apply_graph_style
 
 _GRAPH_MAX_POINTS = 600   # 10 min at 1 sample/sec
 
@@ -121,10 +121,10 @@ class HeaterTab(QWidget):
     def _build_graph(self):
         self._grp_graph, self._plot, _ = make_graph_panel(tr('heater_graph'), self._scale)
         panel = self._grp_graph
-        self._plot.setLabel('left',   'Temperature', units='°C')
-        self._plot.setLabel('bottom', 'Time', units='s')
+        apply_graph_style(self._plot,
+                          left_label='Temperature', left_units='°C',
+                          bottom_label='Time', bottom_units='s')
         self._plot.addLegend()
-        self._plot.showGrid(x=True, y=True, alpha=0.3)
         self._plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._plot.setMinimumHeight(200)
         self._curve_water   = self._plot.plot(pen=pg.mkPen('#2196F3', width=2),

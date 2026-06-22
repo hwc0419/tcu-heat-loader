@@ -19,8 +19,8 @@ import pyqtgraph as pg
 from collections import deque
 from datetime import datetime
 
-from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM, pt_secondary
-from gui.graph_utils import make_graph_panel
+from gui.styles import PANEL, SURFACE, BORDER, ACCENT, GREEN, RED, AMBER, TEXT, TEXT_DIM, pt_secondary, GRAPH_TEMP_COLOR, GRAPH_FLOW_COLOR, GRAPH_BG
+from gui.graph_utils import make_graph_panel, apply_graph_style
 from settings_manager import settings
 from translations import tr
 
@@ -225,22 +225,22 @@ class MonitorTab(QWidget):
     # ── Graph setup ───────────────────────────────────────────────────────────
     def _setup_graph(self):
         pw = self.plot_widget
-        pw.showGrid(x=True, y=True, alpha=0.2)
-        pw.setLabel('left', 'Temperature', units='°C',
-                    color=TEXT, font={'family': 'Courier New', 'size': '11px'})
-        pw.setLabel('bottom', 'Time (s)',
-                    color=TEXT_DIM, font={'family': 'Courier New', 'size': '10px'})
+        apply_graph_style(pw,
+                          left_label='Temperature', left_units='°C',
+                          left_color=GRAPH_TEMP_COLOR,
+                          bottom_label='Time (s)', bottom_units='',
+                          right_label='Power', right_units='W',
+                          right_color=AMBER)
         pw.addLegend(offset=(10, 10))
 
-        # Temperature curve (left Y)
+        # Temperature curve (left Y) — red
         self._curve_tcu = pw.plot(
-            pen=pg.mkPen(color=ACCENT, width=2), name='TCU Inlet (°C)')
+            pen=pg.mkPen(color=GRAPH_TEMP_COLOR, width=2), name='TCU Inlet (°C)')
 
-        # Power curve (right Y via ViewBox)
+        # Power curve (right Y via ViewBox) — amber
         self._power_vb = pg.ViewBox()
         pw.scene().addItem(self._power_vb)
         pw.getAxis('right').linkToView(self._power_vb)
-        pw.getAxis('right').setLabel('Power', units='W', color=AMBER)
         pw.showAxis('right')
         self._power_vb.setXLink(pw)
         self._curve_power = pg.PlotCurveItem(
@@ -248,9 +248,9 @@ class MonitorTab(QWidget):
         self._power_vb.addItem(self._curve_power)
         pw.plotItem.vb.sigResized.connect(self._sync_vb)
 
-        # Flow curve (hidden initially)
+        # Flow curve (hidden initially) — blue
         self._curve_flow_inline = pw.plot(
-            pen=pg.mkPen('#2196F3', width=2), name='Flow (ℓ/min)')
+            pen=pg.mkPen(GRAPH_FLOW_COLOR, width=2), name='Flow (ℓ/min)')
         self._curve_flow_inline.setVisible(False)
 
         # Setpoint line
@@ -275,7 +275,7 @@ class MonitorTab(QWidget):
             self._curve_power.setVisible(True)
             self._setpoint_line.setVisible(True)
             self._curve_flow_inline.setVisible(False)
-            pw.setLabel('left', 'Temperature', units='°C')
+            pw.setLabel('left', 'Temperature', units='°C', color=GRAPH_TEMP_COLOR)
             pw.showAxis('right')
             self._graph_lbl.setText('Temperature')
             self._toggle_btn.setText('→ Flow Rate')
@@ -284,7 +284,7 @@ class MonitorTab(QWidget):
             self._curve_power.setVisible(False)
             self._setpoint_line.setVisible(False)
             self._curve_flow_inline.setVisible(True)
-            pw.setLabel('left', 'Flow rate', units='ℓ/min')
+            pw.setLabel('left', 'Flow rate', units='ℓ/min', color=GRAPH_FLOW_COLOR)
             pw.hideAxis('right')
             self._graph_lbl.setText('Flow Rate')
             self._toggle_btn.setText('← Temperature')
@@ -304,20 +304,22 @@ class MonitorTab(QWidget):
 
         temp_panel, self._popup_plot_temp, _ = make_graph_panel(
             'TCU Inlet Temperature', self._scale)
-        self._popup_plot_temp.setLabel('left',   'Temperature', units='°C')
-        self._popup_plot_temp.setLabel('bottom', 'Time',        units='s')
-        self._popup_plot_temp.showGrid(x=True, y=True, alpha=0.3)
+        apply_graph_style(self._popup_plot_temp,
+                          left_label='Temperature', left_units='°C',
+                          left_color=GRAPH_TEMP_COLOR,
+                          bottom_label='Time', bottom_units='s')
         self._popup_curve_temp = self._popup_plot_temp.plot(
-            pen=pg.mkPen(ACCENT, width=2), name='TCU Inlet')
+            pen=pg.mkPen(GRAPH_TEMP_COLOR, width=2), name='TCU Inlet')
         v.addWidget(temp_panel)
 
         flow_panel, self._popup_plot_flow, _ = make_graph_panel(
             'Flow Rate', self._scale)
-        self._popup_plot_flow.setLabel('left',   'Flow rate', units='ℓ/min')
-        self._popup_plot_flow.setLabel('bottom', 'Time',      units='s')
-        self._popup_plot_flow.showGrid(x=True, y=True, alpha=0.3)
+        apply_graph_style(self._popup_plot_flow,
+                          left_label='Flow rate', left_units='ℓ/min',
+                          left_color=GRAPH_FLOW_COLOR,
+                          bottom_label='Time', bottom_units='s')
         self._popup_curve_flow = self._popup_plot_flow.plot(
-            pen=pg.mkPen('#2196F3', width=2), name='Flow rate')
+            pen=pg.mkPen(GRAPH_FLOW_COLOR, width=2), name='Flow rate')
         v.addWidget(flow_panel)
 
     def _on_show_popup(self):

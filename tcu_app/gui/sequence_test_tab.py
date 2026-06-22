@@ -26,8 +26,8 @@ from PyQt5.QtWidgets import (
 )
 
 from gui.osk import OskLineEdit as QLineEdit
-from gui.graph_utils import make_graph_panel
-from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
+from gui.graph_utils import make_graph_panel, apply_graph_style
+from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary, GRAPH_TEMP_COLOR
 from settings_manager import settings
 from translations import tr
 from config import (
@@ -166,10 +166,11 @@ class SequenceTestTab(QWidget):
         shortcut.activated.connect(lambda: self.edit_search.setFocus())
 
     def _setup_graph(self):
-        self._plot.setLabel('left', 'Temperature', units='°C')
-        self._plot.setLabel('bottom', 'Time', units='s')
-        self._plot.showGrid(x=True, y=True, alpha=0.2)
-        self._curve_temp = self._plot.plot([], [], pen=pg.mkPen('#0077B6', width=2))
+        apply_graph_style(self._plot,
+                          left_label='Temperature', left_units='°C',
+                          left_color=GRAPH_TEMP_COLOR,
+                          bottom_label='Time', bottom_units='s')
+        self._curve_temp = self._plot.plot([], [], pen=pg.mkPen(GRAPH_TEMP_COLOR, width=2))
         self._stage_lines = []
 
     # ── History buffer ──────────────────────────────────────────────────────

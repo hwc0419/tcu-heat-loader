@@ -14,10 +14,66 @@ from PyQt5.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QSizePolicy
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 import pyqtgraph as pg
 import pyqtgraph.exporters as pgexp
 
+from gui.styles import (
+    GRAPH_BG, GRAPH_TEMP_COLOR, GRAPH_FLOW_COLOR,
+    GRAPH_AXIS_FONT_SIZE_PX, TEXT, TEXT_DIM, AMBER,
+)
+
 _MAX_FILTER_LEN = 2   # PNG + SVG options
+
+_AXIS_FONT = QFont('Courier New', GRAPH_AXIS_FONT_SIZE_PX)
+
+
+def apply_graph_style(plot_widget: pg.PlotWidget,
+                      left_label: str = '',
+                      left_units: str = '',
+                      left_color: str = None,
+                      bottom_label: str = 'Time',
+                      bottom_units: str = 's',
+                      right_label: str = '',
+                      right_units: str = '',
+                      right_color: str = None) -> None:
+    """
+    Apply the standard app graph style to a PlotWidget:
+      - White background
+      - Doubled-size axis tick fonts
+      - Coloured axis labels (left = GRAPH_TEMP_COLOR by default,
+        right = GRAPH_FLOW_COLOR by default)
+
+    Call once per PlotWidget immediately after make_graph_panel().
+    """
+    plot_widget.setBackground(GRAPH_BG)
+
+    if left_color is None:
+        left_color = GRAPH_TEMP_COLOR
+    if right_color is None:
+        right_color = GRAPH_FLOW_COLOR
+
+    font_dict = {'family': 'Courier New', 'size': f'{GRAPH_AXIS_FONT_SIZE_PX}px'}
+
+    pi = plot_widget.getPlotItem()
+    pi.showGrid(x=True, y=True, alpha=0.2)
+
+    if left_label:
+        pi.setLabel('left', left_label, units=left_units,
+                    color=left_color, font=font_dict)
+    if bottom_label:
+        pi.setLabel('bottom', bottom_label, units=bottom_units,
+                    color=TEXT_DIM, font=font_dict)
+    if right_label:
+        pi.showAxis('right')
+        pi.setLabel('right', right_label, units=right_units,
+                    color=right_color, font=font_dict)
+
+    for axis_name in ('left', 'bottom', 'right', 'top'):
+        ax = pi.getAxis(axis_name)
+        if ax is not None:
+            ax.setStyle(tickFont=_AXIS_FONT)
+            ax.setTextPen(pg.mkPen(TEXT))
 
 
 def make_graph_panel(title: str, scale: float = 1.0):

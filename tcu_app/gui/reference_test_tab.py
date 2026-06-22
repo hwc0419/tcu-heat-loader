@@ -32,8 +32,8 @@ from PyQt5.QtWidgets import (
 )
 from gui.osk import OskLineEdit as QLineEdit
 
-from gui.graph_utils import make_graph_panel
-from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
+from gui.graph_utils import make_graph_panel, apply_graph_style
+from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary, GRAPH_TEMP_COLOR, GRAPH_FLOW_COLOR
 from config import (
     TEMP_SETPOINT, STRESS_TEST_TOLERANCE, STRESS_TEST_SETTLE_S,
     STRESS_TEST_DURATION_S, STRESS_TEST_MIN_SEED_RUNS,
@@ -195,18 +195,19 @@ class ReferenceTestTab(QWidget):
 
     def _setup_graph(self):
         plot_item = self._plot.getPlotItem()
-        plot_item.setLabel('left', 'Temperature', units='°C')
-        plot_item.setLabel('bottom', 'Time', units='s')
-        plot_item.showGrid(x=True, y=True, alpha=0.2)
-        self._curve_temp = plot_item.plot([], [], pen=pg.mkPen('#0077B6', width=2), name='Temperature')
+        apply_graph_style(self._plot,
+                          left_label='Temperature', left_units='°C',
+                          left_color=GRAPH_TEMP_COLOR,
+                          bottom_label='Time', bottom_units='s',
+                          right_label='Flow Rate', right_units='L/min',
+                          right_color=GRAPH_FLOW_COLOR)
+        self._curve_temp = plot_item.plot([], [], pen=pg.mkPen(GRAPH_TEMP_COLOR, width=2), name='Temperature')
 
         self._flow_vb = pg.ViewBox()
-        plot_item.showAxis('right')
         plot_item.scene().addItem(self._flow_vb)
         plot_item.getAxis('right').linkToView(self._flow_vb)
         self._flow_vb.setXLink(plot_item)
-        plot_item.getAxis('right').setLabel('Flow Rate', units='L/min')
-        self._curve_flow = pg.PlotCurveItem([], [], pen=pg.mkPen('#FFB703', width=2))
+        self._curve_flow = pg.PlotCurveItem([], [], pen=pg.mkPen(GRAPH_FLOW_COLOR, width=2))
         self._flow_vb.addItem(self._curve_flow)
 
         def _sync_flow_view():

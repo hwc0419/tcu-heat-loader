@@ -390,3 +390,11 @@ RED      = "#C0392B"
 AMBER    = "#B8860B"
 TEXT     = "#1A1A1A"
 TEXT_DIM = "#666666"
+
+# ── Graph-specific constants ──────────────────────────────────────────────────
+# Single source of truth for every pyqtgraph plot in the app.
+# Centralised here so a theme change only needs one edit.
+GRAPH_BG         = 'w'          # white background for all graphs
+GRAPH_TEMP_COLOR = "#C0392B"   # red  — temperature curves and left Y axis
+GRAPH_FLOW_COLOR = "#0077B6"   # blue — flow rate curves and right Y axis
+GRAPH_AXIS_FONT_SIZE_PX = 22   # doubled from the original 11px default
