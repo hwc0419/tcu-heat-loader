@@ -176,8 +176,11 @@ class ReferenceTestTab(QWidget):
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
-            ['Run ID', 'Serial', 'Transient Duration (s)', 'Verdict', 'Source'])
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+            ['Run ID', 'Serial', 'Duration (s)', 'Verdict', 'Source'])
+        hh = self.table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.Stretch)
+        for col in (1, 2, 3, 4):
+            hh.setSectionResizeMode(col, QHeaderView.ResizeToContents)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
