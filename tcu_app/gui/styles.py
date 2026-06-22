@@ -398,3 +398,13 @@ GRAPH_BG         = 'w'          # white background for all graphs
 GRAPH_TEMP_COLOR = "#C0392B"   # red  — temperature curves and left Y axis
 GRAPH_FLOW_COLOR = "#0077B6"   # blue — flow rate curves and right Y axis
 GRAPH_AXIS_FONT_SIZE_PX = 22   # doubled from the original 11px default
+
+# Preset colours available in the Add Line dialog (label → hex)
+GRAPH_LINE_COLORS: dict = {
+    'Red':    '#C0392B',
+    'Blue':   '#0077B6',
+    'Green':  '#1B7F4F',
+    'Black':  '#1A1A1A',
+    'Orange': '#E67E22',
+    'Purple': '#6C3483',
+}
