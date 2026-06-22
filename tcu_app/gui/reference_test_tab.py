@@ -160,10 +160,8 @@ class ReferenceTestTab(QWidget):
             ig.addWidget(QLabel(lbl), i, 0)
             ig.addWidget(widget, i, 1)
         right.addWidget(grp_info)
-        right.addStretch()
 
-        # ── Dataset management table ────────────────────────────────────────
-        root.addWidget(self._h_divider())
+        # ── Dataset management table — right column, below Run Info ──────────
         mgmt_header = QHBoxLayout()
         mgmt_header.addWidget(QLabel('Reference Dataset'))
         mgmt_header.addStretch()
@@ -176,7 +174,7 @@ class ReferenceTestTab(QWidget):
         self.btn_delete = QPushButton('Delete Selected')
         self.btn_delete.clicked.connect(self._on_delete_clicked)
         mgmt_header.addWidget(self.btn_delete)
-        root.addLayout(mgmt_header)
+        right.addLayout(mgmt_header)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
@@ -185,13 +183,7 @@ class ReferenceTestTab(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        root.addWidget(self.table)
-
-    def _h_divider(self):
-        from PyQt5.QtWidgets import QFrame
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        return line
+        right.addWidget(self.table, 1)
 
     def _setup_graph(self):
         plot_item = self._plot.getPlotItem()
