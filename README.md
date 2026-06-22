@@ -1,305 +1,41 @@
-# TCU++ — Heat Load Simulator
+# System Overview
+This page explains what changed in the system architecture this session, what the current setup actually is, and why the original 2kW heater circuit is still worth documenting even though the AMAT0 Stress Test no longer uses it directly.
 
-> SSMC Semiconductor Manufacturing · Chooi Hao Wen (CE Student Intern) · 2026
+## What changed from the original diagram
+<img width="960" height="720" alt="System_Overview" src="https://github.com/user-attachments/assets/f082b309-741d-4016-b565-228bd8e0c11d" />
+Two changes were made to the architecture diagram above, relative to the version that predates the AMAT0 pivot:
 
-A Raspberry Pi 4 based heat load simulator for post-repair qualification of Haake ASM Temperature Control Units (TCUs). Replaces a USD 19,800 vendor solution at under USD 600.
+**A new `:AMAT0` block was added, separate from the existing `:Heater` block.** These are two distinct pieces of hardware, not a relabeling of one into the other. The original `:Heater` block — the 2kW resistive heater driven by the `:Power Regulator` (W5SP/W5SZ), fed by NFB/MC, and controlled via the PLC's DC I/O current loop — is still physically present and wired exactly as before. AMAT0 is a separate pre-heated tank, heated externally by its own dedicated 2kW heater before each test run, then disconnected from that heater and connected to the TCU's water circuit for the burst-and-decay test itself. AMAT0 is not part of the W5/NFB/MC control chain at all — see [AMAT0 Test](AMAT0‐Test) for the full procedure.
 
----
+**The Power Meter's connection was corrected to match reality.** The diagram now shows the PZEM-004T connecting via direct RPi GPIO UART, with no USB or RS485 adapter in the path, matching [Hardware and Wiring](Hardware-and-Wiring)'s existing description. An earlier version of this diagram showed an RS485-to-USB adapter (a cp2102) routing the Power Meter through a USB-A port — that adapter is real hardware, but it's currently disconnected: the PZEM's CT resistor overheated during a previous installation attempt, and the cp2102 link was never reconnected afterward. The diagram now carries an explicit note to this effect so it doesn't silently imply a working connection that isn't there.
 
-## Overview
+## Current setup, in short
 
-ASML photo tools (scanners) in the fab are cooled by Haake ASM TCUs maintained at 22°C. When a TCU is sent for repair, the current post-repair test does not simulate the real heat load from the photo tool — a repaired TCU can pass the bare test and then fail in production.
+The TCU's own water circuit and 2kW heater remain wired exactly as they were before this session's pivot — nothing about that physical circuit was touched. What changed is purely on the test-methodology side: the TCU++ app no longer runs a sustained heat-load test against that heater (the old stepped 0–2000W test), because sustained heat load on the TCU could no longer be guaranteed in the test rig. Instead, the AMAT0 tank — heated separately, then connected only for the duration of a burst-and-decay measurement — is now the primary test fixture, with its own dedicated tab and growing reference dataset.
 
-This project improves an existing in-house heat loader jig with a Raspberry Pi 4 running a PyQt5 monitoring and control application (TCU++), a PZEM-004T energy meter for true watts measurement, and a web dashboard accessible from any phone on the workshop network.
+The AMAT0 test's own methodology has since been substantially redesigned too: the original z-score/statistical-distribution approach (and its adaptive "log until the dataset's historical max" stopping rule) was replaced with a much simpler range-based design after reviewing real test data, and the test now runs for a fixed, operator-configured duration. The tab itself was renamed "AMAT0 Stress Test" → "AMAT0 Test" and split into two sub-tabs — Main (the gated, scored test) and Reference (for building the comparison dataset). See [AMAT0 Test](AMAT0‐Test) for the current methodology in full.
 
----
+The 2kW heater circuit itself, the PLC's continuous K-based control of it, and the whole RPi↔PLC MEWTOCOL link are all still fully functional and untouched by this pivot. They're simply not what the current test exercises by default.
 
-## Hardware
+## The 2kW heater can still be used — it just needs repiping
 
-| Component | Model | Notes |
-|-----------|-------|-------|
-| RPi 4 | 4GB, 64GB SD | Production controller |
-| Touchscreen | Waveshare 15.6" HDMI LCD (H) | `hdmi_mode=82` in config.txt |
-| TCU | Haake ASM 1kW | RS232 DB9, 2400 baud 8N1 |
-| PLC | Panasonic FP0-C14CRS | Standalone — no runtime serial |
-| HMI | Panasonic GT02 | 500W / 1000W / 2000W stage select |
-| Power regulator | HoTTemP W5SP4V030-24J | 0–5VDC input, phase angle SCR |
-| Heater | Reach Electrical 262627 | 2kW — delivers ~1400W at 2000W stage |
-| Contactor | Schneider TeSys | Driven by FP0 Y0 |
-| PSU | Mean Well LRS-100-24 | 24VDC for PLC and HMI |
-| Energy meter | PZEM-004T v3.0 + 100A CT | GPIO UART — `/dev/ttyAMA0` |
-| RCCB | 2P 40A 30mA AC | CP5 compliance |
+Because AMAT0 and the 2kW heater's circuit both connect to the same point on the TCU's water loop, only one can be connected at a time. Using the 2kW heater again after AMAT0 has been in use means physically disconnecting AMAT0 and re-plumbing the water lines back to the heater circuit — there's no software switch for this, it's a manual piping change on the rig itself.
 
-### RS232 Connection (TCU)
+This matters beyond just restoring the old test: the 2kW heater, the W5SP/W5SZ phase-angle power regulator, and the PLC's continuous 0–4000 K-value control loop over MEWTOCOL are a general-purpose heat-load simulation capability, not something specific to the TCU project. The same control chain — RPi writes a K value to PLC DT100 over MEWTOCOL, the PLC drives the W5 via its FP0-A21 analogue output, the W5 phase-fires the heater — could drive a 2kW resistive load for a different heat-load simulation project entirely, with no changes to the PLC program itself.
 
-```
-TCU DB25 → FTDI DT5011 USB-RS232 adapter → RPi USB
-Port: /dev/ttyUSB0 (Linux) | COM5 (Windows)
-Settings: 2400 baud, 8N1, no handshake
-Cable: straight-through DB9 F-F (NOT crossover)
-```
+Because of that reuse potential, the documentation explaining how to program the PLC for this kind of heater control is worth keeping accurate and discoverable even while this specific project's day-to-day testing has moved to AMAT0. The relevant pages are:
 
-### PZEM-004T GPIO UART Wiring
+- [Hardware and Wiring](Hardware-and-Wiring) — the W5 terminal connections, the PLC I/O summary (Y0 contactor, Y4 run enable, WY4/FP0-A21 analogue output, the MEWTOCOL COM port settings), and the original fixed three-stage scheme this replaced.
+- [PLC Ladder Logic Analysis](PLC-Ladder-Logic-Analysis) — the original 1325-step ladder program's structure, including why it can no longer be recompiled or reflashed (FPWIN Pro 7 strips the HMI stage-select registers on recompile), for anyone who needs to understand the PLC's prior logic before extending it.
+- [MEWTOCOL Debugging](MEWTOCOL‐Debugging) — the current RPi↔PLC communication link, the signal integrity issue that was found there, and how it was fixed.
+- [K↔Watts Conversion](K‐Watts‐Conversion) — the empirical K-to-watts mapping for this specific heater/W5 pairing. A different heat-load project reusing this control chain with a different heater would need its own sweep table, since this one is specific to the Reach Electrical 262627 2kW element used here, but the same piecewise-linear-interpolation approach (and the reasoning for why a closed-form model isn't used) would carry over directly.
 
-```
-PZEM TX → RPi pin 10 (GPIO15 RX)
-PZEM RX → RPi pin 8  (GPIO14 TX)
-PZEM 5V → RPi pin 2
-PZEM GND → RPi pin 6
-```
+## Outstanding project items
 
-RPi UART setup (run once):
-```bash
-sudo raspi-config  # Interface Options → Serial Port → shell: No, hardware: Yes
-# Add to /boot/firmware/config.txt:
-dtoverlay=disable-bt
-sudo reboot
-```
+For reference, the broader list of work still remaining on this project beyond the test-methodology pivot:
 
----
-
-## Software Architecture
-
-```
-tcu_app/
-├── main.py                  Entry point
-├── config.py                Hard constants — all referenced by name
-├── settings_manager.py      settings.json loader — singleton
-├── tcu.py                   Haake TCU RS232 (class TCU)
-├── heater.py                Modbus RTU heater controller (class Heater)
-├── pzem004t.py              PZEM-004T energy meter Modbus RTU
-├── daq_thread.py            1Hz DAQ thread — Sample dataclass
-├── logger_thread.py         CSV logger thread — decoupled from DAQ
-├── test_logic.py            Pass/fail logic, alarm parsing, BS decode
-├── ipc.py                   IPC abstraction — JSON (Windows) / socket (Linux)
-├── audit_logger.py          Operator action audit trail
-├── translations.py          EN/ZH string dict — tr(key)
-├── web_server.py            Flask web dashboard backend
-├── generate_vapid.py        Run once — generates VAPID push keys
-└── gui/
-    ├── main_window.py       Top-level QMainWindow
-    ├── monitor_tab.py       Live TCU readings + graph
-    ├── test_tab.py          180-min heat load pass/fail test
-    ├── heater_tab.py        Heater control (Modbus setpoint + live graph)
-    ├── response_test_tab.py Step response test — settling time detection
-    ├── settings_tab.py      5 sub-tabs: Serial, Test, Heater, Response, Display
-    ├── docs_tab.py          Built-in documentation — 6 sub-tabs
-    ├── osk.py               On-screen keyboard — text fields + numpad
-    ├── graph_utils.py       Shared graph helpers — popup + export
-    └── styles.py            Light/dark theme — dynamic scaling
-```
-
-### Thread Model
-
-```
-Main (GUI) thread
-    │
-    ├── DAQThread (daemon)        — polls TCU + PZEM at configurable interval
-    │       │                       writes to ui_queue (maxsize=1) and log_queue
-    │       └── IPCWriter         — serves latest sample to web server
-    │
-    ├── LoggerThread (daemon)     — consumes log_queue, writes CSV rows
-    │
-    └── Qt timer (16ms)           — drains ui_queue, emits new_sample signal
-```
-
-No GUI code ever touches the serial port. No DAQ code ever touches Qt widgets. The queues are the only crossing point.
-
-### Key Design Decisions
-
-| Topic | Decision |
-|-------|----------|
-| IPC | JSON file on Windows, Unix socket on Linux — `sys.platform` auto-selects |
-| Flow rate | Parsed as `float` not `int` from TCU D command |
-| PZEM registers | Integer scaled (÷10, ÷1000) — NOT IEEE 754 floats |
-| BS healthy state | `0x400400` — b2 bit 2 = main contactor ON (normal running) |
-| Flow fail grace | 5 consecutive low readings before FAIL (~5s at 1Hz) |
-| Temp tolerance | 0.5°C (manager requirement) |
-| Test duration | 180 min (manager requirement) |
-| UI scaling | `scale = screen.width()/1920` clamped 0.65–1.0 |
-| OSK | Keyboard on text fields, numpad on spinboxes — RPi touchscreen |
-
----
-
-## Installation
-
-### RPi (production)
-
-```bash
-git clone https://github.com/hwc0419/tcu-heat-loader.git
-cd tcu-heat-loader/tcu_app
-pip3 install -r requirements.txt --break-system-packages
-```
-
-### Windows (development/testing)
-
-```bash
-git clone https://github.com/hwc0419/tcu-heat-loader.git
-cd tcu-heat-loader/tcu_app
-pip install -r requirements.txt
-python main.py
-```
-
-Platform (port names, IPC method) is auto-detected via `sys.platform`.
-
-### Auto-start on Boot (RPi)
-
-```bash
-sudo cp tcu-app.service /etc/systemd/system/
-sudo cp tcu-web.service /etc/systemd/system/
-sudo systemctl enable tcu-app tcu-web
-sudo systemctl start  tcu-app tcu-web
-```
-
-Both services have `Restart=always` — auto-restart on crash.
-
----
-
-## Running
-
-```bash
-cd tcu_app
-
-# Desktop app only
-python3 main.py
-
-# Desktop app + web dashboard (two terminals)
-python3 main.py
-python3 web_server.py
-```
-
-Web dashboard: `http://tcuplusplus.local:5000`
-
----
-
-## Web Dashboard
-
-Browser-based PWA. No installation needed — works on any phone or laptop on workshop WiFi.
-
-### First-time Setup
-
-```bash
-# Generate VAPID keys for push notifications (run once)
-python3 generate_vapid.py
-
-# Set up mDNS hostname
-sudo apt install avahi-daemon
-sudo hostnamectl set-hostname tcuplusplus
-sudo reboot
-```
-
-### User Management
-
-Users stored in `tcu_app/users.json` (SHA-256 hashed passwords, gitignored).
-
-```python
-import hashlib, json
-with open('tcu_app/users.json') as f:
-    users = json.load(f)
-users['newuser'] = {
-    'password': hashlib.sha256('password'.encode()).hexdigest(),
-    'role': 'technician',   # or 'supervisor'
-    'name': 'New User'
-}
-with open('tcu_app/users.json', 'w') as f:
-    json.dump(users, f, indent=2)
-```
-
-Roles: `technician` (full control) / `supervisor` (view only).
-
-Operator lock: one technician at a time, FIFO queue, 5-min inactivity timeout. Physical touchscreen always overrides web operators.
-
----
-
-## Pass/Fail Criteria (180-min Heat Load Test)
-
-| Criterion | Threshold |
-|-----------|-----------|
-| Inlet temperature | 22.0°C ± 0.5°C for full 180 min |
-| Flow rate | ≥ 1 ℓ/min continuously (5s grace on transient drops) |
-| TCU alarms | None (BS = 0x400400) |
-| Duration | 180 min completed without abort |
-
-CSV logs saved to `tcu_app/logs/` — filename includes TCU serial and timestamp.
-
----
-
-## PLC Summary (FP0-C14CRS)
-
-The existing jig PLC operates standalone at runtime — no serial communication with the RPi.
-
-| Output | Function |
-|--------|----------|
-| Y0 | Schneider TeSys contactor coil — main heater enable |
-| Y4 | W5 SCR run enable |
-| WY4 | W5 analogue setpoint — 0–4000 counts = 0–5V = 0–100% |
-
-| Input | Function |
-|-------|----------|
-| X5 | Safety trip — kills contactor + W5 immediately (E-stop / RCCB) |
-| X0 | Heater enable gate |
-| X2 | Heater inhibit |
-| WX2 | Analogue setpoint from GT02 HMI |
-
-W5 stages: K500 (→ ~265W actual) / K1000 (→ ~616W) / K2000 (→ ~1400W). VR3 deliberately capped at 70% rated capacity for thermal derating in enclosed panel.
-
-Full PLC analysis: see Section 11 of `docs/TCU_Project_Context_v2.docx`.
-
----
-
-## Milestones
-
-| Milestone | Status |
-|-----------|--------|
-| M1 — Core TCU++ app | ✅ Complete |
-| M2 — Quality of life (web dashboard, settings, i18n) | ✅ Complete |
-| M3 — Hardware integration (PZEM, RCCB, jig calibration) | ⚠️ In progress |
-| M4 — BIBO stability qualification | ❌ Not started |
-
-### M3 Remaining
-
-- PZEM-004T wiring (electrician — tap L/N from W5 output, clip CT)
-- RCCB installation (electrician)
-- RPi touchscreen workshop setup
-- SD card IT policy exception
-- IoTConnect router access
-
-### M4 — BIBO Proof
-
-Target theorem: `∃ T_transient: |h(t) - 22°C| ≤ 0.5°C for all t > T_transient` for any `Q_waste(t) ∈ [Q_min, Q_max]`.
-
-Requires M3 completion + 3hr step response tests at each heat load stage.
-
----
-
-## Repository Structure
-
-```
-tcu-heat-loader/
-├── tcu_app/          PyQt5 application (RPi production)
-├── web/              Phone web app (HTML/JS/CSS)
-├── docs/             BOM, manuals, project context document
-└── README.md
-```
-
-Gitignored: `logs/`, `settings.json`, `users.json`, `vapid_keys.json`, `.tcu_ipc.json`, `.tcu_cmd.json`
-
----
-
-## Budget
-
-| Item | SGD |
-|------|-----|
-| Raspberry Pi 4 4GB | 102.40 |
-| RPi case + fan | 6.27 |
-| Official RPi USB-C PSU | 18.58 |
-| 15.6" HDMI touchscreen | 235.00 |
-| FTDI USB-RS232 adapter | 25.00 |
-| Panasonic AFC8503 PLC cable | 81.10 |
-| PZEM-004T + 100A CT | 45.00 |
-| RCCB 2P 40A 30mA | 55.90 |
-| **Total** | **569.25** |
-
-Existing jig hardware (PLC, HMI, heater, W5, contactor, panel): SGD 0 (in-house assets).
-
-Vendor quote for equivalent solution: USD 19,800.
+- PZEM-004T power meter is non-functional (CT resistor overheated) — needs a replacement power meter installed.
+- SD card approval from Ronald is still pending.
+- TCU↔PLC serial link has a high failure rate — the MEWTOCOL signal integrity issue is diagnosed (see [MEWTOCOL Debugging](MEWTOCOL‐Debugging)) but the planned fix (a self-powered USB-RS232 adapter in place of the current setup) hasn't been installed yet.
+- The 15.6" touchscreen still needs to be mounted on the control panel.
+- An inline PT100 temperature sensor near the TCU inlet pipe still needs to be installed.
