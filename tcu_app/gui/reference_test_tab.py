@@ -162,19 +162,17 @@ class ReferenceTestTab(QWidget):
         right.addWidget(grp_info)
 
         # ── Dataset management table — right column, below Run Info ──────────
-        mgmt_header = QHBoxLayout()
-        mgmt_header.addWidget(QLabel('Reference Dataset'))
-        mgmt_header.addStretch()
+        # Dataset header: label on its own line, then three full-width buttons stacked
+        right.addWidget(QLabel('Reference Dataset'))
         self.btn_import = QPushButton('Import from CSV...')
         self.btn_import.clicked.connect(self._on_import_clicked)
-        mgmt_header.addWidget(self.btn_import)
+        right.addWidget(self.btn_import)
         self.btn_view = QPushButton('View Selected')
         self.btn_view.clicked.connect(self._on_view_clicked)
-        mgmt_header.addWidget(self.btn_view)
+        right.addWidget(self.btn_view)
         self.btn_delete = QPushButton('Delete Selected')
         self.btn_delete.clicked.connect(self._on_delete_clicked)
-        mgmt_header.addWidget(self.btn_delete)
-        right.addLayout(mgmt_header)
+        right.addWidget(self.btn_delete)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
