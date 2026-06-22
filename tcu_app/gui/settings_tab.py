@@ -14,8 +14,9 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox, QSpinBox, QLineEdit, QTabWidget,
     QSizePolicy, QDialog, QDialogButtonBox, QTableWidget,
     QTableWidgetItem, QHeaderView, QMessageBox,
-    QScrollArea, QFrame
+    QScrollArea, QFrame, QInputDialog
 )
+from PyQt5.QtWidgets import QLineEdit as _QLineEditBase
 from gui.osk import OskLineEdit as QLineEdit, OskSpinBox as QSpinBox, OskDoubleSpinBox as QDoubleSpinBox
 
 
@@ -551,8 +552,8 @@ class SettingsTab(QWidget):
         # User management
         self._grp_users = QGroupBox('Web User Management')
         users_v = QVBoxLayout(self._grp_users)
-        self._users_table = QTableWidget(0, 3)
-        self._users_table.setHorizontalHeaderLabels(['Username', 'Role', 'Action'])
+        self._users_table = QTableWidget(0, 4)
+        self._users_table.setHorizontalHeaderLabels(['Username', 'Role', 'Change Password', 'Remove'])
         self._users_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.Stretch)
         users_v.addWidget(self._users_table)
@@ -669,10 +670,14 @@ class SettingsTab(QWidget):
             self._users_table.insertRow(i)
             self._users_table.setItem(i, 0, QTableWidgetItem(uname))
             self._users_table.setItem(i, 1, QTableWidgetItem(udata.get('role', '')))
+            chpw_btn = QPushButton('Change Password')
+            chpw_btn.setObjectName('btn_fill')
+            chpw_btn.clicked.connect(lambda _, u=uname: self._on_change_user_password(u))
+            self._users_table.setCellWidget(i, 2, chpw_btn)
             del_btn = QPushButton('Remove')
             del_btn.setObjectName('btn_stop')
             del_btn.clicked.connect(lambda _, u=uname: self._on_remove_user(u))
-            self._users_table.setCellWidget(i, 2, del_btn)
+            self._users_table.setCellWidget(i, 3, del_btn)
 
     def _on_add_user(self):
         import json, os, hashlib as hl
@@ -704,6 +709,35 @@ class SettingsTab(QWidget):
             self._new_user_edit.clear()
             self._new_user_pw_edit.clear()
             self._refresh_users_table()
+        except Exception as e:
+            self._user_status_lbl.setText(f'Error: {e}')
+
+    def _on_change_user_password(self, uname: str):
+        import json, os, hashlib as hl
+        if not isinstance(uname, str):
+            return
+        new_pw, ok = QInputDialog.getText(
+            self, f'Change Password — {uname}',
+            f'New password for "{uname}" (min 6 characters):',
+            _QLineEditBase.Password)
+        if not ok or not isinstance(new_pw, str):
+            return
+        if len(new_pw) < 6:
+            self._user_status_lbl.setText('Password must be at least 6 characters.')
+            return
+        path = 'users.json'
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path) as f:
+                users = json.load(f)
+            if uname not in users:
+                self._user_status_lbl.setText(f'User "{uname}" not found.')
+                return
+            users[uname]['password_hash'] = hl.sha256(new_pw.encode()).hexdigest()
+            with open(path, 'w') as f:
+                json.dump(users, f, indent=2)
+            self._user_status_lbl.setText(f'✓ Password changed for "{uname}".')
         except Exception as e:
             self._user_status_lbl.setText(f'Error: {e}')
 
