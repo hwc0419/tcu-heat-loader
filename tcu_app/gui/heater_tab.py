@@ -1,9 +1,15 @@
 # =============================================================================
 # heater_tab.py — Heater Control Tab
 # =============================================================================
-# Controls the vendor thyristor heater via Modbus RTU.
+# Controls the heater via the PLC, over MEWTOCOL — same control chain as the
+# AMAT0 and 2kW Pulse tests (RPi -> PLC DT100 via MEWTOCOL -> W5 SCR analogue
+# output). heater.py's set_watts() converts watts to a PLC K constant via the
+# empirical sweep table and writes it via plc_comms.PlcComms.set_k(). There
+# is no separate Modbus link to the heater itself.
 # Supervisor: view only. Technician with lock: full control.
-# Auto-off: test end, abort, TCU abnormal (BS != 400400).
+# Auto-off: explicit Heater Off button, E-stop, test end/abort, TCU abnormal
+# (BS != 400400), and leaving this tab (switching to a different top-level
+# tab sets the heater to 0W, so it never keeps running unattended).
 # =============================================================================
 
 import time
@@ -239,6 +245,21 @@ class HeaterTab(QWidget):
         """Immediately set heater to 0W — called by E-stop."""
         self._send_setpoint(0)
         self._log_modbus('⚠ EMERGENCY STOP — heater set to 0W')
+
+    def on_tab_left(self):
+        """Called by main_window when the operator switches away from this
+        tab to a different top-level tab — sets the heater to 0W so it
+        never keeps running unattended after a manual check. No-op if the
+        setpoint is already 0W, to avoid sending a redundant MEWTOCOL
+        command every time the operator merely glances at another tab."""
+        if self._spin.value() == 0:
+            return
+        self._spin.blockSignals(True)
+        self._spin.setValue(0)
+        self._spin.blockSignals(False)
+        self._lbl_watts.setText('0 W')
+        self._send_setpoint(0)
+        self._log_modbus('← Left Heater tab — heater set to 0W')
 
     # ── Private helpers ───────────────────────────────────────────────────────
     def _set_controls_enabled(self, enabled: bool):

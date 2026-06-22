@@ -86,6 +86,9 @@ class MainWindow(QMainWindow):
         self._auto_off_in_flight = False   # guards against _on_sample spawning
                                             # a new emergency_off() attempt every
                                             # second while one is still running
+        self._previous_tab_widget = None   # tracks the top-level tab the operator
+                                            # was just on, so leaving Heater can be
+                                            # detected in _on_top_tab_changed
 
         # ── RPi priority / inactivity ────────────────────────────────────────
         self._rpi_active        = False
@@ -228,6 +231,10 @@ class MainWindow(QMainWindow):
         # Wire heater tab signals
         self._heater_tab.sig_set_watts.connect(self._cmd_set_heater_watts)
 
+        # Auto-off the heater whenever the operator switches away from the
+        # Heater tab to a different top-level tab — see _on_top_tab_changed.
+        self._tabs.currentChanged.connect(self._on_top_tab_changed)
+
         # Wire stress test tab signals (AMAT0 burst-and-decay test)
         self._stress_test_tab.sig_test_start.connect(self._on_stress_test_start)
         self._stress_test_tab.sig_test_stop.connect(self._on_stress_test_stop)
@@ -239,6 +246,19 @@ class MainWindow(QMainWindow):
         btn.move(r.width() - btn.width() - 12,
                  r.height() - btn.height() - 12)
         QTabWidget.resizeEvent(self._tabs, event)
+
+    def _on_top_tab_changed(self, new_index: int):
+        """Fires whenever the operator switches to a different top-level
+        tab. Specifically: if the tab being LEFT was the Heater tab, set
+        the heater to 0W — it should never keep running unattended just
+        because the operator moved on to something else. Compares widget
+        identity rather than a hardcoded index, so this stays correct if
+        the tab order ever changes again."""
+        if self._previous_tab_widget is self._heater_tab:
+            new_widget = self._tabs.widget(new_index)
+            if new_widget is not self._heater_tab:
+                self._heater_tab.on_tab_left()
+        self._previous_tab_widget = self._tabs.widget(new_index)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
