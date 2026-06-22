@@ -26,8 +26,9 @@ import pyqtgraph as pg
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton, QGroupBox, QLineEdit, QComboBox,
+    QLabel, QPushButton, QGroupBox, QComboBox,
 )
+from gui.osk import OskLineEdit as QLineEdit
 
 from gui.graph_utils import make_graph_panel
 from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
@@ -106,6 +107,31 @@ class MainTestTab(QWidget):
 
         graph_container, self._plot, _ = make_graph_panel('AMAT0 Test', self._scale)
         left.addWidget(graph_container, 1)
+
+        # Live readings — same fields as Monitor tab, updated by update_sample()
+        grp_live = QGroupBox('Live Readings')
+        lg = QGridLayout(grp_live)
+        def _mk(label):
+            lbl = QLabel(label)
+            val = QLabel('--')
+            val.setObjectName('value_label')
+            return lbl, val
+        self.lbl_r_temp,    self.val_r_temp    = _mk('Inlet Temp')
+        self.lbl_r_flow,    self.val_r_flow    = _mk('Flow Rate')
+        self.lbl_r_voltage, self.val_r_voltage = _mk('Voltage')
+        self.lbl_r_current, self.val_r_current = _mk('Current')
+        self.lbl_r_power,   self.val_r_power   = _mk('Power')
+        pairs = [
+            (self.lbl_r_temp,    self.val_r_temp,    0),
+            (self.lbl_r_flow,    self.val_r_flow,    1),
+            (self.lbl_r_voltage, self.val_r_voltage, 2),
+            (self.lbl_r_current, self.val_r_current, 3),
+            (self.lbl_r_power,   self.val_r_power,   4),
+        ]
+        for lbl, val, row in pairs:
+            lg.addWidget(lbl, row, 0)
+            lg.addWidget(val, row, 1)
+        left.addWidget(grp_live)
 
         serial_row = QHBoxLayout()
         serial_row.addWidget(QLabel('TCU Serial No.:'))
@@ -328,6 +354,18 @@ class MainTestTab(QWidget):
 
     def update_sample(self, sample):
         """Called every second by main_window with the latest DAQ sample."""
+        # Always update live readings, even when no test is running
+        self.val_r_temp.setText(
+            f'{sample.inlet_temp:.2f} °C' if sample.inlet_temp is not None else '--')
+        self.val_r_flow.setText(
+            f'{sample.flow_rate:.1f} L/min' if sample.flow_rate is not None else '--')
+        self.val_r_voltage.setText(
+            f'{sample.voltage:.1f} V' if sample.voltage is not None else '--')
+        self.val_r_current.setText(
+            f'{sample.current:.3f} A' if sample.current is not None else '--')
+        self.val_r_power.setText(
+            f'{sample.power:.0f} W' if sample.power is not None else '--')
+
         if not self._test_active:
             return
         temp = sample.inlet_temp if sample.inlet_temp is not None else (

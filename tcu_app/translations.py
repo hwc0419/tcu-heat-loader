@@ -129,7 +129,7 @@ STRINGS = {
     'heater_setpoint':      {'en': 'HEATER SETPOINT',       'zh': '加热器设定值'},
     'heater_actual':        {'en': 'ACTUAL POWER',          'zh': '实际功率'},
     'heater_graph':         {'en': 'TEMPERATURE TREND (LAST 10 MIN)', 'zh': '温度趋势 (最近10分钟)'},
-    'heater_modbus_log':    {'en': 'MODBUS LOG',            'zh': 'Modbus日志'},
+    'heater_modbus_log':    {'en': 'RS232 LOG',             'zh': 'RS232日志'},
     'btn_heater_on':        {'en': 'HEATER ON',             'zh': '加热器开'},
     'btn_heater_off':       {'en': 'HEATER OFF',            'zh': '加热器关'},
 

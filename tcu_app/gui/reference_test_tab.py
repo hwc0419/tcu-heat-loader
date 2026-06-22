@@ -27,9 +27,10 @@ import pyqtgraph as pg
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton, QGroupBox, QLineEdit, QComboBox,
+    QLabel, QPushButton, QGroupBox, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox,
 )
+from gui.osk import OskLineEdit as QLineEdit
 
 from gui.graph_utils import make_graph_panel
 from gui.styles import GREEN, RED, AMBER, TEXT_DIM, pt_secondary
@@ -119,6 +120,30 @@ class ReferenceTestTab(QWidget):
         self.lbl_status.setObjectName('label_dim')
         self.lbl_status.setWordWrap(True)
         left.addWidget(self.lbl_status)
+
+        # Live readings — fills the empty space below the run controls.
+        grp_live = QGroupBox('Live Readings')
+        lg = QGridLayout(grp_live)
+        def _mk(label):
+            lbl = QLabel(label)
+            val = QLabel('--')
+            val.setObjectName('value_label')
+            return lbl, val
+        self.lbl_r_temp,    self.val_r_temp    = _mk('Inlet Temp')
+        self.lbl_r_flow,    self.val_r_flow    = _mk('Flow Rate')
+        self.lbl_r_voltage, self.val_r_voltage = _mk('Voltage')
+        self.lbl_r_current, self.val_r_current = _mk('Current')
+        self.lbl_r_power,   self.val_r_power   = _mk('Power')
+        for row_i, (lbl, val) in enumerate([
+            (self.lbl_r_temp,    self.val_r_temp),
+            (self.lbl_r_flow,    self.val_r_flow),
+            (self.lbl_r_voltage, self.val_r_voltage),
+            (self.lbl_r_current, self.val_r_current),
+            (self.lbl_r_power,   self.val_r_power),
+        ]):
+            lg.addWidget(lbl, row_i, 0)
+            lg.addWidget(val, row_i, 1)
+        left.addWidget(grp_live)
 
         grp_info = QGroupBox('Run Info')
         ig = QGridLayout(grp_info)
@@ -252,6 +277,17 @@ class ReferenceTestTab(QWidget):
 
     def update_sample(self, sample):
         """Called every second by main_window with the latest DAQ sample."""
+        self.val_r_temp.setText(
+            f'{sample.inlet_temp:.2f} °C' if sample.inlet_temp is not None else '--')
+        self.val_r_flow.setText(
+            f'{sample.flow_rate:.1f} L/min' if sample.flow_rate is not None else '--')
+        self.val_r_voltage.setText(
+            f'{sample.voltage:.1f} V' if sample.voltage is not None else '--')
+        self.val_r_current.setText(
+            f'{sample.current:.3f} A' if sample.current is not None else '--')
+        self.val_r_power.setText(
+            f'{sample.power:.0f} W' if sample.power is not None else '--')
+
         if not self._test_active:
             return
         temp = sample.inlet_temp if sample.inlet_temp is not None else (

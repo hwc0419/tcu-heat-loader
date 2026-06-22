@@ -160,33 +160,15 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(self._settings_tab,    tr('tab_settings'))
         self._tabs.addTab(self._docs_tab,        tr('tab_docs'))
 
-        # Emergency stop button — fixed bottom-right, always visible.
-        # Sized to fit its two-line label ("⚠ EMERGENCY\nSTOP" / "⚠ 紧急\n停止")
-        # at the current font size. NOT multiplied by self._scale: the primary
-        # font tier floors at 22px, so the button's actual content requirement
-        # barely changes across the real scale range (measured sizeHint
-        # 180x67 at scale=0.65 up to 190x73 at scale=1.0) — scaling the fixed
-        # size down here would undo the floor's protection at small scales,
-        # the same clipping problem this fix addresses in the first place.
-        # This is the single most safety-critical control in the app, so it
-        # must never be clipped or hard to read.
+        # Emergency stop button — permanent widget in the status bar,
+        # right-anchored next to the Release Control button.
+        # Placed in the status bar so it never overlaps tab content and is
+        # always visible regardless of which tab is active.
         self._estop_btn = QPushButton(tr('estop_btn'))
         self._estop_btn.setObjectName('btn_estop')
-        self._estop_btn.setFixedSize(210, 85)
         self._estop_btn.clicked.connect(self._on_estop)
 
-        # Stack tabs and estop button in same area
-        from PyQt5.QtWidgets import QStackedLayout
-        tab_container = QWidget()
-        tab_container.setLayout(QVBoxLayout())
-        tab_container.layout().setContentsMargins(0, 0, 0, 0)
-        tab_container.layout().addWidget(self._tabs)
-        layout.addWidget(tab_container)
-
-        # Position estop button over bottom-right corner
-        self._estop_btn.setParent(central)
-        self._estop_btn.raise_()
-        self._tabs.resizeEvent = self._on_tabs_resize
+        layout.addWidget(self._tabs)
 
         # Wire settings signals
         self._settings_tab.sig_theme_changed.connect(self._on_theme_changed)
@@ -214,6 +196,9 @@ class MainWindow(QMainWindow):
         self._release_btn.clicked.connect(self._on_release_control)
         self._status_bar.addPermanentWidget(self._release_btn)
 
+        # E-stop is the rightmost permanent widget — always visible.
+        self._status_bar.addPermanentWidget(self._estop_btn)
+
         # Wire monitor tab signals
         self._monitor_tab.sig_start.connect(self._cmd_start)
         self._monitor_tab.sig_stop.connect(self._cmd_stop)
@@ -239,14 +224,6 @@ class MainWindow(QMainWindow):
         self._stress_test_tab.sig_test_start.connect(self._on_stress_test_start)
         self._stress_test_tab.sig_test_stop.connect(self._on_stress_test_stop)
 
-    def _on_tabs_resize(self, event):
-        """Reposition estop button on tab widget resize."""
-        r   = self._tabs.rect()
-        btn = self._estop_btn
-        btn.move(r.width() - btn.width() - 12,
-                 r.height() - btn.height() - 12)
-        QTabWidget.resizeEvent(self._tabs, event)
-
     def _on_top_tab_changed(self, new_index: int):
         """Fires whenever the operator switches to a different top-level
         tab. Specifically: if the tab being LEFT was the Heater tab, set
@@ -259,14 +236,6 @@ class MainWindow(QMainWindow):
             if new_widget is not self._heater_tab:
                 self._heater_tab.on_tab_left()
         self._previous_tab_widget = self._tabs.widget(new_index)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if hasattr(self, '_estop_btn') and hasattr(self, '_tabs'):
-            r   = self._tabs.geometry()
-            btn = self._estop_btn
-            btn.move(r.right()  - btn.width()  - 12,
-                     r.bottom() - btn.height() - 12)
 
     # ── Emergency stop ────────────────────────────────────────────────────────
     # ── RPi priority / inactivity ─────────────────────────────────────────────
