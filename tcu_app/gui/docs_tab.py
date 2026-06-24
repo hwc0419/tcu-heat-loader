@@ -438,95 +438,61 @@ class DocsTab(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        layout.addWidget(self._h1('Heat Load Test Procedure'))
+        layout.addWidget(self._h1('AMAT0 Heat Load Test Procedure'))
         layout.addWidget(self._p(
-            'Validates that a repaired Haake ASM TCU can maintain 22°C setpoint '
-            'under simulated photo tool heat load for 180 minutes continuously.'))
+            'Validates that a repaired Haake ASM TCU can support the Photo Tool heat load. '
+            'The test measures temperature and flow rate over time for the TCU under test '
+            'and compares it against a reference dataset of known-good TCUs. '
+            'The test passes if the temp/flow rate profile matches the reference dataset '
+            'and the transient response time is statistically similar.'))
         layout.addWidget(self._divider())
 
-        layout.addWidget(self._h2('Pass / Fail Criteria'))
+        layout.addWidget(self._h2('Before Testing'))
         layout.addWidget(self._table(
-            ['Criteria', 'Threshold', 'Source'],
+            ['Step', 'Action'],
             [
-                ['Inlet temperature', '22.0°C ±0.5°C for full 180 min', 'TCU RS232 M command'],
-                ['Flow rate', '≥1 ℓ/min continuously', 'TCU RS232 D command'],
-                ['TCU alarm status', 'No alarms (BS = 400400 running)', 'TCU RS232 BS command'],
-                ['Test duration', '180 minutes completed without abort', 'Software timer'],
+                ['1', 'On the M4422-22 415V mains switch, turn both PCW valves open and TCU switch on'],
+                ['2', 'Ensure all water pipes are connected and the water circuit is closed: '
+                      'AMAT out → 2kW heater in → 2kW heater out → TCU in → TCU out → AMAT in'],
+                ['3', 'Point Fluke62 Max IR gun at AMAT0 heater tank — ensure the IR gun is on at all times'],
+                ['4', 'Set AMAT0 setpoint temp to 80°C, wait for IR gun to show 45°C (takes ~20 minutes)'],
             ],
-            [3, 4, 3]
-        ))
-        layout.addWidget(self._note(
-            'Temperature tolerance 0.5°C and duration 180 min are manager requirements. '
-            'Both are configurable in the Settings tab.', AMBER))
-
-        layout.addWidget(self._h2('Pre-Test Checklist'))
-        layout.addWidget(self._table(
-            ['Step', 'Action', 'Expected Result'],
-            [
-                ['1', 'Connect TCU under test to heat loader inlet/outlet pipes (1" BSP)', 'Secure, leak-free connection'],
-                ['2', 'Power on TCU — turn main switch to position 1', 'ALARM light blinks, EMPTY light on (normal)'],
-                ['3', 'Click FILL (AFV) button in app — wait for completion', 'System fills with water, status shows complete'],
-                ['4', 'Click START button in app', 'TCU begins temperature control'],
-                ['5', 'Confirm setpoint is 22.0°C in MONITOR tab', 'Setpoint reads 22.00°C'],
-                ['6', 'Power on heat loader panel — green LED lights', 'Mains present confirmed'],
-                ['7', 'Select 2000W stage on GT02 HMI touchscreen', '~1403W actual delivered to heater'],
-                ['8', 'Confirm flow rate >0 ℓ/min in MONITOR tab', 'TCU pump circulating fluid'],
-            ],
-            [1, 5, 4]
+            [1, 9]
         ))
 
-        layout.addWidget(self._h2('Test Sequence'))
+        layout.addWidget(self._h2('During Testing'))
         layout.addWidget(self._table(
-            ['Step', 'Action', 'Duration'],
+            ['Step', 'Action'],
             [
-                ['1', 'Enter TCU serial number in HEAT LOAD TEST tab', '—'],
-                ['2', 'Click START TEST button', '—'],
-                ['3', 'Monitor inlet temperature — should stabilise at 22°C ±0.5°C', '~10–20 min stabilisation'],
-                ['4', 'App automatically logs data every second to CSV', '180 min continuous'],
-                ['5', 'App automatically declares PASS or FAIL at 180 min', 'Auto'],
-                ['6', 'Turn manual switch OFF on heat loader panel', '—'],
-                ['7', 'Click STOP on TCU (app STOP button)', '—'],
-                ['8', 'CSV log saved automatically with TCU serial number', '—'],
+                ['1', 'On the touchscreen, go to TCU++ app → AMAT0 Transient Test, '
+                      'enter TCU Serial No. then press Start'],
+                ['2', 'While the test is running, watch both the temp and flow rate graphs. '
+                      'The shape of both graphs should match the reference. '
+                      'Reference graphs are in: '
+                      '/home/hwc0419/projects/tcu-heat-loader/tcu_app/pictures/'],
+                ['3', 'The test will end automatically and conclude Pass or Fail'],
             ],
-            [1, 6, 3]
+            [1, 9]
         ))
 
-        layout.addWidget(self._h2('Post-Test Actions'))
+        layout.addWidget(self._h2('After Testing'))
         layout.addWidget(self._table(
-            ['Result', 'Action'],
+            ['Step', 'Action'],
             [
-                ['PASS', 'TCU cleared for return to production — file CSV log to shared drive'],
-                ['FAIL', 'Document failure reason from CSV, escalate for further repair'],
-                ['ABORTED', 'Investigate reason for abort — rerun test if no fault found'],
+                ['1', 'Export the temp and flow rate graphs — choose a folder to save them to '
+                      '(default: /home/hwc0419/projects/tcu-heat-loader/tcu_app/)'],
+                ['2', 'Shutdown RPi, turn off power supply to display and RPi, remove the SD card'],
+                ['3', 'Bring the SD card to Office Level 2, find the RPi there and insert the SD card'],
+                ['4', 'Turn on RPi, connect phone hotspot to RPi, open web browser and '
+                      'log in to your Cloud Drive (OneDrive or Google Drive)'],
+                ['5', 'Upload the graphs and raw data file from the RPi to your Cloud Drive'],
             ],
-            [2, 8]
-        ))
-
-        layout.addWidget(self._h2('CSV Log File'))
-        layout.addWidget(self._p(
-            'Log saved to: logs/TCU_test_<serial>_<YYYYMMDD_HHMMSS>.csv'))
-        layout.addWidget(self._table(
-            ['Column', 'Description'],
-            [
-                ['Timestamp', 'HH:MM:SS'],
-                ['Elapsed (min)', 'Minutes since test start'],
-                ['Setpoint (C)', 'TCU target temperature from SOLL command'],
-                ['Inlet Temp TCU (C)', 'Fluid inlet temp from M command'],
-                ['Flow (L/min)', 'Flow rate from D command'],
-                ['Voltage (V)', 'PZEM-004T measured voltage'],
-                ['Current (A)', 'PZEM-004T measured current'],
-                ['Power (W)', 'PZEM-004T true watts (handles phase angle SCR load)'],
-                ['Alarms', 'Parsed BS status byte alarm descriptions'],
-                ['Mode', 'MONITOR or TEST'],
-                ['Status', 'RUNNING / PASS / FAIL with reason'],
-            ],
-            [3, 7]
+            [1, 9]
         ))
 
         layout.addStretch()
         return self._scroll(w)
 
-    # ── Tab: TCU Haake Manual ────────────────────────────────────────────────
 
     def _build_manual_viewer(self):
         w = QWidget()
