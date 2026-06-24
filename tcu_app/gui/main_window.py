@@ -34,7 +34,7 @@ from heater    import Heater
 from test_logic   import parse_alarms
 
 from config import (
-    TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS
+    TCU_PORT, TCU_BAUD, LOG_DIR, WINDOWS, ABNORMAL_CONFIRM_SAMPLES
 )
 
 
@@ -86,6 +86,9 @@ class MainWindow(QMainWindow):
         self._auto_off_in_flight = False   # guards against _on_sample spawning
                                             # a new emergency_off() attempt every
                                             # second while one is still running
+        self._abnormal_streak    = 0       # consecutive abnormal samples; must
+                                            # reach ABNORMAL_CONFIRM_SAMPLES before
+                                            # heater emergency-off fires
         self._previous_tab_widget = None   # tracks the top-level tab the operator
                                             # was just on, so leaving Heater can be
                                             # detected in _on_top_tab_changed
@@ -417,23 +420,30 @@ class MainWindow(QMainWindow):
         self._stress_test_tab.update_sample(sample)
         self._seq_test_tab.update_sample(sample)
 
-        # Auto-off heater if BS != 0x400400 (TCU abnormal)
-        if sample.b1 is not None:
-            bs = (sample.b1 << 16) | ((sample.b2 or 0) << 8) | (sample.b3 or 0)
-            if bs != 0x400400:
-                self._heater_tab.emergency_off()
-                self._stress_test_tab.on_tcu_abnormal()
-                self._seq_test_tab.on_tcu_abnormal()
+        # Heater auto-off — only fire after ABNORMAL_CONFIRM_SAMPLES consecutive
+        # abnormal readings to avoid false triggers from startup noise or
+        # transient RS232 read errors. Uses sample.is_abnormal (computed in
+        # DAQ thread by test_logic.is_abnormal) — resets streak on any clean sample.
+        if sample.is_abnormal:
+            self._abnormal_streak += 1
+        else:
+            self._abnormal_streak = 0
 
-                if not self._auto_off_in_flight:
-                    self._auto_off_in_flight = True
+        if self._abnormal_streak >= ABNORMAL_CONFIRM_SAMPLES:
+            self._abnormal_streak = 0
+            self._heater_tab.emergency_off()
+            self._stress_test_tab.on_tcu_abnormal()
+            self._seq_test_tab.on_tcu_abnormal()
 
-                    def _on_auto_off_done(ok):
-                        self._auto_off_in_flight = False
-                        if not ok:
-                            print("MainWindow: heater auto-off on TCU abnormal failed")
+            if not self._auto_off_in_flight:
+                self._auto_off_in_flight = True
 
-                    self._run_async(self._heater.emergency_off, _on_auto_off_done)
+                def _on_auto_off_done(ok):
+                    self._auto_off_in_flight = False
+                    if not ok:
+                        print('MainWindow: heater auto-off on TCU abnormal failed')
+
+                self._run_async(self._heater.emergency_off, _on_auto_off_done)
 
     # ── TCU commands ──────────────────────────────────────────────────────────
     def _cmd_start(self):

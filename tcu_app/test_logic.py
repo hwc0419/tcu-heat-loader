@@ -143,11 +143,15 @@ def decode_status(b1, b2, b3, inlet_temp=None, flow=None, setpoint=None):
 
 def is_abnormal(b1, b2, b3, inlet_temp=None, setpoint=None, flow=None):
     """
-    Return True if TCU is in an abnormal state requiring heater auto-off.
+    Return True if TCU is in a confirmed abnormal state requiring heater auto-off.
     Normal running state: BS = 0x400400.
+    Returns False (not abnormal) when b1 is None — None means no reading yet
+    (TCU not connected or read failed), not a confirmed fault. Callers that
+    need to debounce transient failures should count consecutive True returns
+    before acting (see MainWindow._abnormal_streak).
     """
     if b1 is None:
-        return True
+        return False   # no reading — not a confirmed fault
     bs = (b1 << 16) | ((b2 or 0) << 8) | (b3 or 0)
     if bs != 0x400400:
         return True

@@ -23,7 +23,12 @@ TCU_STOPBITS = 1
 TCU_TIMEOUT  = 2
 
 # ── PZEM-004T (fixed protocol constants) ──────────────────────────────────────
-PZEM_SLAVE = 0xF8
+PZEM_SLAVE = 0x01   # PZEM-004T v3.0 factory default; 0xF8 is broadcast (unreliable for reads)
+
+# Number of consecutive abnormal BS readings required before firing
+# heater emergency-off and aborting tests. Guards against transient RS232
+# read errors and startup noise triggering a false emergency stop.
+ABNORMAL_CONFIRM_SAMPLES = 3
 
 import serial as _serial
 
